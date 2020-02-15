@@ -68,7 +68,7 @@ namespace Hazel {
 			++s_GLFWWindowCount;
 		}
 
-		m_Context = GraphicsContext::Create(m_Window);
+		m_Context = GraphicsContext::Create(this);
 		m_Context->Init();
 
 		glfwSetWindowUserPointer(m_Window, &m_Data);
@@ -190,11 +190,7 @@ namespace Hazel {
 	{
 		HZ_PROFILE_FUNCTION();
 
-		if (enabled)
-			glfwSwapInterval(1);
-		else
-			glfwSwapInterval(0);
-
+		m_Context->SetVSync(enabled);
 		m_Data.VSync = enabled;
 	}
 

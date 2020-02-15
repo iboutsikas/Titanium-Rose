@@ -13,6 +13,8 @@ namespace Hazel {
 
 		virtual void Init() override;
 		virtual void SwapBuffers() override;
+		virtual void SetVSync(bool enable) override;
+
 	private:
 		GLFWwindow* m_WindowHandle;
 	};
