@@ -4,128 +4,164 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include "glm/vec3.hpp"
+#include "glm/glm.hpp"
 
-ExampleLayer::ExampleLayer() 
-	: Layer("ExampleLayer"), m_CameraController(1280.0f / 720.0f)
+#include "Hazel/Core/Application.h"
+#include "Hazel/Renderer/Buffer.h"
+
+#include <d3d12.h>
+#include "Platform/D3D12/d3dx12.h"
+#include "Platform/D3D12/D3D12Buffer.h"
+#include "Platform/D3D12/D3D12Shader.h"
+
+
+ExampleLayer::ExampleLayer()
+	: Layer("ExampleLayer"),/* m_CameraController(1280.0f / 720.0f, false)*/ m_CameraController(glm::vec3(0.0f, 0.0f, 5.0f), 90.0f, (1280.0f / 720.0f), 0.1f, 100.0f)
 {
-	m_VertexArray = Hazel::VertexArray::Create();
+	m_Context = static_cast<Hazel::D3D12Context*>(Hazel::Application::Get().GetWindow().GetContext());
 
-	float vertices[3 * 7] = {
-		-0.5f, -0.5f, 0.0f, 0.8f, 0.2f, 0.8f, 1.0f,
-		 0.5f, -0.5f, 0.0f, 0.2f, 0.3f, 0.8f, 1.0f,
-		 0.0f,  0.5f, 0.0f, 0.8f, 0.8f, 0.2f, 1.0f
+	m_Context->DeviceResources->CommandAllocator->Reset();
+	m_Context->DeviceResources->CommandList->Reset(
+		m_Context->DeviceResources->CommandAllocator.Get(),
+		nullptr
+	);
+
+	Vertex verts[8] = {
+		{ glm::vec3(-1.0f, -1.0f, +1.0f), glm::vec4(0.0f, 1.0f, 0.0f, 1.0f) },  // 0
+		{ glm::vec3(-1.0f, +1.0f, +1.0f), glm::vec4(0.0f, 1.0f, 0.0f, 1.0f) },  // 1
+		{ glm::vec3(+1.0f, +1.0f, +1.0f), glm::vec4(0.0f, 1.0f, 0.0f, 1.0f) },  // 2
+		{ glm::vec3(+1.0f, -1.0f, +1.0f), glm::vec4(0.0f, 1.0f, 0.0f, 1.0f) },  // 3
+		{ glm::vec3(-1.0f, -1.0f, -1.0f), glm::vec4(0.0f, 0.0f, 1.0f, 1.0f) },  // 4
+		{ glm::vec3(-1.0f, +1.0f, -1.0f), glm::vec4(0.0f, 1.0f, 1.0f, 1.0f) },  // 5
+		{ glm::vec3(+1.0f, +1.0f, -1.0f), glm::vec4(1.0f, 1.0f, 1.0f, 1.0f) },  // 6
+		{ glm::vec3(+1.0f, -1.0f, -1.0f), glm::vec4(1.0f, 0.0f, 1.0f, 1.0f) }   // 7
 	};
 
-	Hazel::Ref<Hazel::VertexBuffer> vertexBuffer = Hazel::VertexBuffer::Create(vertices, sizeof(vertices));
-	Hazel::BufferLayout layout = {
-		{ Hazel::ShaderDataType::Float3, "a_Position" },
-		{ Hazel::ShaderDataType::Float4, "a_Color" }
+	//Vertex verts[8] = {
+	//		// First quad
+	//		{ {-0.5f,  0.5f, 0.5f}, { 1.0f, 0.0f, 1.0f, 1.0f } },
+	//		{ { 0.5f, -0.5f, 0.5f}, { 1.0f, 0.0f, 0.0f, 1.0f } },
+	//		{ {-0.5f, -0.5f, 0.5f}, { 0.0f, 1.0f, 0.0f, 1.0f } },
+	//		{ { 0.5f,  0.5f, 0.5f}, { 0.0f, 0.0f, 1.0f, 1.0f } },
+
+	//		// Second quad
+	//		{ {-0.75f, 0.75f, 0.3f}, { 1.0f, 0.0f, 0.0f, 1.0f } },
+	//		{ { 0.0f,  0.0f,  0.3f}, { 1.0f, 0.0f, 0.0f, 1.0f } },
+	//		{ {-0.75f, 0.0f,  0.3f}, { 1.0f, 0.0f, 0.0f, 1.0f } },
+	//		{ { 0.0f,  0.75f, 0.3f}, { 1.0f, 0.0f, 0.0f, 1.0f } }
+	//};
+
+
+	m_VertexBuffer = std::dynamic_pointer_cast<Hazel::D3D12VertexBuffer>(Hazel::VertexBuffer::Create((float*)verts, _countof(verts) * sizeof(Vertex)));
+
+	m_VertexBufferView.BufferLocation = m_VertexBuffer->GetResource()->GetGPUVirtualAddress();
+	m_VertexBufferView.SizeInBytes = _countof(verts) * sizeof(Vertex);
+	m_VertexBufferView.StrideInBytes = sizeof(Vertex);
+
+
+	uint32_t indices[36] = {
+		0, 1, 2, 0, 2, 3,
+		4, 6, 5, 4, 7, 6,
+		4, 5, 1, 4, 1, 0,
+		3, 2, 6, 3, 6, 7,
+		1, 5, 6, 1, 6, 2,
+		4, 0, 3, 4, 3, 7
 	};
-	vertexBuffer->SetLayout(layout);
-	m_VertexArray->AddVertexBuffer(vertexBuffer);
 
-	uint32_t indices[3] = { 0, 1, 2 };
-	Hazel::Ref<Hazel::IndexBuffer> indexBuffer = Hazel::IndexBuffer::Create(indices, sizeof(indices) / sizeof(uint32_t));
-	m_VertexArray->SetIndexBuffer(indexBuffer);
+	//uint32_t indices[12] = { 
+	//	0, 1, 2,
+	//	0, 3, 1,
+	//	4, 5, 6,
+	//	4, 7, 5
+	//};
 
-	m_SquareVA = Hazel::VertexArray::Create();
+	m_IndexBuffer = std::dynamic_pointer_cast<Hazel::D3D12IndexBuffer>(Hazel::IndexBuffer::Create(indices, _countof(indices)));
+	m_IndexBufferView.BufferLocation = m_IndexBuffer->GetResource()->GetGPUVirtualAddress();
+	m_IndexBufferView.Format = DXGI_FORMAT_R32_UINT;
+	m_IndexBufferView.SizeInBytes = sizeof(indices);
 
-	float squareVertices[5 * 4] = {
-		-0.5f, -0.5f, 0.0f, 0.0f, 0.0f,
-		 0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
-		 0.5f,  0.5f, 0.0f, 1.0f, 1.0f,
-		-0.5f,  0.5f, 0.0f, 0.0f, 1.0f
+
+	Hazel::D3D12::ThrowIfFailed(m_Context->DeviceResources->CommandList->Close());
+
+	ID3D12CommandList* const commandLists[] = {
+		m_Context->DeviceResources->CommandList.Get()
+	};
+	m_Context->DeviceResources->CommandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
+
+	m_Context->Flush();
+
+	m_Shader = Hazel::CreateRef<Hazel::D3D12Shader>("assets/shaders/BasicShader.hlsl");
+
+	// We need to get this from the VertexBuffer in generic way
+	D3D12_INPUT_ELEMENT_DESC inputLayout[] = {
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, sizeof(Vertex::Position), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 	};
 
-	Hazel::Ref<Hazel::VertexBuffer> squareVB = Hazel::VertexBuffer::Create(squareVertices, sizeof(squareVertices));
-	squareVB->SetLayout({
-		{ Hazel::ShaderDataType::Float3, "a_Position" },
-		{ Hazel::ShaderDataType::Float2, "a_TexCoord" }
-		});
-	m_SquareVA->AddVertexBuffer(squareVB);
+	// We need an abstract version of this too. Should probably be tied to some kind of render pass or something
+	D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
+	featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
+	if (FAILED(m_Context->DeviceResources->Device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData))))
+	{
+		featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
+	}
 
-	uint32_t squareIndices[6] = { 0, 1, 2, 2, 3, 0 };
-	Hazel::Ref<Hazel::IndexBuffer> squareIB = Hazel::IndexBuffer::Create(squareIndices, sizeof(squareIndices) / sizeof(uint32_t));
-	m_SquareVA->SetIndexBuffer(squareIB);
+	// Allow input layout and deny unnecessary access to certain pipeline stages.
+	D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
+		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
 
-	std::string vertexSrc = R"(
-			#version 330 core
-			
-			layout(location = 0) in vec3 a_Position;
-			layout(location = 1) in vec4 a_Color;
+	// A single 32-bit constant root parameter that is used by the vertex shader.
+	CD3DX12_ROOT_PARAMETER1 rootParameters[1];
+	rootParameters[0].InitAsConstants(sizeof(glm::mat4) / 4, 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
 
-			uniform mat4 u_ViewProjection;
-			uniform mat4 u_Transform;
+	CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDescription;
+	rootSignatureDescription.Init_1_1(_countof(rootParameters), rootParameters, 0, nullptr, rootSignatureFlags);
 
-			out vec3 v_Position;
-			out vec4 v_Color;
+	// Serialize the root signature.
+	Hazel::TComPtr<ID3DBlob> rootSignatureBlob;
+	Hazel::TComPtr<ID3DBlob> errorBlob;
+	Hazel::D3D12::ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&rootSignatureDescription,
+		featureData.HighestVersion, &rootSignatureBlob, &errorBlob));
+	// Create the root signature.
+	Hazel::D3D12::ThrowIfFailed(m_Context->DeviceResources->Device->CreateRootSignature(0, rootSignatureBlob->GetBufferPointer(),
+		rootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&m_RootSignature)));
 
-			void main()
-			{
-				v_Position = a_Position;
-				v_Color = a_Color;
-				gl_Position = u_ViewProjection * u_Transform * vec4(a_Position, 1.0);	
-			}
-		)";
+	D3D12_RT_FORMAT_ARRAY rtvFormats = {};
+	rtvFormats.NumRenderTargets = 1;
+	rtvFormats.RTFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 
-	std::string fragmentSrc = R"(
-			#version 330 core
-			
-			layout(location = 0) out vec4 color;
+	struct PipelineStateStream
+	{
+		CD3DX12_PIPELINE_STATE_STREAM_ROOT_SIGNATURE pRootSignature;
+		CD3DX12_PIPELINE_STATE_STREAM_INPUT_LAYOUT InputLayout;
+		CD3DX12_PIPELINE_STATE_STREAM_PRIMITIVE_TOPOLOGY PrimitiveTopologyType;
+		CD3DX12_PIPELINE_STATE_STREAM_VS VS;
+		CD3DX12_PIPELINE_STATE_STREAM_PS PS;
+		CD3DX12_PIPELINE_STATE_STREAM_DEPTH_STENCIL_FORMAT DSVFormat;
+		CD3DX12_PIPELINE_STATE_STREAM_RENDER_TARGET_FORMATS RTVFormats;
+	} pipelineStateStream;
 
-			in vec3 v_Position;
-			in vec4 v_Color;
+	pipelineStateStream.pRootSignature = m_RootSignature.Get();
+	pipelineStateStream.InputLayout = { inputLayout, _countof(inputLayout) };
+	pipelineStateStream.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	pipelineStateStream.VS = CD3DX12_SHADER_BYTECODE(m_Shader->GetVertexBlob().Get());
+	pipelineStateStream.PS = CD3DX12_SHADER_BYTECODE(m_Shader->GetFragmentBlob().Get());
+	pipelineStateStream.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	pipelineStateStream.RTVFormats = rtvFormats;
 
-			void main()
-			{
-				color = vec4(v_Position * 0.5 + 0.5, 1.0);
-				color = v_Color;
-			}
-		)";
+	D3D12_PIPELINE_STATE_STREAM_DESC pipelineStateStreamDesc = {
+	sizeof(PipelineStateStream), &pipelineStateStream
+	};
 
-	m_Shader = Hazel::Shader::Create("VertexPosColor", vertexSrc, fragmentSrc);
+	Hazel::D3D12::ThrowIfFailed(
+		m_Context->DeviceResources->Device->CreatePipelineState(&pipelineStateStreamDesc, IID_PPV_ARGS(&m_PipelineState))
+	);
 
-	std::string flatColorShaderVertexSrc = R"(
-			#version 330 core
-			
-			layout(location = 0) in vec3 a_Position;
-
-			uniform mat4 u_ViewProjection;
-			uniform mat4 u_Transform;
-
-			out vec3 v_Position;
-
-			void main()
-			{
-				v_Position = a_Position;
-				gl_Position = u_ViewProjection * u_Transform * vec4(a_Position, 1.0);	
-			}
-		)";
-
-	std::string flatColorShaderFragmentSrc = R"(
-			#version 330 core
-			
-			layout(location = 0) out vec4 color;
-
-			in vec3 v_Position;
-			
-			uniform vec3 u_Color;
-
-			void main()
-			{
-				color = vec4(u_Color, 1.0);
-			}
-		)";
-
-	m_FlatColorShader = Hazel::Shader::Create("FlatColor", flatColorShaderVertexSrc, flatColorShaderFragmentSrc);
-
-	auto textureShader = m_ShaderLibrary.Load("assets/shaders/Texture.glsl");
-
-	m_Texture = Hazel::Texture2D::Create("assets/textures/Checkerboard.png");
-	m_ChernoLogoTexture = Hazel::Texture2D::Create("assets/textures/ChernoLogo.png");
-
-	textureShader->Bind();
-	textureShader->SetInt("u_Texture", 0);
 }
 
 void ExampleLayer::OnAttach()
@@ -138,48 +174,50 @@ void ExampleLayer::OnDetach()
 
 void ExampleLayer::OnUpdate(Hazel::Timestep ts) 
 {
-	// Update
 	m_CameraController.OnUpdate(ts);
 
-	// Render
-	Hazel::RenderCommand::SetClearColor({ 0.1f, 0.1f, 0.1f, 1 });
+	float angle = ts * 90.0f;
+	glm::vec3 rotationAxis = glm::vec3(0.0f, 1.0f, 0.0f);
+	static glm::mat4 rotMatrix = glm::mat4(1.0f);
+	rotMatrix = glm::rotate(rotMatrix, glm::radians(angle), rotationAxis);
+	m_ModelMatrix = glm::translate(glm::mat4(1.0f), { m_Pos[0], m_Pos[1] , m_Pos[2] }) * rotMatrix;
+	
+	auto cmdList = m_Context->DeviceResources->CommandList;
+	cmdList->SetPipelineState(m_PipelineState.Get());
+	cmdList->SetGraphicsRootSignature(m_RootSignature.Get());
+
+	// Clear
+	Hazel::RenderCommand::SetClearColor({ 0.1f, 0.1f, 0.1f, 1.0f });
 	Hazel::RenderCommand::Clear();
 
-	Hazel::Renderer::BeginScene(m_CameraController.GetCamera());
+	//Hazel::Renderer::BeginScene(m_CameraController.GetCamera());	
 
-	glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(0.1f));
+	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	cmdList->IASetVertexBuffers(0, 1, &m_VertexBufferView);
+	cmdList->IASetIndexBuffer(&m_IndexBufferView);
 
-	m_FlatColorShader->Bind();
-	m_FlatColorShader->SetFloat3("u_Color", m_SquareColor);
+	auto vp = m_CameraController.GetCamera().GetViewProjectionMatrix();
 
-	for (int y = 0; y < 20; y++)
-	{
-		for (int x = 0; x < 20; x++)
-		{
-			glm::vec3 pos(x * 0.11f, y * 0.11f, 0.0f);
-			glm::mat4 transform = glm::translate(glm::mat4(1.0f), pos) * scale;
-			Hazel::Renderer::Submit(m_FlatColorShader, m_SquareVA, transform);
-		}
-	}
+	auto mvp = vp * m_ModelMatrix;
 
-	auto textureShader = m_ShaderLibrary.Get("Texture");
+	cmdList->SetGraphicsRoot32BitConstants(0, sizeof(glm::mat4) / 4, glm::value_ptr(mvp), 0);
 
-	m_Texture->Bind();
-	Hazel::Renderer::Submit(textureShader, m_SquareVA, glm::scale(glm::mat4(1.0f), glm::vec3(1.5f)));
-	m_ChernoLogoTexture->Bind();
-	Hazel::Renderer::Submit(textureShader, m_SquareVA, glm::scale(glm::mat4(1.0f), glm::vec3(1.5f)));
-
-	// Triangle
-	// Hazel::Renderer::Submit(m_Shader, m_VertexArray);
+	cmdList->DrawIndexedInstanced(m_IndexBuffer->GetCount(), 1, 0, 0, 0);
+	//cmdList->DrawIndexedInstanced(m_IndexBuffer->GetCount(), 1, 0, 4, 0);
+	//cmdList->DrawInstanced(3, 1, 0, 0);
 
 	Hazel::Renderer::EndScene();
 }
 
 void ExampleLayer::OnImGuiRender() 
 {
-	ImGui::Begin("Settings");
-	ImGui::ColorEdit3("Square Color", glm::value_ptr(m_SquareColor));
-	ImGui::End();
+	if (show_another_window)
+	{
+		ImGui::Begin("Controls", &show_another_window);
+		ImGui::DragFloat3("Position", m_Pos, 0.05f);
+
+		ImGui::End();
+	}
 }
 
 void ExampleLayer::OnEvent(Hazel::Event& e) 

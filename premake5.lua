@@ -56,7 +56,8 @@ project "Hazel"
 
 	defines
 	{
-		"_CRT_SECURE_NO_WARNINGS"
+		"_CRT_SECURE_NO_WARNINGS",
+		"GLM_FORCE_DEPTH_ZERO_TO_ONE"
 	}
 
 	includedirs
@@ -76,7 +77,7 @@ project "Hazel"
 		"Glad",
 		"ImGui",
 		"opengl32.lib",
-		"d3dcompiler",
+		"D3DCompiler.lib",
 		"dxguid",
 		"d3d12",
 		"dxgi"
@@ -130,9 +131,18 @@ project "Sandbox"
 		"%{IncludeDir.glm}"
 	}
 
+	defines
+	{
+		"GLM_FORCE_DEPTH_ZERO_TO_ONE"
+	}
+
 	links
 	{
-		"Hazel"
+		"Hazel",
+		"D3DCompiler.lib",
+		"dxguid",
+		"d3d12",
+		"dxgi"
 	}
 
 	filter "system:windows"

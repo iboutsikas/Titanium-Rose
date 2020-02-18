@@ -14,12 +14,11 @@ namespace Hazel {
 		ImGuiLayer();
 		~ImGuiLayer() = default;
 
-		virtual void OnAttach() override;
-		virtual void OnDetach() override;
+		virtual void Begin() = 0;
+		virtual void End() = 0;
 
-		void Begin();
-		void End();
-	private:
+		static ImGuiLayer* Create();
+	protected:
 		float m_Time = 0.0f;
 	};
 

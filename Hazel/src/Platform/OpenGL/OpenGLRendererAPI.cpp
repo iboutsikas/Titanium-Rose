@@ -1,4 +1,5 @@
 #include "hzpch.h"
+#include "Hazel/Core/Application.h"
 #include "Platform/OpenGL/OpenGLRendererAPI.h"
 
 #include <glad/glad.h>
@@ -29,6 +30,7 @@ namespace Hazel {
 	{
 		HZ_PROFILE_FUNCTION();
 
+		Context = static_cast<OpenGLContext*>(Application::Get().GetWindow().GetContext());
 	#ifdef HZ_DEBUG
 		glEnable(GL_DEBUG_OUTPUT);
 		glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
@@ -56,6 +58,11 @@ namespace Hazel {
 	void OpenGLRendererAPI::Clear()
 	{
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	}
+
+	void OpenGLRendererAPI::EndFrame()
+	{
+		Context->SwapBuffers();
 	}
 
 	void OpenGLRendererAPI::DrawIndexed(const Ref<VertexArray>& vertexArray)

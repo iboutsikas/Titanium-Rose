@@ -6,7 +6,7 @@
 #include "Hazel/Events/Event.h"
 
 namespace Hazel {
-
+	class GraphicsContext;
 	struct WindowProps
 	{
 		std::string Title;
@@ -40,7 +40,7 @@ namespace Hazel {
 		virtual bool IsVSync() const = 0;
 
 		virtual void* GetNativeWindow() const = 0;
-
+		virtual GraphicsContext* GetContext() const = 0;
 		static Scope<Window> Create(const WindowProps& props = WindowProps());
 	};
 

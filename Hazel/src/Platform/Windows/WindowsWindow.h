@@ -20,6 +20,7 @@ namespace Hazel {
 
 		// Window attributes
 		inline void SetEventCallback(const EventCallbackFn& callback) override { m_Data.EventCallback = callback; }
+		virtual GraphicsContext* GetContext() const override { return m_Context.get(); }
 		void SetVSync(bool enabled) override;
 		bool IsVSync() const override;
 

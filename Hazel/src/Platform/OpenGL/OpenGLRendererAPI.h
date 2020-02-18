@@ -2,6 +2,8 @@
 
 #include "Hazel/Renderer/RendererAPI.h"
 
+#include "Platform/OpenGL/OpenGLContext.h"
+
 namespace Hazel {
 
 	class OpenGLRendererAPI : public RendererAPI
@@ -13,7 +15,11 @@ namespace Hazel {
 		virtual void SetClearColor(const glm::vec4& color) override;
 		virtual void Clear() override;
 
+		virtual void EndFrame() override;
+
 		virtual void DrawIndexed(const Ref<VertexArray>& vertexArray) override;
+	private:
+		OpenGLContext* Context;
 	};
 
 

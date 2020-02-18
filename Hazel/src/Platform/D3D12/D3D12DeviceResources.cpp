@@ -23,7 +23,7 @@ namespace Hazel {
 #endif
     }
     
-    TComPtr<IDXGIAdapter4> D3D12DeviceResources::GetAdapter(bool useWarp)
+    TComPtr<IDXGIAdapter4> D3D12DeviceResources::GetAdapter(bool useWarp, D3D12::VendorID preferedVendor)
     {
         TComPtr<IDXGIFactory4> dxgiFactory;
         UINT factoryFlags = 0;
@@ -55,7 +55,7 @@ namespace Hazel {
                 dxgiAdapter1->GetDesc1(&dxgiAdapterDesc1);
 
                 if ((dxgiAdapterDesc1.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) == 0
-                    && dxgiAdapterDesc1.VendorId != (UINT)D3D12::VendorID::INTEL)
+                    && dxgiAdapterDesc1.VendorId == (UINT)preferedVendor)
                 {
                     D3D12::ThrowIfFailed(D3D12CreateDevice(dxgiAdapter1.Get(), D3D_FEATURE_LEVEL_11_0, __uuidof(ID3D12Device), nullptr));
                     //maxDedicatedVideoMemory = dxgiAdapterDesc1.DedicatedVideoMemory;

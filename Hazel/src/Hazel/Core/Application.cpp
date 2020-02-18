@@ -10,7 +10,7 @@
 #include <glfw/glfw3.h>
 
 
-#define USE_IMGUI 0
+#define USE_IMGUI 1
 
 namespace Hazel {
 
@@ -25,9 +25,9 @@ namespace Hazel {
 		m_Window = Window::Create();
 		m_Window->SetEventCallback(HZ_BIND_EVENT_FN(Application::OnEvent));
 
-		//Renderer::Init();
+		Renderer::Init();
 #if USE_IMGUI
-		m_ImGuiLayer = new ImGuiLayer();
+		m_ImGuiLayer = ImGuiLayer::Create();
 		PushOverlay(m_ImGuiLayer);
 #endif
 	}
@@ -85,6 +85,7 @@ namespace Hazel {
 
 			if (!m_Minimized)
 			{
+				RenderCommand::BeginFrame();
 				{
 					HZ_PROFILE_SCOPE("LayerStack OnUpdate");
 
@@ -102,7 +103,7 @@ namespace Hazel {
 				m_ImGuiLayer->End();
 #endif
 			}
-
+			RenderCommand::EndFrame();
 			m_Window->OnUpdate();
 		}
 	}
