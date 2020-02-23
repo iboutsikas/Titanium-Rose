@@ -38,6 +38,7 @@ public:
 	void OnEvent(Hazel::Event& e) override;
 private:
 	Hazel::PerspectiveCameraController m_CameraController;
+	//Hazel::OrthographicCameraController m_CameraController;
 	Hazel::D3D12Context* m_Context;
 	glm::mat4 m_ModelMatrix;
 	bool show_another_window;
@@ -48,6 +49,10 @@ private:
 	Hazel::Ref<Hazel::D3D12Shader> m_Shader;
 	Hazel::TComPtr<ID3D12RootSignature> m_RootSignature;
 	Hazel::TComPtr<ID3D12PipelineState> m_PipelineState;
+	
+	Hazel::TComPtr<ID3D12Resource> m_Texture;
+	Hazel::TComPtr<ID3D12DescriptorHeap> m_RTVHeap;
+	Hazel::TComPtr<ID3D12DescriptorHeap> m_SRVHeap;
 
 	float m_Pos[3] = { 0.0f, 0.0f, -2.5f };
 };

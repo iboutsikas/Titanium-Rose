@@ -17,7 +17,7 @@
 
 
 ExampleLayer::ExampleLayer()
-	: Layer("ExampleLayer"),/* m_CameraController(1280.0f / 720.0f, false)*/ m_CameraController(glm::vec3(0.0f, 0.0f, 5.0f), 90.0f, (1280.0f / 720.0f), 0.1f, 100.0f)
+	: Layer("ExampleLayer"), /*m_CameraController(1280.0f / 720.0f, false)*/ m_CameraController(glm::vec3(0.0f, 0.0f, 5.0f), 90.0f, (1280.0f / 720.0f), 0.1f, 100.0f)
 {
 	m_Context = static_cast<Hazel::D3D12Context*>(Hazel::Application::Get().GetWindow().GetContext());
 
@@ -132,8 +132,9 @@ ExampleLayer::ExampleLayer()
 		rootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&m_RootSignature)));
 
 	D3D12_RT_FORMAT_ARRAY rtvFormats = {};
-	rtvFormats.NumRenderTargets = 1;
+	rtvFormats.NumRenderTargets = 2;
 	rtvFormats.RTFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	rtvFormats.RTFormats[1] = DXGI_FORMAT_R8G8B8A8_UNORM;
 
 	struct PipelineStateStream
 	{
@@ -155,13 +156,54 @@ ExampleLayer::ExampleLayer()
 	pipelineStateStream.RTVFormats = rtvFormats;
 
 	D3D12_PIPELINE_STATE_STREAM_DESC pipelineStateStreamDesc = {
-	sizeof(PipelineStateStream), &pipelineStateStream
+		sizeof(PipelineStateStream), &pipelineStateStream
 	};
 
 	Hazel::D3D12::ThrowIfFailed(
 		m_Context->DeviceResources->Device->CreatePipelineState(&pipelineStateStreamDesc, IID_PPV_ARGS(&m_PipelineState))
 	);
 
+	// Target Texture
+	{
+		auto width = Hazel::Application::Get().GetWindow().GetWidth();
+		auto height = Hazel::Application::Get().GetWindow().GetHeight();
+
+		m_SRVHeap = m_Context->DeviceResources->CreateDescriptorHeap(
+			m_Context->DeviceResources->Device.Get(),
+			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+			1,
+			D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
+		);
+
+		m_RTVHeap = m_Context->DeviceResources->CreateDescriptorHeap(
+			m_Context->DeviceResources->Device.Get(),
+			D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
+			1
+		);
+
+		D3D12_RESOURCE_DESC textureDesc = {};
+		textureDesc.MipLevels = 1;
+		textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		textureDesc.Width = width;
+		textureDesc.Height = height;
+		textureDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+		textureDesc.DepthOrArraySize = 1;
+		textureDesc.SampleDesc.Count = 1;
+		textureDesc.SampleDesc.Quality = 0;
+		textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+		
+		Hazel::D3D12::ThrowIfFailed(m_Context->DeviceResources->Device->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+			D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES,
+			&textureDesc,
+			D3D12_RESOURCE_STATE_RENDER_TARGET,
+			nullptr,
+			IID_PPV_ARGS(&m_Texture)));
+	
+		m_Context->DeviceResources->Device->CreateRenderTargetView(m_Texture.Get(), nullptr, m_RTVHeap->GetCPUDescriptorHandleForHeapStart());
+
+		m_Context->DeviceResources->Device->CreateShaderResourceView(m_Texture.Get(), nullptr, m_SRVHeap->GetCPUDescriptorHandleForHeapStart());
+	}
 }
 
 void ExampleLayer::OnAttach()
@@ -176,6 +218,7 @@ void ExampleLayer::OnUpdate(Hazel::Timestep ts)
 {
 	m_CameraController.OnUpdate(ts);
 
+	// renderPass->Begin();
 	float angle = ts * 90.0f;
 	glm::vec3 rotationAxis = glm::vec3(0.0f, 1.0f, 0.0f);
 	static glm::mat4 rotMatrix = glm::mat4(1.0f);
@@ -192,6 +235,17 @@ void ExampleLayer::OnUpdate(Hazel::Timestep ts)
 
 	//Hazel::Renderer::BeginScene(m_CameraController.GetCamera());	
 
+	glm::vec4 color = { 0.1f, 0.1f, 0.1f, 1.0f };
+
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvs[] = {
+		m_Context->CurrentBackBufferView(),
+		m_RTVHeap->GetCPUDescriptorHandleForHeapStart()
+	};
+	cmdList->OMSetRenderTargets(_countof(rtvs), rtvs, false, &m_Context->DepthStencilView()); 
+	m_Context
+		->DeviceResources
+		->CommandList
+		->ClearRenderTargetView(m_RTVHeap->GetCPUDescriptorHandleForHeapStart(), glm::value_ptr(color), 0, nullptr);
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	cmdList->IASetVertexBuffers(0, 1, &m_VertexBufferView);
 	cmdList->IASetIndexBuffer(&m_IndexBufferView);
@@ -203,9 +257,16 @@ void ExampleLayer::OnUpdate(Hazel::Timestep ts)
 	cmdList->SetGraphicsRoot32BitConstants(0, sizeof(glm::mat4) / 4, glm::value_ptr(mvp), 0);
 
 	cmdList->DrawIndexedInstanced(m_IndexBuffer->GetCount(), 1, 0, 0, 0);
+	
+
 	//cmdList->DrawIndexedInstanced(m_IndexBuffer->GetCount(), 1, 0, 4, 0);
 	//cmdList->DrawInstanced(3, 1, 0, 0);
-
+	//Hazel::RenderCommand::Clear();
+	//cmdList->OMSetRenderTargets(1, &m_Context->CurrentBackBufferView(), true, &m_Context->DepthStencilView());
+	//cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	//cmdList->IASetVertexBuffers(0, 1, &m_VertexBufferView);
+	//cmdList->IASetIndexBuffer(&m_IndexBufferView);
+	//cmdList->DrawIndexedInstanced(m_IndexBuffer->GetCount(), 1, 0, 0, 0);
 	Hazel::Renderer::EndScene();
 }
 
