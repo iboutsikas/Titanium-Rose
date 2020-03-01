@@ -18,9 +18,15 @@
 struct Vertex {
 	glm::vec3 Position;
 	glm::vec4 Color;
+	glm::vec3 Normal;
+	glm::vec2 UV;
 
-	Vertex(glm::vec3 position, glm::vec4 color)
-		: Position(position), Color(color)
+	Vertex(glm::vec3 position, glm::vec4 color, glm::vec3 normal, glm::vec2 uv)
+		: Position(position), Color(color), Normal(normal), UV(uv)
+	{ }
+
+	Vertex(glm::vec3 position)
+		: Position(position), Color({ 1.0f, 1.0f, 1.0f, 1.0f }), Normal({ 1.0f, 1.0f, 1.0f }), UV({1.0f, 1.0f})
 	{ }
 };
 
@@ -42,18 +48,36 @@ private:
 	Hazel::D3D12Context* m_Context;
 	glm::mat4 m_ModelMatrix;
 	bool show_another_window;
+	glm::vec4 m_ClearColor;
+	glm::vec3 m_Pos;
+	int m_UpdateRate;
+	int m_RenderedFrames;
+	std::vector<Vertex> m_Vertices;
+	std::vector<uint32_t> m_Indices;
+
+	// Common State
 	Hazel::Ref<Hazel::D3D12VertexBuffer> m_VertexBuffer;
 	D3D12_VERTEX_BUFFER_VIEW m_VertexBufferView;
 	Hazel::Ref<Hazel::D3D12IndexBuffer> m_IndexBuffer;
 	D3D12_INDEX_BUFFER_VIEW m_IndexBufferView;
-	Hazel::Ref<Hazel::D3D12Shader> m_Shader;
+
+	// Scene State
 	Hazel::TComPtr<ID3D12RootSignature> m_RootSignature;
 	Hazel::TComPtr<ID3D12PipelineState> m_PipelineState;
-	
-	Hazel::TComPtr<ID3D12Resource> m_Texture;
-	Hazel::TComPtr<ID3D12DescriptorHeap> m_RTVHeap;
-	Hazel::TComPtr<ID3D12DescriptorHeap> m_SRVHeap;
+	Hazel::Ref<Hazel::D3D12Shader> m_Shader;
 
-	float m_Pos[3] = { 0.0f, 0.0f, -2.5f };
+	// Texture State
+	Hazel::TComPtr<ID3D12RootSignature> m_TextureRootSignature;
+	Hazel::TComPtr<ID3D12PipelineState> m_TexturePipelineState;
+	Hazel::Ref<Hazel::D3D12Shader> m_TextureShader;
+	Hazel::TComPtr<ID3D12Resource> m_Texture;
+	CD3DX12_GPU_DESCRIPTOR_HANDLE m_TextureGPUHandle;
+	Hazel::TComPtr<ID3D12DescriptorHeap> m_RTVHeap;
+
+
+
+	void BuildPipeline();
+	void BuildTexturePipeline();
+	void LoadTestCube();
 };
 

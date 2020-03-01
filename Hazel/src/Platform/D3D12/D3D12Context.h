@@ -31,6 +31,8 @@ namespace Hazel{
 		Scope<D3D12DeviceResources> DeviceResources;
 		std::vector<Scope<D3D12FrameResource>> FrameResources;
 		inline HWND GetNativeHandle() { return m_NativeHandle; }
+		inline UINT GetRTVDescriptorSize() { return m_RTVDescriptorSize; }
+		inline UINT GetSRVDescriptorSize() { return m_SRVDescriptorSize; }
 	private:
 		Window* m_Window;
 		HWND m_NativeHandle;
@@ -38,10 +40,11 @@ namespace Hazel{
 		bool m_VSyncEnabled;
 		UINT m_CurrentBackbufferIndex;
 		UINT m_RTVDescriptorSize;
+		UINT m_SRVDescriptorSize;
 		D3D12_VIEWPORT m_Viewport;
 		D3D12_RECT	m_ScissorRect;
 		uint64_t    m_FenceValue = 0;
-
+		
 		void PerformInitializationTransitions();
 		void NextFrameResource();
 		void BuildFrameResources();

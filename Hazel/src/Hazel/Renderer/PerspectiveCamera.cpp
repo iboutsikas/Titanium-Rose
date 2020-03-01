@@ -40,7 +40,6 @@ namespace Hazel {
 		front.z = sin(glm::radians(m_Yaw)) * cos(glm::radians(m_Pitch));
 
 		m_Forward = glm::normalize(front);
-
 		m_Right = glm::normalize(glm::cross(m_Forward, glm::vec3(0.0f, 1.0f, 0.0f)));
 		m_Up = glm::normalize(glm::cross(m_Right, m_Forward));
 	}

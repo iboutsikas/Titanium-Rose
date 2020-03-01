@@ -143,10 +143,12 @@ namespace Hazel {
 		DeviceResources->SRVDescriptorHeap = DeviceResources->CreateDescriptorHeap(
 			DeviceResources->Device,
 			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-			1,
+			2,
 			D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
 		);
 		NAME_D3D12_OBJECT(DeviceResources->SRVDescriptorHeap);
+
+		m_SRVDescriptorSize = DeviceResources->Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 		DeviceResources->DSVDescriptorHeap = DeviceResources->CreateDescriptorHeap(
 			DeviceResources->Device,

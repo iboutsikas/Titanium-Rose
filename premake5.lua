@@ -23,6 +23,7 @@ IncludeDir["Glad"] = "Hazel/vendor/Glad/include"
 IncludeDir["ImGui"] = "Hazel/vendor/imgui"
 IncludeDir["glm"] = "Hazel/vendor/glm"
 IncludeDir["stb_image"] = "Hazel/vendor/stb_image"
+IncludeDir["tinygltf"] = "Hazel/vendor/tinygltf"
 
 group "Dependencies"
 	include "Hazel/vendor/GLFW"
@@ -52,6 +53,10 @@ project "Hazel"
 		"%{prj.name}/vendor/stb_image/**.cpp",
 		"%{prj.name}/vendor/glm/glm/**.hpp",
 		"%{prj.name}/vendor/glm/glm/**.inl",
+		"%{prj.name}/vendor/tinygltf/tiny_gltf.h",
+		"%{prj.name}/vendor/tinygltf/stb_image_write.h",
+		"%{prj.name}/vendor/tinygltf/json.hpp",
+		"%{prj.name}/vendor/tinygltf/tiny_gltf.cpp",
 	}
 
 	defines
@@ -68,7 +73,8 @@ project "Hazel"
 		"%{IncludeDir.Glad}",
 		"%{IncludeDir.ImGui}",
 		"%{IncludeDir.glm}",
-		"%{IncludeDir.stb_image}"
+		"%{IncludeDir.stb_image}",
+		"%{IncludeDir.tinygltf}"
 	}
 
 	links 
@@ -128,7 +134,8 @@ project "Sandbox"
 		"Hazel/vendor/spdlog/include",
 		"Hazel/src",
 		"Hazel/vendor",
-		"%{IncludeDir.glm}"
+		"%{IncludeDir.glm}",
+		"%{IncludeDir.tinygltf}"
 	}
 
 	defines
