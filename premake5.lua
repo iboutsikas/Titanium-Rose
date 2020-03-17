@@ -23,7 +23,8 @@ IncludeDir["Glad"] = "Hazel/vendor/Glad/include"
 IncludeDir["ImGui"] = "Hazel/vendor/imgui"
 IncludeDir["glm"] = "Hazel/vendor/glm"
 IncludeDir["stb_image"] = "Hazel/vendor/stb_image"
-IncludeDir["tinygltf"] = "Hazel/vendor/tinygltf"
+-- IncludeDir["tinygltf"] = "Hazel/vendor/tinygltf"
+IncludeDir["tinyobjloader"] = "Hazel/vendor/tinyobjloader"
 
 group "Dependencies"
 	include "Hazel/vendor/GLFW"
@@ -53,10 +54,12 @@ project "Hazel"
 		"%{prj.name}/vendor/stb_image/**.cpp",
 		"%{prj.name}/vendor/glm/glm/**.hpp",
 		"%{prj.name}/vendor/glm/glm/**.inl",
-		"%{prj.name}/vendor/tinygltf/tiny_gltf.h",
-		"%{prj.name}/vendor/tinygltf/stb_image_write.h",
-		"%{prj.name}/vendor/tinygltf/json.hpp",
-		"%{prj.name}/vendor/tinygltf/tiny_gltf.cpp",
+		"%{prj.name}/vendor/tinyobjloader/tiny_obj_loader.h",
+		"%{prj.name}/vendor/tinyobjloader/tiny_obj_loader.cc",
+		-- "%{prj.name}/vendor/tinygltf/tiny_gltf.h",
+		-- "%{prj.name}/vendor/tinygltf/stb_image_write.h",
+		-- "%{prj.name}/vendor/tinygltf/json.hpp",
+		-- "%{prj.name}/vendor/tinygltf/tiny_gltf.cpp",
 	}
 
 	defines
@@ -74,7 +77,7 @@ project "Hazel"
 		"%{IncludeDir.ImGui}",
 		"%{IncludeDir.glm}",
 		"%{IncludeDir.stb_image}",
-		"%{IncludeDir.tinygltf}"
+		"%{IncludeDir.tinyobjloader}"
 	}
 
 	links 
@@ -135,7 +138,7 @@ project "Sandbox"
 		"Hazel/src",
 		"Hazel/vendor",
 		"%{IncludeDir.glm}",
-		"%{IncludeDir.tinygltf}"
+		"%{IncludeDir.tinyobjloader}"
 	}
 
 	defines

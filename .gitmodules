@@ -14,6 +14,6 @@
 	path = Hazel/vendor/imgui
 	url = https://github.com/Zinadore/imgui
 	branch = docking
-[submodule "Hazel/vendor/tinygltf"]
-	path = Hazel/vendor/tinygltf
-	url = git@github.com:syoyo/tinygltf.git
+[submodule "Hazel/vendor/tinyobjloader"]
+	path = Hazel/vendor/tinyobjloader
+	url = git@github.com:tinyobjloader/tinyobjloader.git

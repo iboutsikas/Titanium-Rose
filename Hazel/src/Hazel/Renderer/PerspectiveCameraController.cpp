@@ -4,11 +4,14 @@
 #include "Hazel/Core/Input.h"
 #include "Hazel/Core/KeyCodes.h"
 
+#include "glm/gtc/quaternion.hpp"
+
 namespace Hazel {
 
 	PerspectiveCameraController::PerspectiveCameraController(glm::vec3& position, float fov, float aspectRatio, float zNear, float zFar)
 		: m_AspectRatio(aspectRatio), m_Fov(fov), m_zNear(zNear), m_zFar(zFar), m_Camera(position, fov, aspectRatio, zNear, zFar)
 	{
+		m_CameraQuat = m_Camera.GetRotation(); //glm::quat(0.0f, 0.0f, 0.0f, 1.0f);
 	}
 
 	void PerspectiveCameraController::OnUpdate(Timestep ts)
@@ -44,6 +47,29 @@ namespace Hazel {
 		
 
 		m_Camera.SetPosition(m_CameraPosition);
+
+		if (Input::IsMouseButtonPressed(HZ_MOUSE_BUTTON_1)) {
+			//HZ_CORE_INFO("Mouse button 1");
+			auto [x, y] = Input::GetMousePosition();
+
+			float deltaX = x - m_LastMouseX;
+			float deltaY = y - m_LastMouseY;
+			//HZ_CORE_INFO("Mouse X: {}", x);
+
+			float yaw =  deltaX * m_CameraRotationSpeed * ts;
+			float pitch = deltaY* m_CameraRotationSpeed* ts;
+			float roll = 0.0f; // maybe implement this in the future?
+			m_LastMouseX = x;
+			m_LastMouseY = y;
+
+			glm::quat rotQuat = glm::quat(glm::vec3(-pitch, -yaw, roll));
+			m_CameraQuat = rotQuat * m_CameraQuat;
+			m_CameraQuat = glm::normalize(m_CameraQuat);
+
+			m_Camera.SetRotation(m_CameraQuat);
+		}
+
+		m_Camera.RecalculateViewMatrix();
 	}
 
 	void PerspectiveCameraController::OnEvent(Event& e)
@@ -70,28 +96,9 @@ namespace Hazel {
 	{
 		HZ_PROFILE_FUNCTION();
 
-		if (Input::IsMouseButtonPressed(MouseCode::Button2)) 
-		{
-			HZ_INFO("Mouse Button2 pressed");
-			//e.
-			//xoffset *= MouseSensitivity;
-			//yoffset *= MouseSensitivity;
+		m_LastMouseX = e.GetX();
+		m_LastMouseY = e.GetY();
 
-			//Yaw += xoffset;
-			//Pitch += yoffset;
-
-			//// Make sure that when pitch is out of bounds, screen doesn't get flipped
-			//if (constrainPitch)
-			//{
-			//	if (Pitch > 89.0f)
-			//		Pitch = 89.0f;
-			//	if (Pitch < -89.0f)
-			//		Pitch = -89.0f;
-			//}
-
-			//// Update Front, Right and Up Vectors using the updated Euler angles
-			//updateCameraVectors();
-		}
 		return false;
 	}
 

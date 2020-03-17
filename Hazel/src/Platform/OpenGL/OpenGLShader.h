@@ -25,6 +25,8 @@ namespace Hazel {
 
 		virtual const std::string& GetName() const override { return m_Name; }
 
+		virtual void UpdateReferences() override {}
+
 		void UploadUniformInt(const std::string& name, int value);
 
 		void UploadUniformFloat(const std::string& name, float value);

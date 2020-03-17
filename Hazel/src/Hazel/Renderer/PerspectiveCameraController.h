@@ -1,10 +1,11 @@
 #pragma once
 
-#include "Hazel/Renderer/PerspectiveCamera.h"
 #include "Hazel/Core/Timestep.h"
-
 #include "Hazel/Events/ApplicationEvent.h"
 #include "Hazel/Events/MouseEvent.h"
+#include "Hazel/Renderer/PerspectiveCamera.h"
+
+#include "glm/gtc/quaternion.hpp"
 
 namespace Hazel {
 
@@ -28,10 +29,13 @@ namespace Hazel {
 		float m_Fov;
 		float m_zNear;
 		float m_zFar;
+		float m_LastMouseX;
+		float m_LastMouseY;
 		PerspectiveCamera m_Camera;
 
 		glm::vec3 m_CameraPosition = { 0.0f, 0.0f, 0.0f };
-		float m_CameraTranslationSpeed = 5.0f, m_CameraRotationSpeed = 180.0f;
+		glm::quat m_CameraQuat;
+		float m_CameraTranslationSpeed = 5.0f, m_CameraRotationSpeed = 0.1f;
 	};
 
 }

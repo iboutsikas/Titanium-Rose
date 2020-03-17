@@ -1,6 +1,7 @@
 #pragma once
 #include "Hazel/Core/Core.h"
 #include "Hazel/Renderer/RenderPass.h"
+#include "Hazel/Core/Timestep.h"
 
 #include "Platform/D3D12/ComPtr.h"
 #include "Platform/D3D12/D3D12Context.h"
@@ -9,22 +10,22 @@
 
 namespace Hazel {
 
-	class D3D12RenderPass : public RenderPass
+	class D3D12RenderPass
 	{
 	public:
-		D3D12RenderPass();
+		D3D12RenderPass(uint32_t frameLatency);
 		virtual ~D3D12RenderPass();
 
-		// Inherited via RenderPass
-		virtual void EnableGBuffer() override;
-		virtual void AddOutput(uint32_t width, uint32_t height) override;
-		virtual void Finalize() override;
-		virtual void SetShader(Ref<Shader> shader) override;
+		virtual void Update(Timestep ts);
+		virtual void Process(D3D12Context* ctx) = 0;
+		virtual void Recompile(D3D12Context* ctx) = 0;
 
 		void SetLayout(D3D12_INPUT_ELEMENT_DESC*& layout, uint32_t count);
-		void SetRootSignature(ID3D12RootSignature* rootSignature);
 
-	private:
+	protected:
+
+		uint32_t m_FrameLatency;
+		uint32_t m_FrameCount;
 
 		struct PipelineStateStream
 		{
@@ -37,18 +38,13 @@ namespace Hazel {
 			CD3DX12_PIPELINE_STATE_STREAM_RENDER_TARGET_FORMATS RTVFormats;
 		} m_PipelineStateStream;
 		
-		struct D3D12PassOutput {
-			uint32_t width;
-			uint32_t height;
-			DXGI_FORMAT format;
-			RenderPassOutputType type;
-			TComPtr<ID3D12Resource> resource;
-		};
+		Hazel::Ref<Hazel::D3D12Shader> m_PublicShader;
+		Hazel::TComPtr<ID3D12RootSignature> m_PublicRootSignature;
+		Hazel::TComPtr<ID3D12PipelineState> m_PublicPipelineState;
 
-		Hazel::D3D12Context* m_Context;
-		Hazel::Ref<Hazel::D3D12Shader> m_Shader;
-		Hazel::TComPtr<ID3D12RootSignature> m_RootSignature;
-		Hazel::TComPtr<ID3D12PipelineState> m_PipelineState;
+		Hazel::Ref<Hazel::D3D12Shader> m_PrivateShader;
+		Hazel::TComPtr<ID3D12RootSignature> m_PrivateRootSignature;
+		Hazel::TComPtr<ID3D12PipelineState> m_PrivatePipelineState;
 	};
 }
 

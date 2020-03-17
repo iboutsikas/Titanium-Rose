@@ -143,7 +143,7 @@ namespace Hazel {
 		DeviceResources->SRVDescriptorHeap = DeviceResources->CreateDescriptorHeap(
 			DeviceResources->Device,
 			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-			2,
+			3,
 			D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
 		);
 		NAME_D3D12_OBJECT(DeviceResources->SRVDescriptorHeap);
@@ -352,11 +352,7 @@ namespace Hazel {
 			commandAllocator.Get(),
 			nullptr)
 		);
-		
-		DeviceResources->CommandList->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &DepthStencilView());
-		DeviceResources->CommandList->RSSetViewports(1, &m_Viewport);
-		DeviceResources->CommandList->RSSetScissorRects(1, &m_ScissorRect);
-		DeviceResources->CommandList->SetDescriptorHeaps(1, DeviceResources->SRVDescriptorHeap.GetAddressOf());
+				
 
 		auto backBuffer = DeviceResources->BackBuffers[m_CurrentBackbufferIndex];
 

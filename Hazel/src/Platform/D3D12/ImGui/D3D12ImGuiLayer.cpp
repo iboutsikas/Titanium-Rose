@@ -44,6 +44,15 @@ namespace Hazel {
             style.WindowRounding = 0.0f;
             style.Colors[ImGuiCol_WindowBg].w = 1.0f;
         }
+        // TODO: Figure out a way for ImGui to have its own heap maybe ?
+		//m_SRVHeap = m_Context->DeviceResources->CreateDescriptorHeap(
+  //          m_Context->DeviceResources->Device,
+		//	D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+		//	1,
+		//	D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
+		//);
+  //      m_SRVHeap->SetName(L"ImGuiLayer SRV Heap");
+		
 
         // Setup Platform/Renderer bindings
         ImGui_ImplWin32_Init(m_Context->GetNativeHandle());

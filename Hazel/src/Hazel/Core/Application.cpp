@@ -4,6 +4,7 @@
 #include "Hazel/Core/Log.h"
 
 #include "Hazel/Renderer/Renderer.h"
+#include "Hazel/Renderer/Shader.h"
 
 #include "Hazel/Core/Input.h"
 
@@ -16,12 +17,16 @@ namespace Hazel {
 
 	Application* Application::s_Instance = nullptr;
 
-	Application::Application()
+	Application::Application(RendererAPI::API api)
 	{
 		HZ_PROFILE_FUNCTION();
 
 		HZ_CORE_ASSERT(!s_Instance, "Application already exists!");
 		s_Instance = this;
+
+		RendererAPI::SetAPI(api);
+		ShaderLibrary::InitalizeGlobalLibrary(3);
+
 		m_Window = Window::Create();
 		m_Window->SetEventCallback(HZ_BIND_EVENT_FN(Application::OnEvent));
 
@@ -85,6 +90,8 @@ namespace Hazel {
 
 			if (!m_Minimized)
 			{
+				ShaderLibrary::GlobalLibrary()->Update();
+
 				RenderCommand::BeginFrame();
 				{
 					HZ_PROFILE_SCOPE("LayerStack OnUpdate");

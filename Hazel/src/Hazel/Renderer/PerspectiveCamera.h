@@ -1,6 +1,7 @@
 #pragma once
 
 #include <glm/glm.hpp>
+#include <glm/gtc/quaternion.hpp>
 
 namespace Hazel {
 
@@ -12,7 +13,10 @@ namespace Hazel {
 		void SetProjection(float width, float height, float fov, float zNear, float zFar);
 
 		const glm::vec3& GetPosition() const { return m_Position; }
-		void SetPosition(const glm::vec3& position) { m_Position = position; RecalculateViewMatrix(); }
+		void SetPosition(const glm::vec3& position) { m_Position = position; }
+
+		const glm::quat& GetRotation() const { return m_Rotation; }
+		void SetRotation(const glm::quat& rotation) { m_Rotation = rotation; }
 
 		const glm::mat4& GetProjectionMatrix() const { return m_ProjectionMatrix; }
 		const glm::mat4& GetViewMatrix() const { return m_ViewMatrix; }
@@ -23,8 +27,8 @@ namespace Hazel {
 		const glm::vec3& GetRight() const { return m_Right; }
 		const glm::vec3& GetUp() const { return m_Up; }
 
-	private:
 		void RecalculateViewMatrix();
+	private:
 		void RecalculateVectors();
 	private:
 		glm::mat4 m_ProjectionMatrix;
@@ -35,7 +39,7 @@ namespace Hazel {
 		glm::vec3 m_Forward = { 0.0f, 0.0f, 0.1f };
 		glm::vec3 m_Up = { 0.0f, 1.0f, 0.0f };
 		glm::vec3 m_Right;
-		
+		glm::quat m_Rotation;
 		float m_Yaw;
 		float m_Pitch;
 	};

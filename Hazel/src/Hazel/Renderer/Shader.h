@@ -21,6 +21,8 @@ namespace Hazel {
 		virtual void SetMat4(const std::string& name, const glm::mat4& value) = 0;
 
 		virtual const std::string& GetName() const = 0;
+		
+		virtual void UpdateReferences() = 0;
 
 		static Ref<Shader> Create(const std::string& filepath);
 		static Ref<Shader> Create(const std::string& name, const std::string& vertexSrc, const std::string& fragmentSrc);
@@ -29,6 +31,8 @@ namespace Hazel {
 	class ShaderLibrary
 	{
 	public:
+		ShaderLibrary(uint32_t frameLatency);
+
 		void Add(const std::string& name, const Ref<Shader>& shader);
 		void Add(const Ref<Shader>& shader);
 		Ref<Shader> Load(const std::string& filepath);
@@ -37,8 +41,16 @@ namespace Hazel {
 		Ref<Shader> Get(const std::string& name);
 
 		bool Exists(const std::string& name) const;
+		void Update();
+
+		static ShaderLibrary* GlobalLibrary();
+		static void InitalizeGlobalLibrary(uint32_t frameLatency);
 	private:
 		std::unordered_map<std::string, Ref<Shader>> m_Shaders;
+		uint32_t m_FrameLatency;
+		uint32_t m_FrameCount;
+
+		static ShaderLibrary* s_GlobalLibrary;
 	};
 
 }

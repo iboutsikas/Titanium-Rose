@@ -2,6 +2,11 @@
 #include "Hazel/Renderer/PerspectiveCamera.h"
 
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp>
+
+static constexpr glm::vec3 WORLD_FORWARD = glm::vec3(0.0f, 0.0f, -1.0f);
+static constexpr glm::vec3 WORLD_RIGHT = glm::vec3(1.0f, 0.0f, 0.0f);
+static constexpr glm::vec3 WORLD_UP = glm::vec3(0.0f, 1.0f, 0.0f);
 
 namespace Hazel {
 
@@ -12,6 +17,8 @@ namespace Hazel {
 		HZ_PROFILE_FUNCTION();
 		RecalculateVectors();
 		RecalculateViewMatrix();
+		m_Rotation = glm::quat(/*glm::vec3(m_Pitch, m_Yaw, 0.0f)*/);
+
 	}
 
 	void PerspectiveCamera::SetProjection(float width, float height, float fov, float zNear, float zFar)
@@ -26,7 +33,22 @@ namespace Hazel {
 	{
 		HZ_PROFILE_FUNCTION();
 
+		//m_ViewMatrix = glm::lookAt(m_Position, m_Position + m_Forward, m_Up);
+
+		//glm::mat4 rotate = glm::mat4_cast(m_Rotation);
+
+		//glm::mat4 translate = glm::mat4(1.0f);
+		//translate = glm::translate(translate, -m_Position);
+
+		glm::mat3 rZyx(glm::mat3_cast(m_Rotation));
+
+		m_Forward = rZyx * WORLD_FORWARD;
+		m_Right = rZyx * WORLD_RIGHT;
+		m_Up = rZyx * WORLD_UP;
+
+
 		m_ViewMatrix = glm::lookAt(m_Position, m_Position + m_Forward, m_Up);
+
 		m_ViewProjectionMatrix = m_ProjectionMatrix * m_ViewMatrix;
 	}
 
@@ -34,14 +56,14 @@ namespace Hazel {
 	{
 		HZ_PROFILE_FUNCTION();
 
-		glm::vec3 front;
-		front.x = cos(glm::radians(m_Yaw)) * cos(glm::radians(m_Pitch));
-		front.y = sin(glm::radians(m_Pitch));
-		front.z = sin(glm::radians(m_Yaw)) * cos(glm::radians(m_Pitch));
+		//glm::vec3 front;
+		//front.x = cos(glm::radians(m_Yaw)) * cos(glm::radians(m_Pitch));
+		//front.y = sin(glm::radians(m_Pitch));
+		//front.z = sin(glm::radians(m_Yaw)) * cos(glm::radians(m_Pitch));
 
-		m_Forward = glm::normalize(front);
-		m_Right = glm::normalize(glm::cross(m_Forward, glm::vec3(0.0f, 1.0f, 0.0f)));
-		m_Up = glm::normalize(glm::cross(m_Right, m_Forward));
+		//m_Forward = glm::normalize(front);
+		//m_Right = glm::normalize(glm::cross(m_Forward, glm::vec3(0.0f, 1.0f, 0.0f)));
+		//m_Up = glm::normalize(glm::cross(m_Right, m_Forward));
 	}
 
 }

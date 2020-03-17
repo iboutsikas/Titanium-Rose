@@ -19,5 +19,6 @@ namespace Hazel {
 		static LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 	private:
 		D3D12Context* m_Context;
+		TComPtr<ID3D12DescriptorHeap> m_SRVHeap;
 	};
 }
