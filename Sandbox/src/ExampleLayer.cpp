@@ -1,5 +1,7 @@
 #include "ExampleLayer.h"
 
+#include <inttypes.h>
+
 #include "imgui/imgui.h"
 
 #include <glm/gtc/matrix_transform.hpp>
@@ -16,7 +18,9 @@
 #include "Platform/D3D12/D3D12Shader.h"
 
 #include "tinyobjloader/tiny_obj_loader.h"
+#include "tinygltf/tiny_gltf.h"
 
+#include "GameObject.h"
 #include <unordered_map>
 
 #define TEXTURE_WIDTH 512.0f
@@ -47,6 +51,7 @@ ExampleLayer::ExampleLayer()
 	m_Shaders.resize(ExampleShaders::Count);
 
 	LoadTestCube();
+	//LoadGltfTest();
 	BuildPipeline();
 	LoadTextures();
 	
@@ -370,6 +375,29 @@ void ExampleLayer::LoadTestCube()
 		}
 	}
 	
+}
+
+void ExampleLayer::LoadGltfTest()
+{
+
+	tinygltf::Model gltf_model;
+	tinygltf::TinyGLTF loader;
+	std::string err;
+	std::string warn;
+	std::string filename = "assets/models/triangle.gltf";
+
+	bool ret = loader.LoadASCIIFromFile(&gltf_model, &err, &warn, filename);
+	//bool ret = loader.LoadBinaryFromFile(&model, &err, &warn, argv[1]); // for binary glTF(.glb)
+
+	//GameObject go;
+	//// We don't care about cameras and lights and stuff yet
+	//auto node = gltf_model.nodes[0];
+	//go.m_Meshes.resize(node.);
+	//
+	//for (uint32_t i = 0; i < gltf_model.meshes.size(); i++)
+	//{
+	//	go.m_Meshes[i]
+	//}
 }
 
 void ExampleLayer::BuildPipeline()

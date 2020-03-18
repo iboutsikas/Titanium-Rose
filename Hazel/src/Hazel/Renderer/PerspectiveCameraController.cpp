@@ -3,6 +3,7 @@
 
 #include "Hazel/Core/Input.h"
 #include "Hazel/Core/KeyCodes.h"
+#include "Hazel/Core/Application.h"
 
 #include "glm/gtc/quaternion.hpp"
 
@@ -49,12 +50,18 @@ namespace Hazel {
 		m_Camera.SetPosition(m_CameraPosition);
 
 		if (Input::IsMouseButtonPressed(HZ_MOUSE_BUTTON_1)) {
-			//HZ_CORE_INFO("Mouse button 1");
+			Input::SetCursor(false);
+
+			//Vector2f centerPosition = new Vector2f(Window.GetWidth() / 2, Window.GetHeight() / 2);
+
+			float centerX = Hazel::Application::Get().GetWindow().GetWidth() / 2.0f;
+			float centerY = Hazel::Application::Get().GetWindow().GetHeight() / 2.0f;
+
 			auto [x, y] = Input::GetMousePosition();
 
 			float deltaX = x - m_LastMouseX;
 			float deltaY = y - m_LastMouseY;
-			//HZ_CORE_INFO("Mouse X: {}", x);
+			
 
 			float yaw =  deltaX * m_CameraRotationSpeed * ts;
 			float pitch = deltaY* m_CameraRotationSpeed* ts;
@@ -67,6 +74,9 @@ namespace Hazel {
 			m_CameraQuat = glm::normalize(m_CameraQuat);
 
 			m_Camera.SetRotation(m_CameraQuat);
+		}
+		else {
+			Input::SetCursor(true);
 		}
 
 		m_Camera.RecalculateViewMatrix();

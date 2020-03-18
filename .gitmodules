@@ -17,3 +17,6 @@
 [submodule "Hazel/vendor/tinyobjloader"]
 	path = Hazel/vendor/tinyobjloader
 	url = git@github.com:tinyobjloader/tinyobjloader.git
+[submodule "Hazel/vendor/tinygltf"]
+	path = Hazel/vendor/tinygltf
+	url = git@github.com:syoyo/tinygltf.git

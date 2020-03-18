@@ -88,5 +88,6 @@ private:
 	void BuildPipeline();
 	void LoadTextures();
 	void LoadTestCube();
+	void LoadGltfTest();
 };
 

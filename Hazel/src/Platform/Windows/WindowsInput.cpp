@@ -41,4 +41,11 @@ namespace Hazel {
 		return y;
 	}
 
+	void WindowsInput::SetCursorImpl(bool enable)
+	{
+		auto window = static_cast<GLFWwindow*>(Application::Get().GetWindow().GetNativeWindow());
+		long cursorOption = enable ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_HIDDEN;
+		glfwSetInputMode(window, GLFW_CURSOR, cursorOption);
+	}
+
 }
