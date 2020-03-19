@@ -88,6 +88,8 @@ namespace Hazel {
 
 		inline ID3D12Resource* Resource() const { return m_UploadBuffer.Get(); }
 
+		inline size_t CalculateOffset(uint32_t numElements) const { return numElements * m_ElementByteSize; }
+
 		void CopyData(int elementIndex, const T& data)
 		{
 			memcpy(&m_MappedData[elementIndex * m_ElementByteSize], &data, sizeof(T));

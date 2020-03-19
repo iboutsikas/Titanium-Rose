@@ -10,15 +10,12 @@ static constexpr glm::vec3 WORLD_UP = glm::vec3(0.0f, 1.0f, 0.0f);
 
 namespace Hazel {
 
-	PerspectiveCamera::PerspectiveCamera(const glm::vec3& position, float fov, float aspectRatio, float zNear, float zFar)
-		: m_Position(position), m_ProjectionMatrix(glm::perspective(glm::radians(fov), aspectRatio, zNear, zFar)), m_ViewMatrix(1.0f), 
-		  m_Pitch(0.0f), m_Yaw(-90.0f)
+	PerspectiveCamera::PerspectiveCamera(const glm::vec3& position, float fov, float aspectRatio, float zNear, float zFar) : 
+		m_ProjectionMatrix(glm::perspective(glm::radians(fov), aspectRatio, zNear, zFar)), 
+		m_ViewMatrix(1.0f)
 	{
 		HZ_PROFILE_FUNCTION();
-		RecalculateVectors();
 		RecalculateViewMatrix();
-		m_Rotation = glm::quat(/*glm::vec3(m_Pitch, m_Yaw, 0.0f)*/);
-
 	}
 
 	void PerspectiveCamera::SetProjection(float width, float height, float fov, float zNear, float zFar)
@@ -33,37 +30,21 @@ namespace Hazel {
 	{
 		HZ_PROFILE_FUNCTION();
 
-		//m_ViewMatrix = glm::lookAt(m_Position, m_Position + m_Forward, m_Up);
+		//glm::mat3 rZyx(glm::mat3_cast(m_Rotation));
 
-		//glm::mat4 rotate = glm::mat4_cast(m_Rotation);
-
-		//glm::mat4 translate = glm::mat4(1.0f);
-		//translate = glm::translate(translate, -m_Position);
-
-		glm::mat3 rZyx(glm::mat3_cast(m_Rotation));
-
-		m_Forward = rZyx * WORLD_FORWARD;
-		m_Right = rZyx * WORLD_RIGHT;
-		m_Up = rZyx * WORLD_UP;
+		//m_Forward = rZyx * WORLD_FORWARD;
+		//m_Right = rZyx * WORLD_RIGHT;
+		//m_Up = rZyx * WORLD_UP;
 
 
-		m_ViewMatrix = glm::lookAt(m_Position, m_Position + m_Forward, m_Up);
+		//auto m_ViewMatrix1 = glm::lookAt(m_Position, m_Position + m_Forward, m_Up);
 
+		//m_ViewProjectionMatrix = m_ProjectionMatrix * m_ViewMatrix1;
+		auto pos = m_Transform.Position();
+		auto forward = m_Transform.Forward();
+		auto up = m_Transform.Up();
+		auto right = m_Transform.Right();
+		m_ViewMatrix = glm::lookAt(pos, pos + forward, up);
 		m_ViewProjectionMatrix = m_ProjectionMatrix * m_ViewMatrix;
 	}
-
-	void PerspectiveCamera::RecalculateVectors()
-	{
-		HZ_PROFILE_FUNCTION();
-
-		//glm::vec3 front;
-		//front.x = cos(glm::radians(m_Yaw)) * cos(glm::radians(m_Pitch));
-		//front.y = sin(glm::radians(m_Pitch));
-		//front.z = sin(glm::radians(m_Yaw)) * cos(glm::radians(m_Pitch));
-
-		//m_Forward = glm::normalize(front);
-		//m_Right = glm::normalize(glm::cross(m_Forward, glm::vec3(0.0f, 1.0f, 0.0f)));
-		//m_Up = glm::normalize(glm::cross(m_Right, m_Forward));
-	}
-
 }

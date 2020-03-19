@@ -65,7 +65,8 @@ project "Hazel"
 	defines
 	{
 		"_CRT_SECURE_NO_WARNINGS",
-		"GLM_FORCE_DEPTH_ZERO_TO_ONE"
+		"GLM_FORCE_DEPTH_ZERO_TO_ONE",
+		"GLM_ENABLE_EXPERIMENTAL"
 	}
 
 	includedirs
@@ -145,7 +146,8 @@ project "Sandbox"
 
 	defines
 	{
-		"GLM_FORCE_DEPTH_ZERO_TO_ONE"
+		"GLM_FORCE_DEPTH_ZERO_TO_ONE",
+		"GLM_ENABLE_EXPERIMENTAL"
 	}
 
 	links

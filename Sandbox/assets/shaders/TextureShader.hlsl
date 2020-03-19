@@ -3,6 +3,7 @@
                         "DENY_HULL_SHADER_ROOT_ACCESS | " \
                         "DENY_GEOMETRY_SHADER_ROOT_ACCESS), " \
                 "CBV(b0)," \
+                "CBV(b1)," \
                 "StaticSampler(s0," \
                             "filter = FILTER_MIN_MAG_MIP_POINT," \
                             "addressU = TEXTURE_ADDRESS_BORDER, " \
@@ -19,14 +20,18 @@
                 "DescriptorTable(SRV(t0, numDescriptors = 1), visibility = SHADER_VISIBILITY_PIXEL) " 
 
 cbuffer cbPass : register(b0) {
-    matrix gMVP;
-    matrix gWORLD;
-    matrix gNormalsMatrix;
+    matrix gViewProjection;
     float4 gAmbientLight;
     float4 gDirectionalLight;
     float3 gCameraPosition;
     float  gAmbientIntensity;
 };
+
+cbuffer cbPerObject : register(b1) {
+    matrix oLocalToWorld;
+    matrix oNormalsMatrix;
+    uint   oTextureIndex;
+}
 
 Texture2D g_texture : register(t0);
 SamplerState g_sampler : register(s0);
@@ -47,17 +52,20 @@ struct VSInput
     float3 normal: NORMAL;
     float2 uv: UV;
 };
+
+
 [RootSignature(MyRS1)]
 PSInput VS_Main(VSInput input)
 {
     PSInput result;
     float2 vUv = input.uv;
-
     vUv = (vUv * 2.0) - 1.0;
- 
+    
+    matrix mvp = mul(gViewProjection, oLocalToWorld);
+
     result.position = float4(vUv, 1.0, 1.0);
-    result.worldPosition = mul(gWORLD, float4(input.position, 1.0));
-    result.normal = mul(gWORLD, float4(input.normal, 0.0)).xyz;
+    result.worldPosition = mul(mvp, float4(input.position, 1.0));
+    result.normal = mul(oNormalsMatrix, float4(input.normal, 0.0)).xyz;
     result.color = input.color;
     result.uv = input.uv;
     result.uv.y = 1.0 - result.uv.y;
@@ -83,4 +91,5 @@ float4 PS_Main(PSInput input) : SV_TARGET
     float4 diffuseColor = gDirectionalLight * brightness * texColor;
 
     return  (ambient * texColor) + diffuseColor;
+    // return texColor;
 }

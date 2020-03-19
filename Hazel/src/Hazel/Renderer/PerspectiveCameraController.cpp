@@ -21,11 +21,11 @@ namespace Hazel {
 
 		if (Input::IsKeyPressed(HZ_KEY_A))
 		{
-			m_CameraPosition -= m_Camera.GetRight() * m_CameraTranslationSpeed * glm::vec3(ts);
+			m_CameraPosition += m_Camera.GetRight() * m_CameraTranslationSpeed * glm::vec3(ts);
 		}
 		else if (Input::IsKeyPressed(HZ_KEY_D))
 		{
-			m_CameraPosition += m_Camera.GetRight() * m_CameraTranslationSpeed * glm::vec3(ts);
+			m_CameraPosition -= m_Camera.GetRight() * m_CameraTranslationSpeed * glm::vec3(ts);
 		}
 
 		if (Input::IsKeyPressed(HZ_KEY_W))
@@ -68,12 +68,11 @@ namespace Hazel {
 			float roll = 0.0f; // maybe implement this in the future?
 			m_LastMouseX = x;
 			m_LastMouseY = y;
+			glm::vec3 angles(-pitch, yaw, roll);
 
-			glm::quat rotQuat = glm::quat(glm::vec3(-pitch, -yaw, roll));
-			m_CameraQuat = rotQuat * m_CameraQuat;
-			m_CameraQuat = glm::normalize(m_CameraQuat);
-
-			m_Camera.SetRotation(m_CameraQuat);
+			auto& tf = m_Camera.GetTransform();
+			tf.RotateAround(tf.Right(), -pitch);
+			tf.RotateAround(Transform::VECTOR_UP, yaw);
 		}
 		else {
 			Input::SetCursor(true);

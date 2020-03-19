@@ -3,7 +3,8 @@
                         "DENY_HULL_SHADER_ROOT_ACCESS | " \
                         "DENY_GEOMETRY_SHADER_ROOT_ACCESS), " \
               "CBV(b0)," \
-              "DescriptorTable(SRV(t0, numDescriptors = 1), visibility = SHADER_VISIBILITY_PIXEL), " \
+              "CBV(b1)," \
+              "DescriptorTable(SRV(t0, numDescriptors = 2), visibility = SHADER_VISIBILITY_PIXEL), " \
               "StaticSampler(s0," \
                       "addressU = TEXTURE_ADDRESS_BORDER," \
                       "addressV = TEXTURE_ADDRESS_BORDER," \
@@ -13,16 +14,20 @@
                       "visibility = SHADER_VISIBILITY_PIXEL)"
 
 cbuffer cbPass : register(b0) {
-    matrix gMVP;
-    matrix gWORLD;
-    matrix gNormalsMatrix;
+    matrix gViewProjection;
     float4 gAmbientLight;
     float4 gDirectionalLight;
     float3 gCameraPosition;
     float  gAmbientIntensity;
 };
 
-Texture2D g_texture : register(t0);
+cbuffer cbPerObject : register(b1) {
+    matrix oLocalToWorld;
+    matrix oWorldToLocal;
+    uint   oTextureIndex;
+}
+
+Texture2D g_texture[2] : register(t0);
 SamplerState g_sampler : register(s0);
 
 struct PSInput
@@ -44,7 +49,9 @@ PSInput VS_Main(VSInput input)
 {
     PSInput result;
 
-    result.position = mul(gMVP, float4(input.position, 1.0f));
+    matrix mvp = mul(gViewProjection, oLocalToWorld);
+
+    result.position = mul(mvp, float4(input.position, 1.0f));
     result.uv = input.uv;
     result.uv.y = 1.0 - result.uv.y;
     
@@ -55,5 +62,5 @@ PSInput VS_Main(VSInput input)
 float4 PS_Main(PSInput input) : SV_TARGET
 {
     // return float4(1.0, 0.0, 0.0, 1.0);
-    return g_texture.Sample(g_sampler, input.uv);
+    return g_texture[oTextureIndex].Sample(g_sampler, input.uv);
 }

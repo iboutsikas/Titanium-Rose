@@ -4,6 +4,8 @@
 #include "Hazel/Renderer/Buffer.h"
 #include "Hazel/Renderer/PerspectiveCameraController.h"
 
+#include "Hazel/ComponentSystem/GameObject.h"
+
 #include "d3d12.h"
 #include "Platform/D3D12/d3dx12.h"
 #include "Platform/D3D12/D3D12Helpers.h"
@@ -21,13 +23,17 @@
 
 
 struct PassData {
-	glm::mat4 MVP;
-	glm::mat4 World;
-	glm::mat4 NormalsMatrix;
+	glm::mat4 ViewProjection;
 	glm::vec4 AmbientLight;
 	glm::vec4 DirectionalLight;
 	glm::vec3 CameraPosition;
 	float     AmbientIntensity;
+};
+
+struct PerObjectData {
+	glm::mat4 ModelMatrix;
+	glm::mat4 NormalsMatrix;
+	uint32_t  TextureIndex;
 };
 
 enum ExampleShaders : size_t {
@@ -54,10 +60,10 @@ private:
 	Hazel::PerspectiveCameraController m_CameraController;
 	//Hazel::OrthographicCameraController m_CameraController;
 	Hazel::D3D12Context* m_Context;
-	glm::mat4 m_ModelMatrix;
-	bool show_another_window;
 	glm::vec4 m_ClearColor;
 	glm::vec3 m_Pos;
+	Hazel::GameObject m_CubeGO;
+
 	int m_UpdateRate;
 	int m_RenderedFrames;
 	bool m_RotateCube = true;
@@ -77,6 +83,7 @@ private:
 	Hazel::Ref<Hazel::D3D12IndexBuffer> m_IndexBuffer;
 	D3D12_INDEX_BUFFER_VIEW m_IndexBufferView;
 	Hazel::Ref<Hazel::D3D12UploadBuffer<PassData>> m_PassCB;
+	Hazel::Ref<Hazel::D3D12UploadBuffer<PerObjectData>> m_PerObjectCB;
 
 	Hazel::Ref<Hazel::D3D12Texture2D> m_Texture;
 	CD3DX12_GPU_DESCRIPTOR_HANDLE m_TextureGPUHandle;
