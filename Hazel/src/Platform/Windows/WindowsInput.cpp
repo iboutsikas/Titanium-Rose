@@ -5,6 +5,11 @@
 #include <GLFW/glfw3.h>
 
 namespace Hazel {
+	WindowsInput::WindowsInput()
+	{
+		
+	}
+
 
 	bool WindowsInput::IsKeyPressedImpl(KeyCode key)
 	{
@@ -29,6 +34,12 @@ namespace Hazel {
 		return { (float)xpos, (float)ypos };
 	}
 
+	void WindowsInput::SetMousePositionImp(float x, float y)
+	{
+		auto window = static_cast<GLFWwindow*>(Application::Get().GetWindow().GetNativeWindow());
+		glfwSetCursorPos(window, x, y);
+	}
+
 	float WindowsInput::GetMouseXImpl()
 	{
 		auto[x, y] = GetMousePositionImpl();
@@ -44,7 +55,7 @@ namespace Hazel {
 	void WindowsInput::SetCursorImpl(bool enable)
 	{
 		auto window = static_cast<GLFWwindow*>(Application::Get().GetWindow().GetNativeWindow());
-		long cursorOption = enable ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_HIDDEN;
+		long cursorOption = enable ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED;
 		glfwSetInputMode(window, GLFW_CURSOR, cursorOption);
 	}
 

@@ -63,6 +63,7 @@ namespace Hazel::D3D12 {
     enum class VendorID : UINT {
         AMD = 0x1002,
         NVIDIA = 0x10DE,
-        INTEL = 0x8086
+        INTEL = 0x8086,
+        CAPTURE = 0x1414
     };
 }

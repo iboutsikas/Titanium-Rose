@@ -15,6 +15,7 @@ namespace Hazel {
 		m_ViewMatrix(1.0f)
 	{
 		HZ_PROFILE_FUNCTION();
+		m_Transform.SetPosition(position);
 		RecalculateViewMatrix();
 	}
 

@@ -42,10 +42,8 @@ namespace Hazel {
 		inline TComPtr<ID3DBlob> GetFragmentBlob() const { return m_FragmentBlob; }
 		ID3D12RootSignature* GetRootSignature();
 		ID3D12PipelineState* GetPipelineState();
-		
-		inline std::vector<std::string>& GetErrors() { return m_Errors; }
-
-		bool Recompile(PipelineStateStream* pipelineStream = nullptr);
+		// TODO: This is a very bad hack to get a "generic" recompile for OGL and DX12
+		bool Recompile(void* pipelineStream = nullptr) override;
 		
 	private:
 		std::string ReadFile(const std::string& filepath);
@@ -71,6 +69,6 @@ namespace Hazel {
 
 		std::string m_Name;
 		std::string m_Path;
-		std::vector<std::string> m_Errors;
+		
 	};
 }

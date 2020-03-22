@@ -18,6 +18,7 @@ namespace Hazel {
 
 		inline static bool IsMouseButtonPressed(MouseCode button) { return s_Instance->IsMouseButtonPressedImpl(button); }
 		inline static std::pair<float, float> GetMousePosition() { return s_Instance->GetMousePositionImpl(); }
+		inline static void SetMousePosition(float x, float y) { return s_Instance->SetMousePositionImp(x, y); }
 		inline static float GetMouseX() { return s_Instance->GetMouseXImpl(); }
 		inline static float GetMouseY() { return s_Instance->GetMouseYImpl(); }
 		inline static void SetCursor(bool enable) { s_Instance->SetCursorImpl(enable); }
@@ -27,6 +28,7 @@ namespace Hazel {
 
 		virtual bool IsMouseButtonPressedImpl(MouseCode button) = 0;
 		virtual std::pair<float, float> GetMousePositionImpl() = 0;
+		virtual void SetMousePositionImp(float x, float y) = 0;
 		virtual float GetMouseXImpl() = 0;
 		virtual float GetMouseYImpl() = 0;
 		virtual void SetCursorImpl(bool enable) = 0;

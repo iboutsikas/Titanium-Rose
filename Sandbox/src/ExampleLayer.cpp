@@ -39,33 +39,49 @@ static D3D12_INPUT_ELEMENT_DESC inputLayout[] = {
 
 ExampleLayer::ExampleLayer()
 	: Layer("ExampleLayer"), /*m_CameraController(1280.0f / 720.0f, false)*/ 
-	m_CameraController(glm::vec3(0.0f, 0.0f, 5.0f), 28.0f, (1280.0f / 720.0f), 0.1f, 100.0f),
-	m_ClearColor({ 0.1f, 0.1f, 0.1f, 1.0f }),
-	m_Pos({ 0.0f, 0.0f, 12.0f}),
+	m_CameraController(glm::vec3(0.0f, 0.0f, -15.0f), 28.0f, (1280.0f / 720.0f), 0.1f, 100.0f),
+	//m_ClearColor({ 0.1f, 0.1f, 0.1f, 1.0f }),
+	m_Pos({ 0.0f, 0.0f, 0.0f}),
 	m_UpdateRate(60),
 	m_RenderedFrames(61),
 	m_AmbientLight({1.0f, 1.0f, 1.0f, 1.0f}),
 	m_DirectionalLight({1.0f, 1.0f, 1.0f, 1.0f}),
-	m_AmbientIntensity(0.1f)
+	m_AmbientIntensity(0.1f),
+	m_RotateCube(false),
+	m_DirectionalLightPosition({1.0, 8.0, -15.0}),
+	m_Glossiness(1.0f)
 {
 	m_Context = static_cast<Hazel::D3D12Context*>(Hazel::Application::Get().GetWindow().GetContext());
-	m_Shaders.resize(ExampleShaders::Count);
-
-	auto secondCube = new Hazel::GameObject();
-	m_CubeGO.AddChild(secondCube);
-	secondCube->transform.SetPosition(glm::vec3(5.0f, 3.0f, 0.0f));
+	//m_Shaders.resize(ExampleShaders::Count);
 
 	LoadTestCube();
 	//LoadGltfTest();
 	BuildPipeline();
 	LoadTextures();
+
+	m_CubeGO.mesh.vertexBuffer = m_VertexBuffer;
+	m_CubeGO.mesh.indexBuffer = m_IndexBuffer;
+	m_CubeGO.mesh.textureId = 1;
+
+	auto secondCube = new Hazel::GameObject();
+	m_CubeGO.AddChild(secondCube);
+	secondCube->transform.SetPosition(glm::vec3(5.0f, 3.0f, 0.0f));
+	secondCube->mesh.vertexBuffer = m_VertexBuffer;
+	secondCube->mesh.indexBuffer = m_IndexBuffer;
+	secondCube->mesh.textureId = 1;
+
+	//m_PassCB = Hazel::CreateRef<Hazel::D3D12UploadBuffer<PassData>>(1, true);
+	//m_PassCB->Resource()->SetName(L"Scene CB");
+
+	//m_PerObjectCB = Hazel::CreateRef<Hazel::D3D12UploadBuffer<PerObjectData>>(2, true);
+	//m_PerObjectCB->Resource()->SetName(L"Per Object CB");
+
+	m_DeferredTexturePass->SetOutput(0, m_Texture);
+	m_DeferredTexturePass->SetInput(0, m_DiffuseTexture);
 	
-	m_PassCB = Hazel::CreateRef<Hazel::D3D12UploadBuffer<PassData>>(1, true);
-	m_PassCB->Resource()->SetName(L"Scene CB");
-
-	m_PerObjectCB = Hazel::CreateRef<Hazel::D3D12UploadBuffer<PerObjectData>>(2, true);
-	m_PerObjectCB->Resource()->SetName(L"Per Object CB");
-
+	m_BaseColorPass->SetInput(0, m_Texture);
+	m_BaseColorPass->SetInput(1, m_DiffuseTexture);
+	m_BaseColorPass->ClearColor = glm::vec4({ 0.1f, 0.1f, 0.1f, 1.0f });
 	//Hazel::Application::Get().GetWindow().SetVSync(false);
 }
 
@@ -83,6 +99,7 @@ void ExampleLayer::OnDetach()
 
 void ExampleLayer::OnUpdate(Hazel::Timestep ts) 
 {
+	HZ_PROFILE_FUNCTION();
 	m_CameraController.OnUpdate(ts);
 
 	float angle = ts * 90.0f;
@@ -92,45 +109,56 @@ void ExampleLayer::OnUpdate(Hazel::Timestep ts)
 	if (m_RotateCube) {
 		m_CubeGO.transform.RotateAround(rotationAxis, angle);
 	}
-
-	auto modelMatrix = m_CubeGO.transform.LocalToWorldMatrix();
 	
+	if (use_rendered_texture) {
+		m_CubeGO.mesh.textureId = 0;
+	}
+	else {
+		m_CubeGO.mesh.textureId = 1;
+	}
+	m_CubeGO.glossines = m_Glossiness;
 
 	
 	auto cmdList = m_Context->DeviceResources->CommandList;
 	
 	// Clear
-	Hazel::RenderCommand::SetClearColor(m_ClearColor);
-	auto vp = m_CameraController.GetCamera().GetViewProjectionMatrix();
+	Hazel::RenderCommand::SetClearColor(m_BaseColorPass->ClearColor);
+	//auto vp = m_CameraController.GetCamera().GetViewProjectionMatrix();
 
-	auto mvp = vp * modelMatrix;
+	//PassData passCB;
+	//passCB.ViewProjection = vp;
+	//passCB.AmbientLight = m_AmbientLight;
+	//passCB.DirectionalLight = m_DirectionalLight;
+	//passCB.AmbientIntensity = m_AmbientIntensity;
+	//passCB.DirectionalLightPosition = m_DirectionalLightPosition;
+	//auto thing = m_CameraController.GetCamera().GetPosition();
+	//passCB.CameraPosition = thing;
+	//m_PassCB->CopyData(0, passCB);
 
-	PassData passCB;
-	passCB.ViewProjection = vp;
-	passCB.AmbientLight = m_AmbientLight;
-	passCB.DirectionalLight = m_DirectionalLight;
-	passCB.AmbientIntensity = m_AmbientIntensity;
-	passCB.CameraPosition = m_CameraController.GetCamera().GetPosition();
-	m_PassCB->CopyData(0, passCB);
+
+	//PerObjectData cube1Data;
+	//cube1Data.ModelMatrix = m_CubeGO.transform.LocalToWorldMatrix();
+	//cube1Data.NormalsMatrix = glm::transpose(m_CubeGO.transform.WorldToLocalMatrix());
+	//cube1Data.NormalsMatrix2 = m_CubeGO.transform.RotationMatrix();
+	//auto scale = glm::transpose(glm::inverse(m_CubeGO.transform.ScaleMatrix()));
+	//auto rot = m_CubeGO.transform.RotationMatrix();
+	//cube1Data.NormalsMatrix3 = rot * scale;
 
 
-	PerObjectData cube1Data;
-	cube1Data.ModelMatrix = modelMatrix;
-	cube1Data.NormalsMatrix = m_CubeGO.transform.RotationMatrix();
+	//// Texture 0 is deferred, Texture 1 is diffuse
+	//if (!use_rendered_texture) {
+	//	cube1Data.TextureIndex = 1;
+	//}
+	//else {
+	//	cube1Data.TextureIndex = 0;
+	//}
+	//cube1Data.Glossiness = m_Glossiness;
+	//m_PerObjectCB->CopyData(0, cube1Data);
 
-	// Texture 0 is deferred, Texture 1 is diffuse
-	if (!use_rendered_texture) {
-		cube1Data.TextureIndex = 1;
-	}
-	else {
-		cube1Data.TextureIndex = 0;
-	}
-	m_PerObjectCB->CopyData(0, cube1Data);
-
-	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	cmdList->IASetVertexBuffers(0, 1, &m_VertexBufferView);
-	cmdList->IASetIndexBuffer(&m_IndexBufferView);
-	cmdList->SetDescriptorHeaps(1, m_Context->DeviceResources->SRVDescriptorHeap.GetAddressOf());
+	//cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	//cmdList->IASetVertexBuffers(0, 1, &m_VertexBufferView);
+	//cmdList->IASetIndexBuffer(&m_IndexBufferView);
+	//cmdList->SetDescriptorHeaps(1, m_Context->DeviceResources->SRVDescriptorHeap.GetAddressOf());
 	//// look into gltf format
 	// Shader reloading
 	// Mipmaps
@@ -138,47 +166,22 @@ void ExampleLayer::OnUpdate(Hazel::Timestep ts)
 
 #if 1
 	if (m_RenderedFrames >= m_UpdateRate) {
+		HZ_PROFILE_SCOPE("Deferred Texture");
 		m_RenderedFrames = 0;
-		
-		D3D12_VIEWPORT vp = {0.0f, 0.0f, TEXTURE_WIDTH, TEXTURE_HEIGHT, 0.0f, 1.0f};
-		D3D12_RECT rect = { 0.0f, 0.0f, TEXTURE_WIDTH, TEXTURE_HEIGHT};
-		auto shader = m_Shaders[ExampleShaders::TextureShader];
-		
-		cmdList->SetPipelineState(shader->GetPipelineState());
-		cmdList->SetGraphicsRootSignature(shader->GetRootSignature());
-		
-		// This points to the "table" with the normal, diffuse texture
-		CD3DX12_GPU_DESCRIPTOR_HANDLE srvHandle(
-			m_Context->DeviceResources->SRVDescriptorHeap->GetGPUDescriptorHandleForHeapStart(),
-			2,
-			m_Context->GetSRVDescriptorSize()
-		);
-		
-		// Table is at root parameter index 1
-		cmdList->SetGraphicsRootDescriptorTable(2, srvHandle);
-		cmdList->RSSetViewports(1, &vp);
-		cmdList->RSSetScissorRects(1, &rect);
 
-		cmdList->SetGraphicsRootConstantBufferView(0, m_PassCB->Resource()->GetGPUVirtualAddress());
-		cmdList->SetGraphicsRootConstantBufferView(1, m_PerObjectCB->Resource()->GetGPUVirtualAddress());
-		
-		m_Texture->Transition(D3D12_RESOURCE_STATE_RENDER_TARGET);
-		
-		auto rtv = m_RTVHeap->GetCPUDescriptorHandleForHeapStart();
-
-		cmdList->OMSetRenderTargets(1, &rtv, true, nullptr);
-
-		m_Context
-			->DeviceResources
-			->CommandList
-			->ClearRenderTargetView(rtv, glm::value_ptr(m_ClearColor), 0, nullptr);
-
-		cmdList->DrawIndexedInstanced(m_IndexBuffer->GetCount(), 1, 0, 0, 0);
-
-		m_Texture->Transition(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		m_DeferredTexturePass->HPassData.AmbientLight = m_AmbientLight;
+		m_DeferredTexturePass->HPassData.AmbientIntensity = m_AmbientIntensity;
+		m_DeferredTexturePass->HPassData.DirectionalLight = m_DirectionalLight;
+		m_DeferredTexturePass->HPassData.DirectionalLightPosition = m_DirectionalLightPosition;
+						 
+		m_DeferredTexturePass->Process(m_Context, m_CubeGO, m_CameraController.GetCamera());
 	}
 #endif
 	
+	m_BaseColorPass->Process(m_Context, m_CubeGO, m_CameraController.GetCamera());
+
+	//cmdList->SetDescriptorHeaps(1, m_Context->DeviceResources->SRVDescriptorHeap.GetAddressOf());
+#if 0
 
 	auto shader = m_Shaders[ExampleShaders::DiffuseShader];
 	cmdList->SetPipelineState(shader->GetPipelineState());
@@ -216,20 +219,32 @@ void ExampleLayer::OnUpdate(Hazel::Timestep ts)
 	auto offset = m_PerObjectCB->CalculateOffset(1);
 	cmdList->SetGraphicsRootConstantBufferView(1, m_PerObjectCB->Resource()->GetGPUVirtualAddress() + offset);
 	cmdList->DrawIndexedInstanced(m_IndexBuffer->GetCount(), 1, 0, 0, 0);
-
+#endif
 	Hazel::Renderer::EndScene();
 	m_RenderedFrames++;
 }
 
 void ExampleLayer::OnImGuiRender() 
 {
+	HZ_PROFILE_FUNCTION();
+
 	static bool show_diffuse = false;
 	static int diffuse_dim[] = { 512, 512 };
 
-	//ImGui::ShowMetricsWindow();
+	
 
 	ImGui::Begin("Controls");
-	ImGui::ColorEdit4("Clear Color", &m_ClearColor.x);
+	ImGui::ColorEdit4("Clear Color", &m_BaseColorPass->ClearColor.x);
+
+	auto camera_pos = m_CameraController.GetCamera().GetPosition();
+	ImGui::InputFloat3("Camera Position", &camera_pos.x);
+	m_CameraController.GetCamera().SetPosition(camera_pos);
+
+	ImGui::InputFloat("Glossiness", &m_Glossiness, 0.1f);
+
+	if (ImGui::Button("Look at cube")) {
+		m_CameraController.GetCamera().GetTransform().LookAt(m_Pos, m_CameraController.GetCamera().GetTransform().Up());
+	}
 
 	if (ImGui::CollapsingHeader("Cube")) {
 		ImGui::DragFloat3("Cube Position", &m_Pos.x, 0.05f);
@@ -253,12 +268,14 @@ void ExampleLayer::OnImGuiRender()
 		ImGui::ColorEdit4("Ambient Light Color",&m_AmbientLight.x);
 		ImGui::DragFloat("Ambient Light Intensity", &m_AmbientIntensity, 0.1f, 0.0f, 1.0f);
 		ImGui::ColorEdit4("Directional Light Color", &m_DirectionalLight.x);
+		ImGui::InputFloat3("Directional Light Position", &m_DirectionalLightPosition.x);
 	}
 
 	ImGui::End();
 	
 	ImGui::Begin("Shader Control Center");
-	for (auto shader : m_Shaders)
+	static auto shaderLib = Hazel::ShaderLibrary::GlobalLibrary();
+	for (const auto& [key, shader] : *shaderLib)
 	{
 		ImGui::PushID(shader->GetName().c_str());
 		ImGui::Text(shader->GetName().c_str());
@@ -308,18 +325,18 @@ void ExampleLayer::LoadTextures()
 		auto width = TEXTURE_WIDTH; // Hazel::Application::Get().GetWindow().GetWidth();
 		auto height = TEXTURE_HEIGHT; // Hazel::Application::Get().GetWindow().GetHeight();
 		
-		m_RTVHeap = m_Context->DeviceResources->CreateDescriptorHeap(
+	/*	m_RTVHeap = m_Context->DeviceResources->CreateDescriptorHeap(
 			m_Context->DeviceResources->Device.Get(),
 			D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
 			1
-		);
+		);*/
 		
 		m_Texture = std::dynamic_pointer_cast<Hazel::D3D12Texture2D>(Hazel::Texture2D::Create(width, height));
 
-		m_Context
+		/*m_Context
 			->DeviceResources
 			->Device
-			->CreateRenderTargetView(m_Texture->GetCommitedResource(), nullptr, m_RTVHeap->GetCPUDescriptorHandleForHeapStart());
+			->CreateRenderTargetView(m_Texture->GetCommitedResource(), nullptr, m_RTVHeap->GetCPUDescriptorHandleForHeapStart());*/
 
 		CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(
 			m_Context->DeviceResources->SRVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
@@ -450,14 +467,7 @@ void ExampleLayer::BuildPipeline()
 
 		m_VertexBuffer = std::dynamic_pointer_cast<Hazel::D3D12VertexBuffer>(Hazel::VertexBuffer::Create((float*)m_Vertices.data(), m_Vertices.size() * sizeof(Vertex)));
 
-		m_VertexBufferView.BufferLocation = m_VertexBuffer->GetResource()->GetGPUVirtualAddress();
-		m_VertexBufferView.SizeInBytes = m_Vertices.size() * sizeof(Vertex);
-		m_VertexBufferView.StrideInBytes = sizeof(Vertex);
-
 		m_IndexBuffer = std::dynamic_pointer_cast<Hazel::D3D12IndexBuffer>(Hazel::IndexBuffer::Create(m_Indices.data(), m_Indices.size()));
-		m_IndexBufferView.BufferLocation = m_IndexBuffer->GetResource()->GetGPUVirtualAddress();
-		m_IndexBufferView.Format = DXGI_FORMAT_R32_UINT;
-		m_IndexBufferView.SizeInBytes = m_Indices.size() * sizeof(uint32_t);
 
 		m_DiffuseTexture = std::dynamic_pointer_cast<Hazel::D3D12Texture2D>(Hazel::Texture2D::Create("assets/textures/Cube_texture.png"));
 		m_DiffuseTexture->Transition(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -491,9 +501,7 @@ void ExampleLayer::BuildPipeline()
 		pipelineStateStream.RTVFormats = rtvFormats;
 		pipelineStateStream.Rasterizer = CD3DX12_PIPELINE_STATE_STREAM_RASTERIZER(rasterizer);
 
-		auto shader = Hazel::CreateRef<Hazel::D3D12Shader>("assets/shaders/BasicShader.hlsl", pipelineStateStream);
-		Hazel::ShaderLibrary::GlobalLibrary()->Add(shader);
-		m_Shaders[ExampleShaders::DiffuseShader] = shader;
+		m_BaseColorPass = Hazel::CreateRef<BaseColorPass>(m_Context, pipelineStateStream);
 	}
 
 	// Texture Shader
@@ -515,9 +523,11 @@ void ExampleLayer::BuildPipeline()
 		pipelineStateStream.RTVFormats = rtvFormats;
 		pipelineStateStream.Rasterizer = CD3DX12_PIPELINE_STATE_STREAM_RASTERIZER(rasterizer);
 
-		auto shader = Hazel::CreateRef<Hazel::D3D12Shader>("assets/shaders/TextureShader.hlsl", pipelineStateStream);
-		Hazel::ShaderLibrary::GlobalLibrary()->Add(shader);
-		m_Shaders[ExampleShaders::TextureShader] = shader;
+		//auto shader = Hazel::CreateRef<Hazel::D3D12Shader>("assets/shaders/TextureShader.hlsl", pipelineStateStream);
+		//Hazel::ShaderLibrary::GlobalLibrary()->Add(shader);
+		//m_Shaders[ExampleShaders::TextureShader] = shader;
+
+		m_DeferredTexturePass = Hazel::CreateRef<DeferedTexturePass>(m_Context, pipelineStateStream);
 	}
 	
 }

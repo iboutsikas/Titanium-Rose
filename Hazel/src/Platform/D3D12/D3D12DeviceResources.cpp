@@ -54,8 +54,9 @@ namespace Hazel {
                 DXGI_ADAPTER_DESC1 dxgiAdapterDesc1;
                 dxgiAdapter1->GetDesc1(&dxgiAdapterDesc1);
 
-                if ((dxgiAdapterDesc1.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) == 0
+                if (((dxgiAdapterDesc1.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) == 0
                     && dxgiAdapterDesc1.VendorId == (UINT)preferedVendor)
+                    || dxgiAdapterDesc1.VendorId == (UINT)D3D12::VendorID::CAPTURE)
                 {
                     D3D12::ThrowIfFailed(D3D12CreateDevice(dxgiAdapter1.Get(), D3D_FEATURE_LEVEL_11_0, __uuidof(ID3D12Device), nullptr));
                     //maxDedicatedVideoMemory = dxgiAdapterDesc1.DedicatedVideoMemory;

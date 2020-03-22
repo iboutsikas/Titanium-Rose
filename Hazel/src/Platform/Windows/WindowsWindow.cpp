@@ -74,6 +74,15 @@ namespace Hazel {
 		glfwSetWindowUserPointer(m_Window, &m_Data);
 		SetVSync(true);
 
+		
+		if (glfwRawMouseMotionSupported()) {
+			glfwSetInputMode(m_Window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+			HZ_CORE_INFO("Raw mouse input enabled");
+		}
+		else {
+			HZ_CORE_WARN("Raw mouse input not supported");
+		}
+
 		// Set GLFW callbacks
 		glfwSetWindowSizeCallback(m_Window, [](GLFWwindow* window, int width, int height)
 		{

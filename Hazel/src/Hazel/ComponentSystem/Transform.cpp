@@ -59,9 +59,27 @@ namespace Hazel {
 		SetDirty();
 	}
 
-	glm::vec3 Transform::Right() { return VECTOR_RIGHT * this->m_Rotation; }
-	glm::vec3 Transform::Up() { return VECTOR_UP * this->m_Rotation; }
-	glm::vec3 Transform::Forward() { return VECTOR_FORWARD * this->m_Rotation; }
+	void Transform::LookAt(const glm::vec3& point, const glm::vec3& up)
+	{
+		auto normUp = Up();
+		auto dir = glm::normalize(point - m_Position);
+
+		float cr = glm::dot(dir, Forward());
+		glm::mat4 RotationMatrix = glm::lookAt(m_Position, point, normUp);
+		m_Rotation = glm::normalize(glm::toQuat(RotationMatrix));
+		
+		auto thing = glm::quatLookAt(dir, normUp);
+		SetDirty();
+	}
+
+	glm::vec3 Transform::EulerAngles()
+	{
+		return glm::vec3();
+	}
+
+	glm::vec3 Transform::Right() { return glm::normalize(VECTOR_RIGHT * this->m_Rotation); }
+	glm::vec3 Transform::Up() { return glm::normalize(VECTOR_UP * this->m_Rotation); }
+	glm::vec3 Transform::Forward() { return glm::normalize(VECTOR_FORWARD * this->m_Rotation); }
 
 	void Transform::SetParent(Transform* parent) {
 		if (this != parent) {

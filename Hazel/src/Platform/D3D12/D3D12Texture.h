@@ -29,6 +29,8 @@ namespace Hazel {
 
 		inline ID3D12Resource* GetCommitedResource() const { return m_CommittedResource.Get(); }
 		inline ID3D12Resource* GetUploadResource() const { return m_UploadResource.Get(); }
+		inline void SetHeapIndex(uint32_t index) { this->m_Index = index; }
+		inline uint32_t GetHeapIndex() const { return this->m_Index; }
 		/*inline CD3DX12_GPU_DESCRIPTOR_HANDLE& GetGPUHandle() { return m_GPUHandle; }
 		inline CD3DX12_CPU_DESCRIPTOR_HANDLE& GetCPUHandle() { return m_CPUHandle; }*/
 		void DebugNameResource(std::wstring& name);
@@ -36,6 +38,7 @@ namespace Hazel {
 		std::string m_Path;
 		uint32_t m_Width;
 		uint32_t m_Height;
+		uint32_t m_Index;
 		D3D12_RESOURCE_STATES m_CurrentState;
 		D3D12Context* m_Context;
 		TComPtr<ID3D12Resource> m_CommittedResource;

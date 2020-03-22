@@ -1,7 +1,9 @@
 #pragma once
+
+#include "Hazel/ComponentSystem/GameObject.h"
 #include "Hazel/Core/Core.h"
 #include "Hazel/Renderer/RenderPass.h"
-#include "Hazel/Core/Timestep.h"
+#include "Hazel/Renderer/PerspectiveCamera.h"
 
 #include "Platform/D3D12/ComPtr.h"
 #include "Platform/D3D12/D3D12Context.h"
@@ -10,41 +12,72 @@
 
 namespace Hazel {
 
+	template <uint32_t TNumInputs, uint32_t TNumOutputs>
 	class D3D12RenderPass
 	{
 	public:
-		D3D12RenderPass(uint32_t frameLatency);
-		virtual ~D3D12RenderPass();
+		static constexpr uint32_t PassOutputCount = TNumOutputs;
+		static constexpr uint32_t PassInputCount = TNumInputs;
 
-		virtual void Update(Timestep ts);
-		virtual void Process(D3D12Context* ctx) = 0;
-		virtual void Recompile(D3D12Context* ctx) = 0;
+		D3D12RenderPass() = default;
+		virtual ~D3D12RenderPass() = default;
 
-		void SetLayout(D3D12_INPUT_ELEMENT_DESC*& layout, uint32_t count);
+		virtual void Process(D3D12Context* ctx, Hazel::GameObject& sceneRoot, Hazel::PerspectiveCamera& camera) = 0;
+	
+		virtual void SetInput(uint32_t index, Hazel::Ref<D3D12Texture2D> input) 
+		{
+			if (index < TNumInputs) {
+				m_Inputs[index] = input;
+			}
+			else {
+				HZ_CORE_ASSERT(false, "This pass does not have this input");
+			}
+		}
+
+		virtual Hazel::Ref<D3D12Texture2D> GetInput(uint32_t index) const 
+		{
+			if (index < TNumInputs) {
+				return m_Inputs[index];
+			}
+			HZ_CORE_ASSERT(false, "This pass does not have this input");
+			return nullptr;
+		}
+
+		virtual void SetOutput(uint32_t index, Hazel::Ref<D3D12Texture2D> output) 
+		{
+			if (index < TNumInputs) {
+				m_Outputs[index] = output;
+			}
+			else {
+				HZ_CORE_ASSERT(false, "This pass does not have this output");
+			}
+		};
+
+		virtual Hazel::Ref<D3D12Texture2D> GetOutput(uint32_t index) const
+		{
+			if (index < PassOutputCount) {
+				return m_Outputs[index];
+			}
+			HZ_CORE_ASSERT(false, "This pass does not have this output");
+			return nullptr;
+		}
+
+		//struct PipelineStateStream
+		//{
+		//	CD3DX12_PIPELINE_STATE_STREAM_ROOT_SIGNATURE pRootSignature;
+		//	CD3DX12_PIPELINE_STATE_STREAM_INPUT_LAYOUT InputLayout;
+		//	CD3DX12_PIPELINE_STATE_STREAM_PRIMITIVE_TOPOLOGY PrimitiveTopologyType;
+		//	CD3DX12_PIPELINE_STATE_STREAM_VS VS;
+		//	CD3DX12_PIPELINE_STATE_STREAM_PS PS;
+		//	CD3DX12_PIPELINE_STATE_STREAM_DEPTH_STENCIL_FORMAT DSVFormat;
+		//	CD3DX12_PIPELINE_STATE_STREAM_RENDER_TARGET_FORMATS RTVFormats;
+		//} m_PipelineStateStream;
 
 	protected:
 
-		uint32_t m_FrameLatency;
-		uint32_t m_FrameCount;
-
-		struct PipelineStateStream
-		{
-			CD3DX12_PIPELINE_STATE_STREAM_ROOT_SIGNATURE pRootSignature;
-			CD3DX12_PIPELINE_STATE_STREAM_INPUT_LAYOUT InputLayout;
-			CD3DX12_PIPELINE_STATE_STREAM_PRIMITIVE_TOPOLOGY PrimitiveTopologyType;
-			CD3DX12_PIPELINE_STATE_STREAM_VS VS;
-			CD3DX12_PIPELINE_STATE_STREAM_PS PS;
-			CD3DX12_PIPELINE_STATE_STREAM_DEPTH_STENCIL_FORMAT DSVFormat;
-			CD3DX12_PIPELINE_STATE_STREAM_RENDER_TARGET_FORMATS RTVFormats;
-		} m_PipelineStateStream;
-		
-		Hazel::Ref<Hazel::D3D12Shader> m_PublicShader;
-		Hazel::TComPtr<ID3D12RootSignature> m_PublicRootSignature;
-		Hazel::TComPtr<ID3D12PipelineState> m_PublicPipelineState;
-
-		Hazel::Ref<Hazel::D3D12Shader> m_PrivateShader;
-		Hazel::TComPtr<ID3D12RootSignature> m_PrivateRootSignature;
-		Hazel::TComPtr<ID3D12PipelineState> m_PrivatePipelineState;
+		Hazel::Ref<Hazel::D3D12Shader> m_Shader;
+		Hazel::Ref<Hazel::D3D12Texture2D> m_Inputs[TNumInputs];
+		Hazel::Ref<Hazel::D3D12Texture2D> m_Outputs[TNumOutputs];
+		Hazel::TComPtr<ID3D12DescriptorHeap> m_SRVHeap;
 	};
 }
-

@@ -10,61 +10,65 @@
 namespace Hazel {
 
 	PerspectiveCameraController::PerspectiveCameraController(glm::vec3& position, float fov, float aspectRatio, float zNear, float zFar)
-		: m_AspectRatio(aspectRatio), m_Fov(fov), m_zNear(zNear), m_zFar(zFar), m_Camera(position, fov, aspectRatio, zNear, zFar)
+		: m_AspectRatio(aspectRatio), 
+		m_Fov(fov), 
+		m_zNear(zNear), 
+		m_zFar(zFar),
+		m_Camera(position, fov, aspectRatio, zNear, zFar)
 	{
-		m_CameraQuat = m_Camera.GetRotation(); //glm::quat(0.0f, 0.0f, 0.0f, 1.0f);
 	}
 
 	void PerspectiveCameraController::OnUpdate(Timestep ts)
 	{
 		HZ_PROFILE_FUNCTION();
 
+		glm::vec3 cameraPosition = m_Camera.GetPosition();
+
 		if (Input::IsKeyPressed(HZ_KEY_A))
 		{
-			m_CameraPosition += m_Camera.GetRight() * m_CameraTranslationSpeed * glm::vec3(ts);
+			cameraPosition += m_Camera.GetRight() * m_CameraTranslationSpeed * glm::vec3(ts);
 		}
 		else if (Input::IsKeyPressed(HZ_KEY_D))
 		{
-			m_CameraPosition -= m_Camera.GetRight() * m_CameraTranslationSpeed * glm::vec3(ts);
+			cameraPosition -= m_Camera.GetRight() * m_CameraTranslationSpeed * glm::vec3(ts);
 		}
 
 		if (Input::IsKeyPressed(HZ_KEY_W))
 		{
-			m_CameraPosition += m_Camera.GetForward() * m_CameraTranslationSpeed * glm::vec3(ts);
+			cameraPosition += m_Camera.GetForward() * m_CameraTranslationSpeed * glm::vec3(ts);
 		}
 		else if (Input::IsKeyPressed(HZ_KEY_S))
 		{
-			m_CameraPosition -= m_Camera.GetForward() * m_CameraTranslationSpeed * glm::vec3(ts);
+			cameraPosition -= m_Camera.GetForward() * m_CameraTranslationSpeed * glm::vec3(ts);
 		}
 
 		if (Input::IsKeyPressed(HZ_KEY_SPACE)) 
 		{
-			m_CameraPosition += m_Camera.GetUp() * m_CameraTranslationSpeed * glm::vec3(ts);
+			cameraPosition += m_Camera.GetUp() * m_CameraTranslationSpeed * glm::vec3(ts);
 		}
 		else if (Input::IsKeyPressed(HZ_KEY_X))
 		{
-			m_CameraPosition -= m_Camera.GetUp() * m_CameraTranslationSpeed * glm::vec3(ts);
+			cameraPosition -= m_Camera.GetUp() * m_CameraTranslationSpeed * glm::vec3(ts);
 		}
 		
 
-		m_Camera.SetPosition(m_CameraPosition);
+		m_Camera.SetPosition(cameraPosition);
 
 		if (Input::IsMouseButtonPressed(HZ_MOUSE_BUTTON_1)) {
-			Input::SetCursor(false);
-
-			//Vector2f centerPosition = new Vector2f(Window.GetWidth() / 2, Window.GetHeight() / 2);
-
 			float centerX = Hazel::Application::Get().GetWindow().GetWidth() / 2.0f;
 			float centerY = Hazel::Application::Get().GetWindow().GetHeight() / 2.0f;
 
-			auto [x, y] = Input::GetMousePosition();
 
-			float deltaX = x - m_LastMouseX;
-			float deltaY = y - m_LastMouseY;
+			Input::SetCursor(false);
+			auto [x, y] = Input::GetMousePosition();
 			
 
-			float yaw =  deltaX * m_CameraRotationSpeed * ts;
-			float pitch = deltaY* m_CameraRotationSpeed* ts;
+			float deltaX = x - centerX;
+			float deltaY = y - centerY;
+
+
+			float yaw = deltaX * m_CameraRotationSpeed * ts;
+			float pitch = deltaY * m_CameraRotationSpeed * ts;
 			float roll = 0.0f; // maybe implement this in the future?
 			m_LastMouseX = x;
 			m_LastMouseY = y;
@@ -73,6 +77,7 @@ namespace Hazel {
 			auto& tf = m_Camera.GetTransform();
 			tf.RotateAround(tf.Right(), -pitch);
 			tf.RotateAround(Transform::VECTOR_UP, yaw);
+			Input::SetMousePosition(centerX, centerY);
 		}
 		else {
 			Input::SetCursor(true);
@@ -107,6 +112,8 @@ namespace Hazel {
 
 		m_LastMouseX = e.GetX();
 		m_LastMouseY = e.GetY();
+
+		/*HZ_CORE_INFO("OnMouseMoved: <{}, {}>", m_LastMouseX, m_LastMouseY);*/
 
 		return false;
 	}

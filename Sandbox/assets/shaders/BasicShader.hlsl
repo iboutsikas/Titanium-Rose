@@ -4,7 +4,7 @@
                         "DENY_GEOMETRY_SHADER_ROOT_ACCESS), " \
               "CBV(b0)," \
               "CBV(b1)," \
-              "DescriptorTable(SRV(t0, numDescriptors = 2), visibility = SHADER_VISIBILITY_PIXEL), " \
+              "DescriptorTable(SRV(t0, numDescriptors = 2, flags = DESCRIPTORS_VOLATILE), visibility = SHADER_VISIBILITY_PIXEL), " \
               "StaticSampler(s0," \
                       "addressU = TEXTURE_ADDRESS_BORDER," \
                       "addressV = TEXTURE_ADDRESS_BORDER," \
@@ -15,15 +15,10 @@
 
 cbuffer cbPass : register(b0) {
     matrix gViewProjection;
-    float4 gAmbientLight;
-    float4 gDirectionalLight;
-    float3 gCameraPosition;
-    float  gAmbientIntensity;
 };
 
 cbuffer cbPerObject : register(b1) {
     matrix oLocalToWorld;
-    matrix oWorldToLocal;
     uint   oTextureIndex;
 }
 

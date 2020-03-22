@@ -24,8 +24,14 @@ namespace Hazel {
 		
 		virtual void UpdateReferences() = 0;
 
+		virtual bool Recompile(void* pipelineStream = nullptr) { return true; }
+		virtual std::vector<std::string>& GetErrors() { return m_Errors; }
+
 		static Ref<Shader> Create(const std::string& filepath);
 		static Ref<Shader> Create(const std::string& name, const std::string& vertexSrc, const std::string& fragmentSrc);
+
+	protected:
+		std::vector<std::string> m_Errors;
 	};
 
 	class ShaderLibrary
@@ -42,6 +48,12 @@ namespace Hazel {
 
 		bool Exists(const std::string& name) const;
 		void Update();
+
+		std::unordered_map<std::string, Ref<Shader>>::iterator begin() { return m_Shaders.begin(); }
+		std::unordered_map<std::string, Ref<Shader>>::iterator end() { return m_Shaders.end(); }
+
+		std::unordered_map<std::string, Ref<Shader>>::const_iterator begin() const { return m_Shaders.begin(); }
+		std::unordered_map<std::string, Ref<Shader>>::const_iterator end()	const { return m_Shaders.end(); }
 
 		static ShaderLibrary* GlobalLibrary();
 		static void InitalizeGlobalLibrary(uint32_t frameLatency);

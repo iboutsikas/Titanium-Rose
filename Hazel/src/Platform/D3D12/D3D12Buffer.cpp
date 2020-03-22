@@ -42,6 +42,9 @@ namespace Hazel {
 			UpdateSubresources(commandList.Get(),
 				m_CommittedResource.Get(), m_UploadResource.Get(),
 				0, 0, 1, &subresourceData);
+
+			m_View.BufferLocation = m_CommittedResource->GetGPUVirtualAddress();
+			m_View.SizeInBytes = size;
 		}
 	}
 	
@@ -86,6 +89,9 @@ namespace Hazel {
 			UpdateSubresources(commandList.Get(),
 				m_CommittedResource.Get(), m_UploadResource.Get(),
 				0, 0, 1, &subresourceData);
+			m_View.BufferLocation = m_CommittedResource->GetGPUVirtualAddress();
+			m_View.Format = DXGI_FORMAT_R32_UINT;
+			m_View.SizeInBytes = size;
 		}
 	}
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Hazel/Core/Application.h"
 #include "Hazel/Renderer/Buffer.h"
 #include "Platform/D3D12/ComPtr.h"
 #include "d3d12.h"
@@ -21,11 +22,13 @@ namespace Hazel {
 		virtual void SetLayout(const BufferLayout& layout) override { m_Layout = layout; }
 
 		inline TComPtr<ID3D12Resource> GetResource() { return m_CommittedResource; }
+		inline D3D12_VERTEX_BUFFER_VIEW GetView() const { return m_View; }
 	private:
 		BufferLayout m_Layout;
 		D3D12Context* m_Context;
 		TComPtr<ID3D12Resource> m_CommittedResource;
 		TComPtr<ID3D12Resource> m_UploadResource;
+		D3D12_VERTEX_BUFFER_VIEW m_View;
 	};
 
 	class D3D12IndexBuffer : public IndexBuffer
@@ -39,11 +42,13 @@ namespace Hazel {
 
 		virtual uint32_t GetCount() const { return m_Count; }
 		inline TComPtr<ID3D12Resource> GetResource() { return m_CommittedResource; }
+		inline D3D12_INDEX_BUFFER_VIEW GetView() const { return m_View; }
 	private:
 		uint32_t m_Count;
 		D3D12Context* m_Context;
 		TComPtr<ID3D12Resource> m_CommittedResource;
 		TComPtr<ID3D12Resource> m_UploadResource;
+		D3D12_INDEX_BUFFER_VIEW m_View;
 	};
 	
 	template<typename T>
@@ -92,7 +97,9 @@ namespace Hazel {
 
 		void CopyData(int elementIndex, const T& data)
 		{
-			memcpy(&m_MappedData[elementIndex * m_ElementByteSize], &data, sizeof(T));
+			auto size = sizeof(T);
+			auto offset = (elementIndex * m_ElementByteSize);
+			memcpy(m_MappedData + offset, &data, size);
 		}
 
 	private:

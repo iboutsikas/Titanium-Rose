@@ -18,7 +18,7 @@ namespace Hazel {
 	public:
 		Hazel::Ref<Hazel::D3D12VertexBuffer> vertexBuffer;
 		Hazel::Ref<Hazel::D3D12IndexBuffer> indexBuffer;
-		Hazel::Ref<Hazel::D3D12Texture2D> diffuseTexture;
+		uint32_t textureId;
 	};
 
 	
@@ -28,6 +28,10 @@ namespace Hazel {
 	public:
 		Transform transform;
 		Mesh mesh;
+		// TODO: actual material system
+		float glossines;
+		uint32_t cbIndex;
+
 		std::vector<GameObject*> children;
 
 		void AddChild(GameObject* child) {

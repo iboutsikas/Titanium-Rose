@@ -47,8 +47,9 @@ namespace Hazel {
 		return ret;
 	}
 
-	bool D3D12Shader::Recompile(PipelineStateStream* pipelineStream)
+	bool D3D12Shader::Recompile(void* stream)
 	{
+		PipelineStateStream* pipelineStream = (PipelineStateStream * )stream;
 		if (pipelineStream != nullptr) {
 			m_PipelineDesc.InputLayout = pipelineStream->InputLayout;
 			m_PipelineDesc.PrimitiveTopologyType = pipelineStream->PrimitiveTopologyType;
@@ -62,18 +63,22 @@ namespace Hazel {
 		std::wstring stemp = std::wstring(m_Path.begin(), m_Path.end());
 		if (FAILED(Compile(stemp, "VS_Main", "vs_5_1", &m_CompilationState->vertexBlob))) {
 			delete m_CompilationState;
+			m_CompilationState = nullptr;
 			return false;
 		}
 		if (FAILED(Compile(stemp, "PS_Main", "ps_5_1", &m_CompilationState->fragmentBlob))) {
 			delete m_CompilationState;
+			m_CompilationState = nullptr;
 			return false;
 		}
 		if (FAILED(ExtractRootSignature(m_CompilationState, m_CompilationState->vertexBlob))) {
 			delete m_CompilationState;
+			m_CompilationState = nullptr;
 			return false;
 		}
 		if (FAILED(BuildPSO(m_CompilationState, &m_PipelineDesc))) {
 			delete m_CompilationState;
+			m_CompilationState = nullptr;
 			return false;
 		}
 

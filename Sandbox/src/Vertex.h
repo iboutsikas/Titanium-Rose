@@ -3,7 +3,6 @@
 #include "glm/vec2.hpp"
 #include "glm/vec3.hpp"
 #include "glm/vec4.hpp"
-#define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/hash.hpp>
 #undef GLM_ENABLE_EXPERIMENTAL
 

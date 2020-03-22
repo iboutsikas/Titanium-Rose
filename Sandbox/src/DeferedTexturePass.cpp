@@ -1,141 +1,131 @@
+#include "hzpch.h"
 #include "DeferedTexturePass.h"
 #include "Vertex.h"
 
 #include "Platform/D3D12/D3D12Helpers.h"
 
-DeferedTexturePass::DeferedTexturePass(Hazel::D3D12Context* ctx)
-	: Hazel::D3D12RenderPass(3)
+// TODO: Maybe get these from an .hlsli file like normal people
+static constexpr uint32_t PassCBIndex = 0;
+static constexpr uint32_t PerObjectCBIndex = 1;
+static constexpr uint32_t SRVIndex = 2;
+
+DeferedTexturePass::DeferedTexturePass(Hazel::D3D12Context* ctx, Hazel::D3D12Shader::PipelineStateStream& pipelineStream)
+	: m_Context(ctx)
 {
-	// Shader
-	{
-		m_PublicShader = Hazel::CreateRef<Hazel::D3D12Shader>("assets/shaders/TextureShader.hlsl");
-	}
+	m_Shader = Hazel::CreateRef<Hazel::D3D12Shader>("assets/shaders/TextureShader.hlsl", pipelineStream);
+	Hazel::ShaderLibrary::GlobalLibrary()->Add(m_Shader);
+	// We need to create the shader and add get it by name or something here
+	m_RTVHeap = ctx->DeviceResources->CreateDescriptorHeap(
+		ctx->DeviceResources->Device.Get(),
+		D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
+		DeferedTexturePass::PassOutputCount
+	);
 
-	// Root Signature
-	{
+	m_SRVHeap = ctx->DeviceResources->CreateDescriptorHeap(
+		ctx->DeviceResources->Device.Get(),
+		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+		DeferedTexturePass::PassInputCount,
+		D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
+	);
 
-		// We need an abstract version of this too. Should probably be tied to some kind of render pass or something
-		D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
-		featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
-		if (FAILED(ctx->DeviceResources->Device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData))))
-		{
-			featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
-		}
+	m_PassCB = Hazel::CreateRef<Hazel::D3D12UploadBuffer<PassData>>(1, true);
+	m_PassCB->Resource()->SetName(L"DeferedTexturePass::Scene CB");
 
-		// Allow input layout and deny unnecessary access to certain pipeline stages.
-		D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
-			D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
-			D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
-			D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
-			D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;;
-
-		CD3DX12_DESCRIPTOR_RANGE1 ranges[1];
-		ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
-
-		// A single 32-bit constant root parameter that is used by the vertex shader.
-		CD3DX12_ROOT_PARAMETER1 rootParameters[2];
-		rootParameters[0].InitAsConstantBufferView(0);
-		rootParameters[1].InitAsDescriptorTable(1, ranges, D3D12_SHADER_VISIBILITY_PIXEL);
-
-		D3D12_STATIC_SAMPLER_DESC sampler = {};
-		sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
-		sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-		sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-		sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-		sampler.MipLODBias = 0;
-		sampler.MaxAnisotropy = 0;
-		sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
-		sampler.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
-		sampler.MinLOD = 0.0f;
-		sampler.MaxLOD = D3D12_FLOAT32_MAX;
-		sampler.ShaderRegister = 0;
-		sampler.RegisterSpace = 0;
-		sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-
-		CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDescription;
-		rootSignatureDescription.Init_1_1(_countof(rootParameters), rootParameters, 1, &sampler, rootSignatureFlags);
-
-		// Serialize the root signature.
-		Hazel::TComPtr<ID3DBlob> rootSignatureBlob;
-		Hazel::TComPtr<ID3DBlob> errorBlob;
-		Hazel::D3D12::ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&rootSignatureDescription,
-			featureData.HighestVersion, &rootSignatureBlob, &errorBlob));
-		// Create the root signature.
-		Hazel::D3D12::ThrowIfFailed(ctx->DeviceResources->Device->CreateRootSignature(0, rootSignatureBlob->GetBufferPointer(),
-			rootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&m_PublicRootSignature)));
-	}
-
-	// Pipeline State 
-	{
-		// We need to get this from the VertexBuffer in generic way
-		D3D12_INPUT_ELEMENT_DESC inputLayout[] = {
-			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(Vertex, Position), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-			{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, offsetof(Vertex, Color), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-			{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(Vertex, Normal), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-			{ "UV", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(Vertex, UV), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		};
-
-		D3D12_RT_FORMAT_ARRAY rtvFormats = {};
-		rtvFormats.NumRenderTargets = 1;
-		rtvFormats.RTFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-
-
-		CD3DX12_RASTERIZER_DESC rasterizer(D3D12_DEFAULT);
-		//rasterizer.CullMode = D3D12_CULL_MODE_NONE;
-		rasterizer.FrontCounterClockwise = TRUE;
-		rasterizer.CullMode = D3D12_CULL_MODE_BACK;
-		struct PipelineStateStream
-		{
-			CD3DX12_PIPELINE_STATE_STREAM_ROOT_SIGNATURE pRootSignature;
-			CD3DX12_PIPELINE_STATE_STREAM_INPUT_LAYOUT InputLayout;
-			CD3DX12_PIPELINE_STATE_STREAM_PRIMITIVE_TOPOLOGY PrimitiveTopologyType;
-			CD3DX12_PIPELINE_STATE_STREAM_VS VS;
-			CD3DX12_PIPELINE_STATE_STREAM_PS PS;
-			CD3DX12_PIPELINE_STATE_STREAM_DEPTH_STENCIL_FORMAT DSVFormat;
-			CD3DX12_PIPELINE_STATE_STREAM_RENDER_TARGET_FORMATS RTVFormats;
-			CD3DX12_PIPELINE_STATE_STREAM_RASTERIZER Rasterizer;
-		} pipelineStateStream;
-
-		pipelineStateStream.pRootSignature = m_PublicRootSignature.Get();
-		pipelineStateStream.InputLayout = { inputLayout, _countof(inputLayout) };
-		pipelineStateStream.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-		pipelineStateStream.VS = CD3DX12_SHADER_BYTECODE(m_PublicShader->GetVertexBlob().Get());
-		pipelineStateStream.PS = CD3DX12_SHADER_BYTECODE(m_PublicShader->GetFragmentBlob().Get());
-		pipelineStateStream.DSVFormat = DXGI_FORMAT_UNKNOWN;
-		pipelineStateStream.RTVFormats = rtvFormats;
-		pipelineStateStream.Rasterizer = CD3DX12_PIPELINE_STATE_STREAM_RASTERIZER(rasterizer);
-
-		D3D12_PIPELINE_STATE_STREAM_DESC pipelineStateStreamDesc = {
-			sizeof(PipelineStateStream), &pipelineStateStream
-		};
-
-		Hazel::D3D12::ThrowIfFailed(
-			ctx->DeviceResources->Device->CreatePipelineState(&pipelineStateStreamDesc, IID_PPV_ARGS(&m_PublicPipelineState))
-		);
-	}
+	m_PerObjectCB = Hazel::CreateRef<Hazel::D3D12UploadBuffer<PerObjectData>>(2, true);
+	m_PerObjectCB->Resource()->SetName(L"DeferedTexturePass::Per Object CB");
 }
 
-void DeferedTexturePass::Update(Hazel::Timestep ts)
+void DeferedTexturePass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject& sceneRoot, Hazel::PerspectiveCamera& camera)
 {
-	Hazel::D3D12RenderPass::Update(ts);
-}
+	// Create the pass data first
 
-void DeferedTexturePass::Process(Hazel::D3D12Context* ctx)
-{
-	if (Target == nullptr) return;
 	
-	D3D12_VIEWPORT vp = { 0.0f, 0.0f, Target->GetWidth(), Target->GetHeight(), 0.0f, 1.0f };
-	D3D12_RECT rect = { 0.0f, 0.0f, Target->GetWidth(), Target->GetHeight() };
+	HPassData.ViewProjection = camera.GetViewProjectionMatrix();
+	HPassData.CameraPosition = camera.GetPosition();
+	// The rest of the light stuff
 
+	m_PassCB->CopyData(0, HPassData);
+
+	// TODO: Maybe do not hardcode this here? Maybe we want to be able to handle children somehow ?
+	PerObjectData HPerObjectData;
+	HPerObjectData.Glossiness = sceneRoot.glossines;
+	HPerObjectData.ModelMatrix = sceneRoot.transform.LocalToWorldMatrix();
+	auto scale = glm::transpose(glm::inverse(sceneRoot.transform.ScaleMatrix()));
+	auto rot = sceneRoot.transform.RotationMatrix();
+	HPerObjectData.NormalsMatrix = rot * scale;
+	m_PerObjectCB->CopyData(0, HPerObjectData);
+
+	// Render
+	auto target = m_Outputs[0];
 	auto cmdList = ctx->DeviceResources->CommandList;
 
-	cmdList->SetGraphicsRootSignature(m_PublicRootSignature.Get());
-	cmdList->SetPipelineState(m_PublicPipelineState.Get());
+	D3D12_VIEWPORT vp = { 0.0f, 0.0f, (float)target->GetWidth(), (float)target->GetHeight(), 0.0f, 1.0f };
+	D3D12_RECT rect = { 0.0f, 0.0f, (float)target->GetWidth(), (float)target->GetHeight() };
+	
+	cmdList->SetPipelineState(m_Shader->GetPipelineState());
+	cmdList->SetGraphicsRootSignature(m_Shader->GetRootSignature());
 
+	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	cmdList->RSSetViewports(1, &vp);
 	cmdList->RSSetScissorRects(1, &rect);
+	cmdList->SetDescriptorHeaps(1, m_SRVHeap.GetAddressOf());
+
+	auto mesh = sceneRoot.mesh;
+	D3D12_VERTEX_BUFFER_VIEW vb = mesh.vertexBuffer->GetView();
+	vb.StrideInBytes = sizeof(Vertex);
+
+	D3D12_INDEX_BUFFER_VIEW ib = mesh.indexBuffer->GetView();
+
+	cmdList->IASetVertexBuffers(0, 1, &vb);
+	cmdList->IASetIndexBuffer(&ib);
+	cmdList->SetGraphicsRootConstantBufferView(PassCBIndex, m_PassCB->Resource()->GetGPUVirtualAddress());
+	cmdList->SetGraphicsRootConstantBufferView(PerObjectCBIndex, m_PerObjectCB->Resource()->GetGPUVirtualAddress());
+	cmdList->SetGraphicsRootDescriptorTable(SRVIndex, m_SRVHeap->GetGPUDescriptorHandleForHeapStart());
+	target->Transition(D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+	auto rtv = m_RTVHeap->GetCPUDescriptorHandleForHeapStart();
+
+	cmdList->OMSetRenderTargets(1, &rtv, true, nullptr);
+
+	float clearColor[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+	m_Context
+		->DeviceResources
+		->CommandList
+		->ClearRenderTargetView(rtv, clearColor, 0, nullptr);
+
+	cmdList->DrawIndexedInstanced(mesh.indexBuffer->GetCount(), 1, 0, 0, 0);
+
+	target->Transition(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void DeferedTexturePass::Recompile(Hazel::D3D12Context* ctx)
+void DeferedTexturePass::SetInput(uint32_t index, Hazel::Ref<Hazel::D3D12Texture2D> input)
 {
+	D3D12RenderPass::SetInput(index, input);
+
+	CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(
+		m_SRVHeap->GetCPUDescriptorHandleForHeapStart(),
+		index,
+		m_Context->GetSRVDescriptorSize()
+	);
+
+	// If SetInput did not throw we are in a valid range;
+	m_Context->DeviceResources->Device->CreateShaderResourceView(
+		input->GetCommitedResource(),
+		nullptr,
+		srvHandle
+	);
+}
+
+void DeferedTexturePass::SetOutput(uint32_t index, Hazel::Ref<Hazel::D3D12Texture2D> output)
+{
+	D3D12RenderPass::SetOutput(index, output);
+
+	if (index == 0) {
+		m_Context->DeviceResources->Device->CreateRenderTargetView(
+			output->GetCommitedResource(),
+			nullptr,
+			m_RTVHeap->GetCPUDescriptorHandleForHeapStart()
+		);
+	}
 }

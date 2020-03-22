@@ -1,23 +1,8 @@
 #define MyRS1 "RootFlags(ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT | " \
                         "DENY_DOMAIN_SHADER_ROOT_ACCESS | " \
-                        "DENY_HULL_SHADER_ROOT_ACCESS | " \
-                        "DENY_GEOMETRY_SHADER_ROOT_ACCESS), " \
+                        "DENY_HULL_SHADER_ROOT_ACCESS ), " \
                 "CBV(b0)," \
-                "CBV(b1)," \
-                "StaticSampler(s0," \
-                            "filter = FILTER_MIN_MAG_MIP_POINT," \
-                            "addressU = TEXTURE_ADDRESS_BORDER, " \
-                            "addressV = TEXTURE_ADDRESS_BORDER, " \
-                            "addressW = TEXTURE_ADDRESS_BORDER, " \
-                            "mipLODBias = 0.f, " \
-                            "maxAnisotropy = 0, " \
-                            "comparisonFunc = COMPARISON_NEVER, " \
-                            "borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK, " \
-                            "minLOD = 0.f, " \
-                            "maxLOD = 3.402823466e+38f, " \
-                            "space = 0," \
-                            "visibility = SHADER_VISIBILITY_PIXEL)," \
-                "DescriptorTable(SRV(t0, numDescriptors = 1, flags = DESCRIPTORS_VOLATILE), visibility = SHADER_VISIBILITY_PIXEL) " 
+                "CBV(b1)" 
 
 cbuffer cbPass : register(b0) {
     float4x4 gViewProjection;
@@ -26,12 +11,18 @@ cbuffer cbPass : register(b0) {
     float3   gDirectionalLightPosition;
     float    __padding1;
     float3   gCameraPosition;
+    float    __padding2;
     float1    gAmbientIntensity;
 };
 
 cbuffer cbPerObject : register(b1) {
     float4x4 oLocalToWorld;
     float4x4 oNormalsMatrix;
+    float4x4 oNormalsMatrix2;
+    float4x4 oNormalsMatrix3;
+    uint     oTextureIndex;
+    float3   __padding;
+    // There is 3-byte padding here
     float    oGlossiness;
 }
 
@@ -106,5 +97,5 @@ float4 PS_Main(PSInput input) : SV_TARGET
     float3 diffuseLight = ambient + directDiffuseLight; // + directSpecular;
     float4 finalSurfaceColor = float4(diffuseLight * texColor.xyz , texColor.a);
         
-    return float4(0.0, 1.0, 1.0, 1.0);
+    return float4(lightReflect, 1.0);
 }

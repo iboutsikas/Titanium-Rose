@@ -3,6 +3,7 @@
 #include "glm/vec3.hpp"
 #include "glm/gtx/quaternion.hpp"
 
+#include <vector>
 
 namespace Hazel {
 	class Transform
@@ -25,6 +26,7 @@ namespace Hazel {
 		void SetPosition(float x, float y, float z);
 
 		glm::vec3 Scale() { return m_Scale; }
+		glm::mat4 ScaleMatrix() { return glm::scale(glm::mat4(1.0f), m_Scale); }
 		void SetScale(glm::vec3 value) { m_Scale = value; SetDirty(); }
 		void SetScale(float x, float y, float z);
 
@@ -38,7 +40,8 @@ namespace Hazel {
 		void Rotate(glm::vec3 eulerAngles, Space relativeTo);
 		void Rotate(float xAngle, float yAngle, float zAngle);
 		void RotateAround(glm::vec3 axis, float angle);
-
+		void LookAt(const glm::vec3& point, const glm::vec3& up = Transform::VECTOR_UP);
+		glm::vec3 EulerAngles();
 		glm::vec3 Right();
 		glm::vec3 Up();
 		glm::vec3 Forward();

@@ -33,8 +33,6 @@ namespace Hazel {
 		float m_LastMouseY;
 		PerspectiveCamera m_Camera;
 
-		glm::vec3 m_CameraPosition = { 0.0f, 0.0f, 0.0f };
-		glm::quat m_CameraQuat;
 		float m_CameraTranslationSpeed = 5.0f, m_CameraRotationSpeed = 5.0f;
 	};
 
