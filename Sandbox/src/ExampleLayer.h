@@ -49,8 +49,9 @@ private:
 	//Hazel::OrthographicCameraController m_CameraController;
 	Hazel::D3D12Context* m_Context;
 	glm::vec3 m_Pos;
-	Hazel::GameObject m_CubeGO;
-	Hazel::GameObject m_SphereGO;
+	Hazel::Ref<Hazel::GameObject> m_CubeGO;
+	Hazel::Ref<Hazel::GameObject> m_SphereGO;
+	Hazel::Ref<Hazel::GameObject> m_SceneGO;
 
 	int m_UpdateRate;
 	int m_RenderedFrames;
@@ -77,8 +78,9 @@ private:
 
 	// Textures
 	Hazel::Ref<Hazel::D3D12Texture2D> m_Texture;
-	CD3DX12_GPU_DESCRIPTOR_HANDLE m_TextureGPUHandle; // This is to render it in ImGui without messing too much with SRV heaps
 	Hazel::Ref<Hazel::D3D12Texture2D> m_DiffuseTexture;
+	Hazel::Ref<Hazel::D3D12Texture2D> m_WhiteTexture;
+	CD3DX12_GPU_DESCRIPTOR_HANDLE m_TextureGPUHandle; // This is to render it in ImGui without messing too much with SRV heaps
 
 	// Render Passes
 	Hazel::Ref<DeferedTexturePass> m_DeferredTexturePass;

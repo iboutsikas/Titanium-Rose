@@ -35,7 +35,7 @@ DeferedTexturePass::DeferedTexturePass(Hazel::D3D12Context* ctx, Hazel::D3D12Sha
 	m_PerObjectCB->Resource()->SetName(L"DeferedTexturePass::Per Object CB");
 }
 
-void DeferedTexturePass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject& sceneRoot, Hazel::PerspectiveCamera& camera)
+void DeferedTexturePass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject* sceneRoot, Hazel::PerspectiveCamera& camera)
 {
 	// Create the pass data first
 
@@ -48,10 +48,10 @@ void DeferedTexturePass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject& sc
 
 	// TODO: Maybe do not hardcode this here? Maybe we want to be able to handle children somehow ?
 	PerObjectData HPerObjectData;
-	HPerObjectData.Glossiness = sceneRoot.Material->Glossines;
-	HPerObjectData.ModelMatrix = sceneRoot.Transform.LocalToWorldMatrix();
-	auto scale = glm::transpose(glm::inverse(sceneRoot.Transform.ScaleMatrix()));
-	auto rot = sceneRoot.Transform.RotationMatrix();
+	HPerObjectData.Glossiness = sceneRoot->Material->Glossines;
+	HPerObjectData.ModelMatrix = sceneRoot->Transform.LocalToWorldMatrix();
+	auto scale = glm::transpose(glm::inverse(sceneRoot->Transform.ScaleMatrix()));
+	auto rot = sceneRoot->Transform.RotationMatrix();
 	HPerObjectData.NormalsMatrix = rot * scale;
 	m_PerObjectCB->CopyData(0, HPerObjectData);
 
@@ -70,7 +70,7 @@ void DeferedTexturePass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject& sc
 	cmdList->RSSetScissorRects(1, &rect);
 	cmdList->SetDescriptorHeaps(1, m_SRVHeap.GetAddressOf());
 
-	auto mesh = sceneRoot.Mesh;
+	auto mesh = sceneRoot->Mesh;
 	D3D12_VERTEX_BUFFER_VIEW vb = mesh->vertexBuffer->GetView();
 	vb.StrideInBytes = sizeof(Vertex);
 

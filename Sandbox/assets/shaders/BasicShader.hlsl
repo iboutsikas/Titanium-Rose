@@ -4,7 +4,7 @@
                         "DENY_GEOMETRY_SHADER_ROOT_ACCESS), " \
               "CBV(b0)," \
               "CBV(b1)," \
-              "DescriptorTable(SRV(t0, numDescriptors = 2, flags = DESCRIPTORS_VOLATILE), visibility = SHADER_VISIBILITY_PIXEL), " \
+              "DescriptorTable(SRV(t0, numDescriptors = 3, flags = DESCRIPTORS_VOLATILE), visibility = SHADER_VISIBILITY_PIXEL), " \
               "StaticSampler(s0," \
                       "addressU = TEXTURE_ADDRESS_BORDER," \
                       "addressV = TEXTURE_ADDRESS_BORDER," \
@@ -19,10 +19,11 @@ cbuffer cbPass : register(b0) {
 
 cbuffer cbPerObject : register(b1) {
     matrix oLocalToWorld;
+    float4 oMaterialColor;
     uint   oTextureIndex;
 }
 
-Texture2D g_texture[2] : register(t0);
+Texture2D g_texture[3] : register(t0);
 SamplerState g_sampler : register(s0);
 
 struct PSInput
@@ -34,7 +35,6 @@ struct PSInput
 struct VSInput
 {
     float3 position : POSITION;
-    float4 color : COLOR;
     float3 normal: NORMAL;
     float2 uv: UV;
 };
@@ -57,5 +57,5 @@ PSInput VS_Main(VSInput input)
 float4 PS_Main(PSInput input) : SV_TARGET
 {
     // return float4(1.0, 0.0, 0.0, 1.0);
-    return g_texture[oTextureIndex].Sample(g_sampler, input.uv);
+    return g_texture[oTextureIndex].Sample(g_sampler, input.uv) * oMaterialColor;
 }

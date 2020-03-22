@@ -32,7 +32,7 @@ static bool use_rendered_texture = false;
 
 static D3D12_INPUT_ELEMENT_DESC inputLayout[] = {
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(Vertex, Position), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, offsetof(Vertex, Color), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		//{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, offsetof(Vertex, Color), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(Vertex, Normal), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 		{ "UV", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(Vertex, UV), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 };
@@ -53,38 +53,57 @@ ExampleLayer::ExampleLayer()
 {
 	m_Context = static_cast<Hazel::D3D12Context*>(Hazel::Application::Get().GetWindow().GetContext());
 	
-	m_CubeMesh = Hazel::CreateRef<HMesh>();
-	m_SphereMesh = Hazel::CreateRef<HMesh>();
+	m_CubeMesh = Hazel::CreateRef<Hazel::HMesh>();
+	m_SphereMesh = Hazel::CreateRef<Hazel::HMesh>();
 
 	LoadTestCube();
 	//LoadGltfTest();
+	LoadTestSphere();
 	BuildPipeline();
 	LoadTextures();
 
-
-	m_CubeGO.Mesh = m_CubeMesh;
-	m_CubeGO.Material = Hazel::CreateRef<Hazel::HMaterial>();
-	m_CubeGO.Material->Glossines = 2.0f;
-	m_CubeGO.Material->TextureId = 1;
-
-	auto secondCube = new Hazel::GameObject();
-	m_CubeGO.AddChild(secondCube);
+	// Scene Root
+	m_SceneGO = Hazel::CreateRef<Hazel::GameObject>();
+	m_SceneGO->Transform.SetPosition(glm::vec3({ 0.0f, 0.0f, 0.0f }));
+	m_SceneGO->Name = "Scene Root";
+	// Cube #1
+	m_CubeGO = Hazel::CreateRef<Hazel::GameObject>();
+	m_CubeGO->Name = "Cube#1";
+	m_CubeGO->Mesh = m_CubeMesh;
+	m_CubeGO->Material = Hazel::CreateRef<Hazel::HMaterial>();
+	m_CubeGO->Material->Glossines = 2.0f;
+	m_CubeGO->Material->TextureId = 1;
+	m_CubeGO->Material->Color = glm::vec4(1.0f);
+	m_SceneGO->AddChild(m_CubeGO);
+	// Cube #2
+	auto secondCube = Hazel::CreateRef<Hazel::GameObject>();
+	secondCube->Name = "Cube#2";
 	secondCube->Transform.SetPosition(glm::vec3(5.0f, 3.0f, 0.0f));
 	secondCube->Mesh = m_CubeMesh;
 	secondCube->Material = Hazel::CreateRef<Hazel::HMaterial>();
 	secondCube->Material->Glossines = 2.0f;
 	secondCube->Material->TextureId = 1;
-
-	m_SphereGO.Mesh = m_SphereMesh;
-	m_SphereGO.Transform.SetPosition(m_DirectionalLightPosition);
+	secondCube->Material->Color = glm::vec4(1.0f);
+	m_CubeGO->AddChild(secondCube);
+	// "Light" Sphere
+	m_SphereGO = Hazel::CreateRef<Hazel::GameObject>();
+	m_SphereGO->Name = "Light Sphere";
+	m_SphereGO->Mesh = m_SphereMesh;
+	m_SphereGO->Transform.SetPosition(m_DirectionalLightPosition);
+	m_SphereGO->Material = Hazel::CreateRef<Hazel::HMaterial>();
+	m_SphereGO->Material->Glossines = 2.0f;
+	m_SphereGO->Material->TextureId = 2;
+	m_SphereGO->Material->Color = m_DirectionalLight;
+	m_SceneGO->AddChild(m_SphereGO);
 
 	m_DeferredTexturePass->SetOutput(0, m_Texture);
 	m_DeferredTexturePass->SetInput(0, m_DiffuseTexture);
 	
 	m_BaseColorPass->SetInput(0, m_Texture);
 	m_BaseColorPass->SetInput(1, m_DiffuseTexture);
+	m_BaseColorPass->SetInput(2, m_WhiteTexture);
 	m_BaseColorPass->ClearColor = glm::vec4({ 0.1f, 0.1f, 0.1f, 1.0f });
-	//Hazel::Application::Get().GetWindow().SetVSync(false);
+
 }
 
 void ExampleLayer::OnAttach()
@@ -106,23 +125,23 @@ void ExampleLayer::OnUpdate(Hazel::Timestep ts)
 
 	float angle = ts * 90.0f;
 	static glm::vec3 rotationAxis = glm::vec3(0.0f, 1.0f, 0.0f);
-	m_CubeGO.Transform.SetPosition(m_Pos);
+	m_CubeGO->Transform.SetPosition(m_Pos);
 
 	if (m_RotateCube) {
-		m_CubeGO.Transform.RotateAround(rotationAxis, angle);
+		m_CubeGO->Transform.RotateAround(rotationAxis, angle);
 	}
 	
 	if (use_rendered_texture) {
-		m_CubeGO.Material->TextureId = 0;
+		m_CubeGO->Material->TextureId = 0;
 	}
 	else {
-		m_CubeGO.Material->TextureId = 1;
+		m_CubeGO->Material->TextureId = 1;
 	}
-	m_CubeGO.Material->Glossines = m_Glossiness;
+	m_CubeGO->Material->Glossines = m_Glossiness;
 
 
-	m_SphereGO.Transform.SetPosition(m_DirectionalLightPosition);
-	
+	m_SphereGO->Transform.SetPosition(m_DirectionalLightPosition);
+	m_SphereGO->Material->Color = m_DirectionalLight;
 	//auto cmdList = m_Context->DeviceResources->CommandList;
 	
 	
@@ -141,11 +160,11 @@ void ExampleLayer::OnUpdate(Hazel::Timestep ts)
 		m_DeferredTexturePass->HPassData.DirectionalLight = m_DirectionalLight;
 		m_DeferredTexturePass->HPassData.DirectionalLightPosition = m_DirectionalLightPosition;
 						 
-		m_DeferredTexturePass->Process(m_Context, m_CubeGO, m_CameraController.GetCamera());
+		m_DeferredTexturePass->Process(m_Context, m_CubeGO.get(), m_CameraController.GetCamera());
 	}
 #endif
 	
-	m_BaseColorPass->Process(m_Context, m_CubeGO, m_CameraController.GetCamera());
+	m_BaseColorPass->Process(m_Context, m_SceneGO.get(), m_CameraController.GetCamera());
 
 	Hazel::Renderer::EndScene();
 	m_RenderedFrames++;
@@ -327,7 +346,6 @@ void ExampleLayer::LoadTestCube()
 
 				Vertex vertex(
 					glm::vec3(vx, vy, vz),
-					glm::vec4(1.0f, 1.0f, 1.0f, 1.0f),
 					glm::vec3(nx, ny, nz),
 					glm::vec2(tx, ty)
 				);
@@ -393,7 +411,6 @@ void ExampleLayer::LoadTestSphere()
 
 				Vertex vertex(
 					glm::vec3(vx, vy, vz),
-					glm::vec4(1.0f, 1.0f, 1.0f, 1.0f),
 					glm::vec3(nx, ny, nz),
 					glm::vec2(tx, ty)
 				);
@@ -456,6 +473,15 @@ void ExampleLayer::BuildPipeline()
 		m_DiffuseTexture->Transition(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		std::wstring name = L"Diffuse";
 		m_DiffuseTexture->DebugNameResource(name);
+
+		m_WhiteTexture = std::dynamic_pointer_cast<Hazel::D3D12Texture2D>(Hazel::Texture2D::Create(1, 1));
+		uint8_t white[] = { 255, 255, 255, 255 };
+		m_WhiteTexture->Transition(D3D12_RESOURCE_STATE_COPY_DEST);
+		m_WhiteTexture->SetData(white, sizeof(white));
+		m_WhiteTexture->Transition(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+		std::wstring name2 = L"White Texture";
+		m_WhiteTexture->DebugNameResource(name2);
 
 		Hazel::D3D12::ThrowIfFailed(m_Context->DeviceResources->CommandList->Close());
 

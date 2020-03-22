@@ -100,19 +100,23 @@ namespace Hazel {
 	void D3D12Texture2D::SetData(void* data, uint32_t size)
 	{
 		if (!m_UploadResource) {
+
+			const uint64_t uploadSize = GetRequiredIntermediateSize(m_CommittedResource.Get(), 0, 1);
 			D3D12::ThrowIfFailed(m_Context->DeviceResources->Device->CreateCommittedResource(
 				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 				D3D12_HEAP_FLAG_NONE,
-				&CD3DX12_RESOURCE_DESC::Buffer(size),
+				&CD3DX12_RESOURCE_DESC::Buffer(uploadSize),
 				D3D12_RESOURCE_STATE_GENERIC_READ,
 				nullptr,
 				IID_PPV_ARGS(m_UploadResource.GetAddressOf())));
 		}
 
+
+
 		D3D12_SUBRESOURCE_DATA subresourceData = {};
 		subresourceData.pData = data;
-		subresourceData.RowPitch = size;
-		subresourceData.SlicePitch = subresourceData.RowPitch;
+		subresourceData.RowPitch = m_Width * 4 * sizeof(uint8_t);
+		subresourceData.SlicePitch = subresourceData.RowPitch * m_Height;
 
 		UpdateSubresources(m_Context->DeviceResources->CommandList.Get(),
 			m_CommittedResource.Get(), m_UploadResource.Get(),

@@ -21,7 +21,7 @@ public:
 
 	DeferedTexturePass(Hazel::D3D12Context* ctx, Hazel::D3D12Shader::PipelineStateStream& pipelineStream);
 
-	virtual void Process(Hazel::D3D12Context* ctx, Hazel::GameObject& sceneRoot, Hazel::PerspectiveCamera& camera) override;
+	virtual void Process(Hazel::D3D12Context* ctx, Hazel::GameObject* sceneRoot, Hazel::PerspectiveCamera& camera) override;
 	virtual void SetInput(uint32_t index, Hazel::Ref<Hazel::D3D12Texture2D> input) override;
 	virtual void SetOutput(uint32_t index, Hazel::Ref<Hazel::D3D12Texture2D> output) override;
 

@@ -24,17 +24,17 @@ BaseColorPass::BaseColorPass(Hazel::D3D12Context* ctx, Hazel::D3D12Shader::Pipel
 	m_PassCB = Hazel::CreateRef<Hazel::D3D12UploadBuffer<PassData>>(1, true);
 	m_PassCB->Resource()->SetName(L"BaseColorPass::Scene CB");
 
-	m_PerObjectCB = Hazel::CreateRef<Hazel::D3D12UploadBuffer<PerObjectData>>(2, true);
+	m_PerObjectCB = Hazel::CreateRef<Hazel::D3D12UploadBuffer<PerObjectData>>(3, true);
 	m_PerObjectCB->Resource()->SetName(L"BaseColorPass::Per Object CB");
 }
 
-void BaseColorPass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject& sceneRoot, Hazel::PerspectiveCamera& camera)
+void BaseColorPass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject* sceneRoot, Hazel::PerspectiveCamera& camera)
 {
 	HPassData.ViewProjection = camera.GetViewProjectionMatrix();
 	m_PassCB->CopyData(0, HPassData);
 
 	cbOffset = 0;
-	BuildConstantsBuffer(&sceneRoot);
+	BuildConstantsBuffer(sceneRoot);
 
 	auto cmdList = m_Context->DeviceResources->CommandList;
 
@@ -59,7 +59,7 @@ void BaseColorPass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject& sceneRo
 		1.0f, 0, 0, nullptr
 	);
 
-	RenderItems(cmdList, &sceneRoot);
+	RenderItems(cmdList, sceneRoot);
 }
 
 void BaseColorPass::SetInput(uint32_t index, Hazel::Ref<Hazel::D3D12Texture2D> input)
@@ -85,15 +85,19 @@ void BaseColorPass::BuildConstantsBuffer(Hazel::GameObject* goptr)
 	if (goptr == nullptr)
 		return;
 	
-	PerObjectData od;
-	od.LocalToWorld = goptr->Transform.LocalToWorldMatrix();
-	od.TextureIndex = goptr->Material->TextureId;
-	goptr->Material->cbIndex = cbOffset++;
-	m_PerObjectCB->CopyData(goptr->Material->cbIndex, od);
+	// TODO: We need a better system. Probably something like ECS
+	if (goptr->Mesh != nullptr) {
+		PerObjectData od;
+		od.LocalToWorld = goptr->Transform.LocalToWorldMatrix();
+		od.TextureIndex = goptr->Material->TextureId;
+		od.MaterialColor = goptr->Material->Color;
+		goptr->Material->cbIndex = cbOffset++;
+		m_PerObjectCB->CopyData(goptr->Material->cbIndex, od);
+	}	
 
 	for (auto& child : goptr->children)
 	{
-		BuildConstantsBuffer(child);
+		BuildConstantsBuffer(child.get());
 	}
 }
 
@@ -102,19 +106,22 @@ void BaseColorPass::RenderItems(Hazel::TComPtr<ID3D12GraphicsCommandList> cmdLis
 	if (goptr == nullptr)
 		return;
 
-	auto mesh = goptr->Mesh;
-	D3D12_VERTEX_BUFFER_VIEW vb = mesh->vertexBuffer->GetView();
-	vb.StrideInBytes = sizeof(Vertex);
+	// TODO: We need a better system. Probably something like ECS
+	if (goptr->Mesh != nullptr) {
+		auto mesh = goptr->Mesh;
+		D3D12_VERTEX_BUFFER_VIEW vb = mesh->vertexBuffer->GetView();
+		vb.StrideInBytes = sizeof(Vertex);
 
-	D3D12_INDEX_BUFFER_VIEW ib = mesh->indexBuffer->GetView();
-	cmdList->IASetVertexBuffers(0, 1, &vb);
-	cmdList->IASetIndexBuffer(&ib);
-	cmdList->SetGraphicsRootConstantBufferView(PerObjectCBIndex, 
-		m_PerObjectCB->Resource()->GetGPUVirtualAddress() + m_PerObjectCB->CalculateOffset(goptr->Material->cbIndex));
+		D3D12_INDEX_BUFFER_VIEW ib = mesh->indexBuffer->GetView();
+		cmdList->IASetVertexBuffers(0, 1, &vb);
+		cmdList->IASetIndexBuffer(&ib);
+		cmdList->SetGraphicsRootConstantBufferView(PerObjectCBIndex,
+			m_PerObjectCB->Resource()->GetGPUVirtualAddress() + m_PerObjectCB->CalculateOffset(goptr->Material->cbIndex));
 
-	cmdList->DrawIndexedInstanced(mesh->indexBuffer->GetCount(), 1, 0, 0, 0);
-
+		cmdList->DrawIndexedInstanced(mesh->indexBuffer->GetCount(), 1, 0, 0, 0);
+	}
+	
 	for (auto& child : goptr->children) {
-		RenderItems(cmdList, child);
+		RenderItems(cmdList, child.get());
 	}
 }

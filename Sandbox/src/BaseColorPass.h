@@ -4,7 +4,7 @@
 #include "glm/vec4.hpp"
 #include "glm/mat4x4.hpp"
 
-class BaseColorPass : public Hazel::D3D12RenderPass<2, 1>
+class BaseColorPass : public Hazel::D3D12RenderPass<3, 1>
 {
 public:
 	struct alignas(16) PassData {
@@ -13,7 +13,7 @@ public:
 
 	BaseColorPass(Hazel::D3D12Context* ctx, Hazel::D3D12Shader::PipelineStateStream& pipelineStream);
 	
-	virtual void Process(Hazel::D3D12Context* ctx, Hazel::GameObject& sceneRoot, Hazel::PerspectiveCamera& camera) override;
+	virtual void Process(Hazel::D3D12Context* ctx, Hazel::GameObject* sceneRoot, Hazel::PerspectiveCamera& camera) override;
 	virtual void SetInput(uint32_t index, Hazel::Ref<Hazel::D3D12Texture2D> input) override;
 
 	PassData HPassData;
@@ -25,6 +25,7 @@ private:
 
 	struct alignas(16) PerObjectData {
 		glm::mat4 LocalToWorld;
+		glm::vec4 MaterialColor;
 		uint32_t TextureIndex;
 	};
 
