@@ -28,11 +28,11 @@ namespace Hazel {
 		glm::vec3 GetRight() { return m_Transform.Right(); }
 		glm::vec3 GetUp() { return m_Transform.Up(); }
 
-		Transform& GetTransform() { return m_Transform; }
+		HTransform& GetTransform() { return m_Transform; }
 
 		void RecalculateViewMatrix();
 	private:
-		Transform m_Transform;
+		HTransform m_Transform;
 		glm::mat4 m_ProjectionMatrix;
 		glm::mat4 m_ViewMatrix;
 		glm::mat4 m_ViewProjectionMatrix;

@@ -6,7 +6,7 @@
 #include <vector>
 
 namespace Hazel {
-	class Transform
+	class HTransform
 	{
 	public:
 
@@ -19,7 +19,7 @@ namespace Hazel {
 			Other
 		};
 
-		Transform();
+		HTransform();
 
 		glm::vec3 Position() { return m_Position; }
 		void SetPosition(glm::vec3 value) { m_Position = value; SetDirty(); }
@@ -40,15 +40,15 @@ namespace Hazel {
 		void Rotate(glm::vec3 eulerAngles, Space relativeTo);
 		void Rotate(float xAngle, float yAngle, float zAngle);
 		void RotateAround(glm::vec3 axis, float angle);
-		void LookAt(const glm::vec3& point, const glm::vec3& up = Transform::VECTOR_UP);
+		void LookAt(const glm::vec3& point, const glm::vec3& up = HTransform::VECTOR_UP);
 		glm::vec3 EulerAngles();
 		glm::vec3 Right();
 		glm::vec3 Up();
 		glm::vec3 Forward();
 
-		Transform* Parent() { return m_Parent; }
-		void SetParent(Transform* parent);
-		void AddChild(Transform* child);
+		HTransform* Parent() { return m_Parent; }
+		void SetParent(HTransform* parent);
+		void AddChild(HTransform* child);
 		bool HasChanged();
 		glm::mat4 LocalToWorldMatrix();
 		glm::mat4 WorldToLocalMatrix();
@@ -57,8 +57,8 @@ namespace Hazel {
 		glm::vec3 m_Position;
 		glm::vec3 m_Scale;
 		glm::quat m_Rotation; // Rename to orientation?
-		Transform* m_Parent;
-		std::vector<Transform*> m_Children;
+		HTransform* m_Parent;
+		std::vector<HTransform*> m_Children;
 		bool m_IsDirty;
 		bool m_IsInverseDirty;
 

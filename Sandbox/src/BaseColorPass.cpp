@@ -86,10 +86,10 @@ void BaseColorPass::BuildConstantsBuffer(Hazel::GameObject* goptr)
 		return;
 	
 	PerObjectData od;
-	od.LocalToWorld = goptr->transform.LocalToWorldMatrix();
-	od.TextureIndex = goptr->mesh.textureId;
-	goptr->cbIndex = cbOffset++;
-	m_PerObjectCB->CopyData(goptr->cbIndex, od);
+	od.LocalToWorld = goptr->Transform.LocalToWorldMatrix();
+	od.TextureIndex = goptr->Material->TextureId;
+	goptr->Material->cbIndex = cbOffset++;
+	m_PerObjectCB->CopyData(goptr->Material->cbIndex, od);
 
 	for (auto& child : goptr->children)
 	{
@@ -102,14 +102,15 @@ void BaseColorPass::RenderItems(Hazel::TComPtr<ID3D12GraphicsCommandList> cmdLis
 	if (goptr == nullptr)
 		return;
 
-	auto mesh = &goptr->mesh;
+	auto mesh = goptr->Mesh;
 	D3D12_VERTEX_BUFFER_VIEW vb = mesh->vertexBuffer->GetView();
 	vb.StrideInBytes = sizeof(Vertex);
 
 	D3D12_INDEX_BUFFER_VIEW ib = mesh->indexBuffer->GetView();
 	cmdList->IASetVertexBuffers(0, 1, &vb);
 	cmdList->IASetIndexBuffer(&ib);
-	cmdList->SetGraphicsRootConstantBufferView(PerObjectCBIndex, m_PerObjectCB->Resource()->GetGPUVirtualAddress() + m_PerObjectCB->CalculateOffset(goptr->cbIndex));
+	cmdList->SetGraphicsRootConstantBufferView(PerObjectCBIndex, 
+		m_PerObjectCB->Resource()->GetGPUVirtualAddress() + m_PerObjectCB->CalculateOffset(goptr->Material->cbIndex));
 
 	cmdList->DrawIndexedInstanced(mesh->indexBuffer->GetCount(), 1, 0, 0, 0);
 

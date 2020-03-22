@@ -13,24 +13,24 @@
 
 
 namespace Hazel {
-	class Mesh
+	struct HMesh
 	{
-	public:
 		Hazel::Ref<Hazel::D3D12VertexBuffer> vertexBuffer;
 		Hazel::Ref<Hazel::D3D12IndexBuffer> indexBuffer;
-		uint32_t textureId;
 	};
 
-	
+	struct HMaterial {
+		uint32_t TextureId;
+		float Glossines;
+		uint32_t cbIndex;
+	};
 
 	class GameObject
 	{
 	public:
-		Transform transform;
-		Mesh mesh;
-		// TODO: actual material system
-		float glossines;
-		uint32_t cbIndex;
+		HTransform Transform;
+		Hazel::Ref<HMesh> Mesh;
+		Hazel::Ref<HMaterial> Material;
 
 		std::vector<GameObject*> children;
 
@@ -45,7 +45,7 @@ namespace Hazel {
 		void SetParent(GameObject* parent) {
 			if (parent == this || parent == nullptr)
 				return;
-			this->transform.SetParent(&parent->transform);
+			this->Transform.SetParent(&parent->Transform);
 			this->m_Parent = parent;
 		}
 

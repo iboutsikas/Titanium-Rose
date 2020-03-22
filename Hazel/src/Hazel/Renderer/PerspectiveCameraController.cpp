@@ -76,7 +76,7 @@ namespace Hazel {
 
 			auto& tf = m_Camera.GetTransform();
 			tf.RotateAround(tf.Right(), -pitch);
-			tf.RotateAround(Transform::VECTOR_UP, yaw);
+			tf.RotateAround(HTransform::VECTOR_UP, yaw);
 			Input::SetMousePosition(centerX, centerY);
 		}
 		else {

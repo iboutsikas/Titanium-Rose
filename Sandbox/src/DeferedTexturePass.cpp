@@ -48,10 +48,10 @@ void DeferedTexturePass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject& sc
 
 	// TODO: Maybe do not hardcode this here? Maybe we want to be able to handle children somehow ?
 	PerObjectData HPerObjectData;
-	HPerObjectData.Glossiness = sceneRoot.glossines;
-	HPerObjectData.ModelMatrix = sceneRoot.transform.LocalToWorldMatrix();
-	auto scale = glm::transpose(glm::inverse(sceneRoot.transform.ScaleMatrix()));
-	auto rot = sceneRoot.transform.RotationMatrix();
+	HPerObjectData.Glossiness = sceneRoot.Material->Glossines;
+	HPerObjectData.ModelMatrix = sceneRoot.Transform.LocalToWorldMatrix();
+	auto scale = glm::transpose(glm::inverse(sceneRoot.Transform.ScaleMatrix()));
+	auto rot = sceneRoot.Transform.RotationMatrix();
 	HPerObjectData.NormalsMatrix = rot * scale;
 	m_PerObjectCB->CopyData(0, HPerObjectData);
 
@@ -70,11 +70,11 @@ void DeferedTexturePass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject& sc
 	cmdList->RSSetScissorRects(1, &rect);
 	cmdList->SetDescriptorHeaps(1, m_SRVHeap.GetAddressOf());
 
-	auto mesh = sceneRoot.mesh;
-	D3D12_VERTEX_BUFFER_VIEW vb = mesh.vertexBuffer->GetView();
+	auto mesh = sceneRoot.Mesh;
+	D3D12_VERTEX_BUFFER_VIEW vb = mesh->vertexBuffer->GetView();
 	vb.StrideInBytes = sizeof(Vertex);
 
-	D3D12_INDEX_BUFFER_VIEW ib = mesh.indexBuffer->GetView();
+	D3D12_INDEX_BUFFER_VIEW ib = mesh->indexBuffer->GetView();
 
 	cmdList->IASetVertexBuffers(0, 1, &vb);
 	cmdList->IASetIndexBuffer(&ib);
@@ -94,7 +94,7 @@ void DeferedTexturePass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject& sc
 		->CommandList
 		->ClearRenderTargetView(rtv, clearColor, 0, nullptr);
 
-	cmdList->DrawIndexedInstanced(mesh.indexBuffer->GetCount(), 1, 0, 0, 0);
+	cmdList->DrawIndexedInstanced(mesh->indexBuffer->GetCount(), 1, 0, 0, 0);
 
 	target->Transition(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }

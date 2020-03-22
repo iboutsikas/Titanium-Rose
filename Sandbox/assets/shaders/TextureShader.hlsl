@@ -66,7 +66,7 @@ PSInput VS_Main(VSInput input)
 
     result.position = float4(vUv, 1.0, 1.0);
     result.worldPosition = mul(oLocalToWorld, float4(input.position, 1.0)).xyz;
-    result.normal = mul(oNormalsMatrix3 , float4(input.normal, 0.0)).xyz;
+    result.normal = mul(oNormalsMatrix , float4(input.normal, 0.0)).xyz;
     // result.normal = mul((float3x3)oNormalsMatrix3, input.normal);
     // result.normal = input.normal;
     result.uv = input.uv;
