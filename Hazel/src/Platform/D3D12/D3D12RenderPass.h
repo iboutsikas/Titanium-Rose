@@ -19,7 +19,10 @@ namespace Hazel {
 		static constexpr uint32_t PassOutputCount = TNumOutputs;
 		static constexpr uint32_t PassInputCount = TNumInputs;
 
-		D3D12RenderPass() = default;
+		D3D12RenderPass(Hazel::D3D12Context* ctx)
+		: m_Context(ctx)
+		{}
+
 		virtual ~D3D12RenderPass() = default;
 
 		virtual void Process(D3D12Context* ctx, Hazel::GameObject* sceneRoot, Hazel::PerspectiveCamera& camera) = 0;
@@ -32,6 +35,19 @@ namespace Hazel {
 			else {
 				HZ_CORE_ASSERT(false, "This pass does not have this input");
 			}
+
+			CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(
+				m_SRVHeap->GetCPUDescriptorHandleForHeapStart(),
+				index,
+				m_Context->GetSRVDescriptorSize()
+			);
+
+			// If SetInput did not throw we are in a valid range;
+			m_Context->DeviceResources->Device->CreateShaderResourceView(
+				input->GetCommitedResource(),
+				nullptr,
+				srvHandle
+			);
 		}
 
 		virtual Hazel::Ref<D3D12Texture2D> GetInput(uint32_t index) const 
@@ -79,5 +95,6 @@ namespace Hazel {
 		Hazel::Ref<Hazel::D3D12Texture2D> m_Inputs[TNumInputs];
 		Hazel::Ref<Hazel::D3D12Texture2D> m_Outputs[TNumOutputs];
 		Hazel::TComPtr<ID3D12DescriptorHeap> m_SRVHeap;
+		Hazel::D3D12Context* m_Context;
 	};
 }

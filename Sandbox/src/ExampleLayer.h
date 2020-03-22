@@ -22,6 +22,7 @@
 #include "Vertex.h"
 #include "DeferedTexturePass.h"
 #include "BaseColorPass.h"
+#include "NormalsDebugPass.h"
 
 
 enum ExampleShaders : size_t {
@@ -85,6 +86,7 @@ private:
 	// Render Passes
 	Hazel::Ref<DeferedTexturePass> m_DeferredTexturePass;
 	Hazel::Ref<BaseColorPass> m_BaseColorPass;
+	Hazel::Ref<NormalsDebugPass> m_NormalsPass;
 
 	void BuildPipeline();
 	void LoadTextures();

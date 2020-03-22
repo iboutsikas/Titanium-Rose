@@ -9,7 +9,7 @@ static constexpr uint32_t PerObjectCBIndex = 1;
 static constexpr uint32_t SRVIndex = 2;
 
 BaseColorPass::BaseColorPass(Hazel::D3D12Context* ctx, Hazel::D3D12Shader::PipelineStateStream& pipelineStream)
-	: m_Context(ctx)
+	: D3D12RenderPass(ctx)
 {
 	m_Shader = Hazel::CreateRef<Hazel::D3D12Shader>("assets/shaders/BasicShader.hlsl", pipelineStream);
 	Hazel::ShaderLibrary::GlobalLibrary()->Add(m_Shader);
@@ -21,17 +21,17 @@ BaseColorPass::BaseColorPass(Hazel::D3D12Context* ctx, Hazel::D3D12Shader::Pipel
 		D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
 	);
 
-	m_PassCB = Hazel::CreateRef<Hazel::D3D12UploadBuffer<PassData>>(1, true);
+	m_PassCB = Hazel::CreateRef<Hazel::D3D12UploadBuffer<HPassData>>(1, true);
 	m_PassCB->Resource()->SetName(L"BaseColorPass::Scene CB");
 
-	m_PerObjectCB = Hazel::CreateRef<Hazel::D3D12UploadBuffer<PerObjectData>>(3, true);
+	m_PerObjectCB = Hazel::CreateRef<Hazel::D3D12UploadBuffer<HPerObjectData>>(3, true);
 	m_PerObjectCB->Resource()->SetName(L"BaseColorPass::Per Object CB");
 }
 
 void BaseColorPass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject* sceneRoot, Hazel::PerspectiveCamera& camera)
 {
-	HPassData.ViewProjection = camera.GetViewProjectionMatrix();
-	m_PassCB->CopyData(0, HPassData);
+	PassData.ViewProjection = camera.GetViewProjectionMatrix();
+	m_PassCB->CopyData(0, PassData);
 
 	cbOffset = 0;
 	BuildConstantsBuffer(sceneRoot);
@@ -62,24 +62,6 @@ void BaseColorPass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject* sceneRo
 	RenderItems(cmdList, sceneRoot);
 }
 
-void BaseColorPass::SetInput(uint32_t index, Hazel::Ref<Hazel::D3D12Texture2D> input)
-{
-	D3D12RenderPass::SetInput(index, input);
-
-	CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(
-		m_SRVHeap->GetCPUDescriptorHandleForHeapStart(),
-		index,
-		m_Context->GetSRVDescriptorSize()
-	);
-
-	// If SetInput did not throw we are in a valid range;
-	m_Context->DeviceResources->Device->CreateShaderResourceView(
-		input->GetCommitedResource(),
-		nullptr,
-		srvHandle
-	);
-}
-
 void BaseColorPass::BuildConstantsBuffer(Hazel::GameObject* goptr)
 {
 	if (goptr == nullptr)
@@ -87,7 +69,7 @@ void BaseColorPass::BuildConstantsBuffer(Hazel::GameObject* goptr)
 	
 	// TODO: We need a better system. Probably something like ECS
 	if (goptr->Mesh != nullptr) {
-		PerObjectData od;
+		HPerObjectData od;
 		od.LocalToWorld = goptr->Transform.LocalToWorldMatrix();
 		od.TextureIndex = goptr->Material->TextureId;
 		od.MaterialColor = goptr->Material->Color;

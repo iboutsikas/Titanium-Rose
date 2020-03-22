@@ -28,6 +28,7 @@
 #define TEXTURE_HEIGHT 512.0f
 
 static bool use_rendered_texture = false;
+static bool render_normals = false;
 //extern template class Hazel::D3D12UploadBuffer<PassData>;
 
 static D3D12_INPUT_ELEMENT_DESC inputLayout[] = {
@@ -103,7 +104,6 @@ ExampleLayer::ExampleLayer()
 	m_BaseColorPass->SetInput(1, m_DiffuseTexture);
 	m_BaseColorPass->SetInput(2, m_WhiteTexture);
 	m_BaseColorPass->ClearColor = glm::vec4({ 0.1f, 0.1f, 0.1f, 1.0f });
-
 }
 
 void ExampleLayer::OnAttach()
@@ -123,7 +123,7 @@ void ExampleLayer::OnUpdate(Hazel::Timestep ts)
 	HZ_PROFILE_FUNCTION();
 	m_CameraController.OnUpdate(ts);
 
-	float angle = ts * 90.0f;
+	float angle = ts * 30.0f;
 	static glm::vec3 rotationAxis = glm::vec3(0.0f, 1.0f, 0.0f);
 	m_CubeGO->Transform.SetPosition(m_Pos);
 
@@ -155,16 +155,20 @@ void ExampleLayer::OnUpdate(Hazel::Timestep ts)
 		HZ_PROFILE_SCOPE("Deferred Texture");
 		m_RenderedFrames = 0;
 
-		m_DeferredTexturePass->HPassData.AmbientLight = m_AmbientLight;
-		m_DeferredTexturePass->HPassData.AmbientIntensity = m_AmbientIntensity;
-		m_DeferredTexturePass->HPassData.DirectionalLight = m_DirectionalLight;
-		m_DeferredTexturePass->HPassData.DirectionalLightPosition = m_DirectionalLightPosition;
+		m_DeferredTexturePass->PassData.AmbientLight = m_AmbientLight;
+		m_DeferredTexturePass->PassData.AmbientIntensity = m_AmbientIntensity;
+		m_DeferredTexturePass->PassData.DirectionalLight = m_DirectionalLight;
+		m_DeferredTexturePass->PassData.DirectionalLightPosition = m_DirectionalLightPosition;
 						 
 		m_DeferredTexturePass->Process(m_Context, m_CubeGO.get(), m_CameraController.GetCamera());
 	}
 #endif
 	
 	m_BaseColorPass->Process(m_Context, m_SceneGO.get(), m_CameraController.GetCamera());
+
+	if (render_normals) {
+		m_NormalsPass->Process(m_Context, m_CubeGO.get(), m_CameraController.GetCamera());
+	}
 
 	Hazel::Renderer::EndScene();
 	m_RenderedFrames++;
@@ -195,6 +199,10 @@ void ExampleLayer::OnImGuiRender()
 	if (ImGui::CollapsingHeader("Cube")) {
 		ImGui::DragFloat3("Cube Position", &m_Pos.x, 0.05f);
 		ImGui::Checkbox("Rotate", &m_RotateCube);
+
+		ImGui::Checkbox("Render Normals", &render_normals);
+		ImGui::DragFloat("Normal Length", &m_NormalsPass->PassData.NormalLength);
+		ImGui::ColorEdit4("Normal Color", &m_NormalsPass->PassData.NormalColor.x);
 	}
 
 	if (ImGui::CollapsingHeader("Diffuse Texture")) {
@@ -492,7 +500,7 @@ void ExampleLayer::BuildPipeline()
 
 		m_Context->Flush();
 	}
-	// Diffuse shader
+	// Color Pass
 	{
 		D3D12_RT_FORMAT_ARRAY rtvFormats = {};
 		rtvFormats.NumRenderTargets = 1;
@@ -513,7 +521,7 @@ void ExampleLayer::BuildPipeline()
 		m_BaseColorPass = Hazel::CreateRef<BaseColorPass>(m_Context, pipelineStateStream);
 	}
 
-	// Texture Shader
+	// Deferred Pass
 	{
 		D3D12_RT_FORMAT_ARRAY rtvFormats = {};
 		rtvFormats.NumRenderTargets = 1;
@@ -532,6 +540,27 @@ void ExampleLayer::BuildPipeline()
 		pipelineStateStream.Rasterizer = CD3DX12_PIPELINE_STATE_STREAM_RASTERIZER(rasterizer);
 
 		m_DeferredTexturePass = Hazel::CreateRef<DeferedTexturePass>(m_Context, pipelineStateStream);
+	}
+
+	// Normals Pass
+	{
+		D3D12_RT_FORMAT_ARRAY rtvFormats = {};
+		rtvFormats.NumRenderTargets = 1;
+		rtvFormats.RTFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+		CD3DX12_RASTERIZER_DESC rasterizer(D3D12_DEFAULT);
+		rasterizer.FrontCounterClockwise = TRUE;
+		rasterizer.CullMode = D3D12_CULL_MODE_NONE;	
+
+		Hazel::D3D12Shader::PipelineStateStream pipelineStateStream;
+
+		pipelineStateStream.InputLayout = { inputLayout, _countof(inputLayout) };
+		pipelineStateStream.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+		pipelineStateStream.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		pipelineStateStream.RTVFormats = rtvFormats;
+		pipelineStateStream.Rasterizer = CD3DX12_PIPELINE_STATE_STREAM_RASTERIZER(rasterizer);
+
+		m_NormalsPass = Hazel::CreateRef<NormalsDebugPass>(m_Context, pipelineStateStream);
 	}
 	
 }

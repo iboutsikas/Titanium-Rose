@@ -10,6 +10,10 @@ namespace Hazel {
 	class D3D12Shader : public Shader
 	{
 	public:
+		enum OptionalShaderType : uint32_t {
+			None		= 0x00000000,
+			Geometry	= 0x00000001
+		};
 
 		struct PipelineStateStream
 		{
@@ -18,12 +22,13 @@ namespace Hazel {
 			CD3DX12_PIPELINE_STATE_STREAM_PRIMITIVE_TOPOLOGY PrimitiveTopologyType;
 			CD3DX12_PIPELINE_STATE_STREAM_VS VS;
 			CD3DX12_PIPELINE_STATE_STREAM_PS PS;
+			CD3DX12_PIPELINE_STATE_STREAM_GS GS;
 			CD3DX12_PIPELINE_STATE_STREAM_DEPTH_STENCIL_FORMAT DSVFormat;
 			CD3DX12_PIPELINE_STATE_STREAM_RENDER_TARGET_FORMATS RTVFormats;
 			CD3DX12_PIPELINE_STATE_STREAM_RASTERIZER Rasterizer;
 		};
 
-		D3D12Shader(const std::string& filepath, PipelineStateStream pipelineStream);
+		D3D12Shader(const std::string& filepath, PipelineStateStream pipelineStream, OptionalShaderType optionalShaders = OptionalShaderType::None);
 		D3D12Shader(const std::string& name, const std::string& vertexSrc, const std::string& fragmentSrc);
 		virtual ~D3D12Shader();
 
@@ -40,8 +45,13 @@ namespace Hazel {
 
 		inline TComPtr<ID3DBlob> GetVertexBlob() const { return m_VertexBlob; }
 		inline TComPtr<ID3DBlob> GetFragmentBlob() const { return m_FragmentBlob; }
+		inline TComPtr<ID3DBlob> GetGeometryBlob() const { return m_GeometryBlob; }
 		ID3D12RootSignature* GetRootSignature();
 		ID3D12PipelineState* GetPipelineState();
+
+		inline bool ContainsShader(OptionalShaderType shaderType) const { return m_OptionalShaders & shaderType; }
+
+
 		// TODO: This is a very bad hack to get a "generic" recompile for OGL and DX12
 		bool Recompile(void* pipelineStream = nullptr) override;
 		
@@ -51,6 +61,7 @@ namespace Hazel {
 		struct CompilationSate {
 			TComPtr<ID3DBlob> vertexBlob;
 			TComPtr<ID3DBlob> fragmentBlob;
+			TComPtr<ID3DBlob> geometryBlob;
 			TComPtr<ID3D12RootSignature> rootSignature;
 			TComPtr<ID3D12PipelineState> pipelineState;
 		};
@@ -61,6 +72,7 @@ namespace Hazel {
 	private:
 		TComPtr<ID3DBlob> m_VertexBlob;
 		TComPtr<ID3DBlob> m_FragmentBlob;
+		TComPtr<ID3DBlob> m_GeometryBlob;
 		TComPtr<ID3D12RootSignature> m_RootSignature;
 		TComPtr<ID3D12PipelineState> m_PipelineState;
 		PipelineStateStream m_PipelineDesc;
@@ -69,6 +81,6 @@ namespace Hazel {
 
 		std::string m_Name;
 		std::string m_Path;
-		
+		OptionalShaderType m_OptionalShaders;
 	};
 }

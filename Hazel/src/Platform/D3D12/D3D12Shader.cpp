@@ -7,8 +7,8 @@
 
 namespace Hazel {
 
-	D3D12Shader::D3D12Shader(const std::string& filepath, PipelineStateStream pipelineStream)
-		:m_Path(filepath), m_PipelineDesc(pipelineStream)
+	D3D12Shader::D3D12Shader(const std::string& filepath, PipelineStateStream pipelineStream, OptionalShaderType optionalShaders)
+		:m_Path(filepath), m_PipelineDesc(pipelineStream), m_OptionalShaders(optionalShaders)
 	{
 		HZ_PROFILE_FUNCTION();
 
@@ -71,6 +71,15 @@ namespace Hazel {
 			m_CompilationState = nullptr;
 			return false;
 		}
+
+		if (m_OptionalShaders & OptionalShaderType::Geometry) {
+			if (FAILED(Compile(stemp, "GS_Main", "gs_5_1", &m_CompilationState->geometryBlob))) {
+				delete m_CompilationState;
+				m_CompilationState = nullptr;
+				return false;
+			}
+		}
+
 		if (FAILED(ExtractRootSignature(m_CompilationState, m_CompilationState->vertexBlob))) {
 			delete m_CompilationState;
 			m_CompilationState = nullptr;
@@ -93,6 +102,10 @@ namespace Hazel {
 			m_FragmentBlob = m_CompilationState->fragmentBlob;
 			m_RootSignature = m_CompilationState->rootSignature;
 			m_PipelineState = m_CompilationState->pipelineState;
+
+			if (m_OptionalShaders & OptionalShaderType::Geometry) {
+				m_GeometryBlob = m_CompilationState->geometryBlob;
+			}
 			m_CompilationState = nullptr;
 		}
 	}
@@ -107,6 +120,7 @@ namespace Hazel {
 		UINT flags = D3DCOMPILE_ENABLE_STRICTNESS;
 #if defined( HZ_DEBUG)
 		flags |= D3DCOMPILE_DEBUG;
+		flags |= D3DCOMPILE_SKIP_OPTIMIZATION;
 #endif
 		ID3DBlob* shaderBlob = nullptr;
 		ID3DBlob* errorBlob = nullptr;
@@ -187,6 +201,10 @@ namespace Hazel {
 		pipelineStream->pRootSignature = m_RootSignature.Get();
 		pipelineStream->VS = CD3DX12_SHADER_BYTECODE(state->vertexBlob.Get());
 		pipelineStream->PS = CD3DX12_SHADER_BYTECODE(state->fragmentBlob.Get());
+
+		if (m_OptionalShaders & OptionalShaderType::Geometry) {
+			pipelineStream->GS = CD3DX12_SHADER_BYTECODE(state->geometryBlob.Get());
+		}
 
 
 		D3D12_PIPELINE_STATE_STREAM_DESC pipelineStateStreamDesc = {
