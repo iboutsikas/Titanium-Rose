@@ -54,12 +54,18 @@ namespace Hazel {
 
 		m_Camera.SetPosition(cameraPosition);
 
+		static bool isMouseLocked = false;
+
 		if (Input::IsMouseButtonPressed(HZ_MOUSE_BUTTON_1)) {
 			float centerX = Hazel::Application::Get().GetWindow().GetWidth() / 2.0f;
 			float centerY = Hazel::Application::Get().GetWindow().GetHeight() / 2.0f;
 
+			if (!isMouseLocked) {
+				isMouseLocked = true;
+				Input::SetCursor(false);
+				Input::SetMousePosition(centerX, centerY);
+			}
 
-			Input::SetCursor(false);
 			auto [x, y] = Input::GetMousePosition();
 			
 
@@ -80,7 +86,10 @@ namespace Hazel {
 			Input::SetMousePosition(centerX, centerY);
 		}
 		else {
-			Input::SetCursor(true);
+			if (isMouseLocked) {
+				isMouseLocked = false;
+				Input::SetCursor(true);
+			}
 		}
 
 		m_Camera.RecalculateViewMatrix();
