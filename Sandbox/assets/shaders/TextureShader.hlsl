@@ -66,8 +66,6 @@ PSInput VS_Main(VSInput input)
     result.position = float4(vUv, 1.0, 1.0);
     result.worldPosition = mul(oLocalToWorld, float4(input.position, 1.0)).xyz;
     result.normal = mul(oNormalsMatrix , float4(input.normal, 0.0)).xyz;
-    // result.normal = mul((float3x3)oNormalsMatrix3, input.normal);
-    // result.normal = input.normal;
     result.uv = input.uv;
     result.uv.y = 1.0 - result.uv.y;
 
@@ -94,7 +92,7 @@ float4 PS_Main(PSInput input) : SV_TARGET
     // reflect wants the incident vector
     float3 lightReflect = normalize(reflect(-fragmentToLight, normal));
     float specularFalloff = saturate(dot(lightReflect, fragmentToEye));
-    specularFalloff = pow(specularFalloff, oGlossiness);
+    specularFalloff = pow(specularFalloff, oGlossiness) * 2.0;
     float3 directSpecular = gDirectionalLight * specularFalloff;
 
     // if (texColor.r != 0.0 || texColor.b != 0.0 || texColor.g != 0.0) {
@@ -102,8 +100,8 @@ float4 PS_Main(PSInput input) : SV_TARGET
     // }
 
     // Composite
-    float3 diffuseLight = ambient + directDiffuseLight; // + directSpecular;
+    float3 diffuseLight = ambient + directDiffuseLight + directSpecular;
     float4 finalSurfaceColor = float4(diffuseLight * texColor.xyz , texColor.a);
         
-    return float4(0.0, 1.0, 1.0, 1.0);
+    return finalSurfaceColor;
 }

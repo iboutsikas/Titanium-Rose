@@ -8,6 +8,8 @@ public:
 	struct alignas(16) HPassData {
 		glm::mat4 ViewProjection;
 		glm::vec4 NormalColor;
+		glm::vec4 ReflectColor;
+		glm::vec3 LightPosition;
 		float  NormalLength;
 	};
 

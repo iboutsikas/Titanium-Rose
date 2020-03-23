@@ -26,6 +26,7 @@ NormalsDebugPass::NormalsDebugPass(Hazel::D3D12Context* ctx, Hazel::D3D12Shader:
 	m_PerObjectCB->Resource()->SetName(L"NormalsDebugPass::Per Object CB");
 
 	PassData.NormalColor = glm::vec4(1.0f, 0.0f, 1.0f, 1.0f);
+	PassData.ReflectColor = glm::vec4(1.0f, 0.0f, 1.0f, 1.0f);
 	PassData.NormalLength = 1.0f;
 }
 

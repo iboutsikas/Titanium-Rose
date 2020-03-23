@@ -58,7 +58,7 @@ ExampleLayer::ExampleLayer()
 	m_SphereMesh = Hazel::CreateRef<Hazel::HMesh>();
 
 	LoadTestCube();
-	//LoadGltfTest();
+	LoadGltfTest();
 	LoadTestSphere();
 	BuildPipeline();
 	LoadTextures();
@@ -95,6 +95,7 @@ ExampleLayer::ExampleLayer()
 	m_SphereGO->Material->Glossines = 2.0f;
 	m_SphereGO->Material->TextureId = 2;
 	m_SphereGO->Material->Color = m_DirectionalLight;
+	m_SphereGO->Transform.SetScale({ 0.3f,0.3, 0.3f });
 	m_SceneGO->AddChild(m_SphereGO);
 
 	m_DeferredTexturePass->SetOutput(0, m_Texture);
@@ -167,6 +168,7 @@ void ExampleLayer::OnUpdate(Hazel::Timestep ts)
 	m_BaseColorPass->Process(m_Context, m_SceneGO.get(), m_CameraController.GetCamera());
 
 	if (render_normals) {
+		m_NormalsPass->PassData.LightPosition = m_DirectionalLightPosition;
 		m_NormalsPass->Process(m_Context, m_CubeGO.get(), m_CameraController.GetCamera());
 	}
 
@@ -203,6 +205,7 @@ void ExampleLayer::OnImGuiRender()
 		ImGui::Checkbox("Render Normals", &render_normals);
 		ImGui::DragFloat("Normal Length", &m_NormalsPass->PassData.NormalLength);
 		ImGui::ColorEdit4("Normal Color", &m_NormalsPass->PassData.NormalColor.x);
+		ImGui::ColorEdit4("Reflect Color", &m_NormalsPass->PassData.ReflectColor.x);
 	}
 
 	if (ImGui::CollapsingHeader("Diffuse Texture")) {
@@ -317,7 +320,7 @@ void ExampleLayer::LoadTestCube()
 	std::vector<tinyobj::shape_t> shapes;
 	std::vector<tinyobj::material_t> materials;
 
-	bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filename.c_str());
+	bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filename.c_str(),"assets/models/");
 
 	if (!warn.empty()) {
 		HZ_WARN("Loading cube warning: {0}", warn);
@@ -449,16 +452,10 @@ void ExampleLayer::LoadGltfTest()
 
 	bool ret = loader.LoadASCIIFromFile(&gltf_model, &err, &warn, filename);
 	//bool ret = loader.LoadBinaryFromFile(&model, &err, &warn, argv[1]); // for binary glTF(.glb)
-
-	//GameObject go;
-	//// We don't care about cameras and lights and stuff yet
-	//auto node = gltf_model.nodes[0];
-	//go.m_Meshes.resize(node.);
-	//
-	//for (uint32_t i = 0; i < gltf_model.meshes.size(); i++)
-	//{
-	//	go.m_Meshes[i]
-	//}
+	
+	//Hazel::Ref<Hazel::GameObject> modelRoot = Hazel::CreateRef<Hazel::GameObject>();
+	//// We hardcode to the first scene for now
+	//auto rootScene = gltf_model.scenes.front();
 }
 
 void ExampleLayer::BuildPipeline()
@@ -551,7 +548,8 @@ void ExampleLayer::BuildPipeline()
 		CD3DX12_RASTERIZER_DESC rasterizer(D3D12_DEFAULT);
 		rasterizer.FrontCounterClockwise = TRUE;
 		rasterizer.CullMode = D3D12_CULL_MODE_NONE;	
-
+		rasterizer.FillMode = D3D12_FILL_MODE_WIREFRAME;
+		rasterizer.DepthClipEnable = FALSE;
 		Hazel::D3D12Shader::PipelineStateStream pipelineStateStream;
 
 		pipelineStateStream.InputLayout = { inputLayout, _countof(inputLayout) };
