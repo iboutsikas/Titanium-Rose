@@ -51,7 +51,8 @@ private:
 	Hazel::D3D12Context* m_Context;
 	glm::vec3 m_Pos;
 	Hazel::Ref<Hazel::GameObject> m_CubeGO;
-	Hazel::Ref<Hazel::GameObject> m_SphereGO;
+	//Hazel::Ref<Hazel::GameObject> m_SphereGO;
+	Hazel::Ref<Hazel::GameObject> m_PositionalLightGO;
 	Hazel::Ref<Hazel::GameObject> m_SceneGO;
 
 	int m_UpdateRate;
@@ -60,10 +61,10 @@ private:
 
 	//Lights
 	glm::vec4 m_AmbientLight;
-	glm::vec4 m_DirectionalLight;
-	glm::vec3 m_DirectionalLightPosition;
+	//glm::vec4 m_DirectionalLight;
+	//glm::vec3 m_DirectionalLightPosition;
 	float	  m_AmbientIntensity;
-	float	  m_Glossiness;
+	//float	  m_Glossiness;
 
 	std::vector<Vertex> m_CubeVertices;
 	std::vector<uint32_t> m_CubeIndices;
@@ -80,6 +81,7 @@ private:
 	// Textures
 	Hazel::Ref<Hazel::D3D12Texture2D> m_Texture;
 	Hazel::Ref<Hazel::D3D12Texture2D> m_DiffuseTexture;
+	Hazel::Ref<Hazel::D3D12Texture2D> m_NormalTexture;
 	Hazel::Ref<Hazel::D3D12Texture2D> m_WhiteTexture;
 	CD3DX12_GPU_DESCRIPTOR_HANDLE m_TextureGPUHandle; // This is to render it in ImGui without messing too much with SRV heaps
 
