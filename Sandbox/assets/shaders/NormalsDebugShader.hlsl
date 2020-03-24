@@ -13,9 +13,9 @@ cbuffer cbPass : register(b0) {
 };
 
 cbuffer cbPerObject : register(b1) {
-    float4x4 oLocalToWorld;
+    matrix oLocalToWorld;
     matrix oNormalsMatrix;
-}
+};
 
 struct VSInput
 {
@@ -49,6 +49,8 @@ VSOutput VS_Main(VSInput input)
     return result;
 }
 
+#define ENABLE_NORMALS 1
+#define ENABLE_REFLECT 0
 [RootSignature(MyRS1)]
 [maxvertexcount(6)]
 void GS_Main(triangle VSOutput input[3], inout LineStream<GSOutput> lineStream)
@@ -57,7 +59,7 @@ void GS_Main(triangle VSOutput input[3], inout LineStream<GSOutput> lineStream)
     
     GSOutput gsout;
     for (i = 0; i < 3; i++) {
-#if 0
+#if ENABLE_NORMALS
         GSOutput vtx1;
         // This is the point ON the vertex
         vtx1.position = input[i].position;
@@ -75,7 +77,7 @@ void GS_Main(triangle VSOutput input[3], inout LineStream<GSOutput> lineStream)
         lineStream.RestartStrip();
 #endif
 
-#if 1
+#if ENABLE_REFLECT
         // These are the reflect vectors
         GSOutput vtx3;
         vtx3.position = input[i].position;
