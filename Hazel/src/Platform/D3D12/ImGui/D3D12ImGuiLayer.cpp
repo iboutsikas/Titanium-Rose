@@ -72,6 +72,11 @@ namespace Hazel {
 	}
 	void D3D12ImGuiLayer::Begin()
 	{
+        m_Context->DeviceResources->CommandList->SetDescriptorHeaps(
+            1,
+            m_Context->DeviceResources->SRVDescriptorHeap.GetAddressOf()
+        );
+
         ImGui_ImplDX12_NewFrame();
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
