@@ -29,7 +29,7 @@ namespace Hazel {
 	
 		virtual void SetInput(uint32_t index, Hazel::Ref<D3D12Texture2D> input) 
 		{
-			if (index < TNumInputs) {
+			if (index < PassInputCount) {
 				m_Inputs[index] = input;
 			}
 			else {
@@ -52,7 +52,7 @@ namespace Hazel {
 
 		virtual Hazel::Ref<D3D12Texture2D> GetInput(uint32_t index) const 
 		{
-			if (index < TNumInputs) {
+			if (index < PassInputCount) {
 				return m_Inputs[index];
 			}
 			HZ_CORE_ASSERT(false, "This pass does not have this input");
@@ -61,7 +61,7 @@ namespace Hazel {
 
 		virtual void SetOutput(uint32_t index, Hazel::Ref<D3D12Texture2D> output) 
 		{
-			if (index < TNumInputs) {
+			if (index < PassOutputCount) {
 				m_Outputs[index] = output;
 			}
 			else {
