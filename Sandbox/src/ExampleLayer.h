@@ -54,6 +54,7 @@ private:
 	//Hazel::Ref<Hazel::GameObject> m_SphereGO;
 	Hazel::Ref<Hazel::GameObject> m_PositionalLightGO;
 	Hazel::Ref<Hazel::GameObject> m_SceneGO;
+	Hazel::Ref<Hazel::GameObject> m_SphereGO;
 
 	int m_UpdateRate;
 	int m_RenderedFrames;

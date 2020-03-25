@@ -6,7 +6,7 @@
 #include "Platform/D3D12/D3D12RenderPass.h"
 #include "Platform/D3D12/D3D12Texture.h"
 
-class DeferedTexturePass : public Hazel::D3D12RenderPass<1, 1>
+class DeferedTexturePass : public Hazel::D3D12RenderPass<2, 1>
 {
 public:
 	struct alignas(16) HPassData {

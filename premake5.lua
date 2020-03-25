@@ -25,6 +25,7 @@ IncludeDir["glm"] = "Hazel/vendor/glm"
 IncludeDir["stb_image"] = "Hazel/vendor/stb_image"
 IncludeDir["tinygltf"] = "Hazel/vendor/tinygltf"
 IncludeDir["tinyobjloader"] = "Hazel/vendor/tinyobjloader"
+IncludeDir["assimp"] = "Hazel/vendor/assimp"
 
 group "Dependencies"
 	include "Hazel/vendor/GLFW"
@@ -142,7 +143,8 @@ project "Sandbox"
 		"Hazel/vendor",
 		"%{IncludeDir.glm}",
 		"%{IncludeDir.tinyobjloader}",
-		"%{IncludeDir.tinygltf}"
+		"%{IncludeDir.tinygltf}",
+		"%{IncludeDir.assimp}"
 	}
 
 	defines
@@ -163,16 +165,26 @@ project "Sandbox"
 
 	filter "system:windows"
 		systemversion "latest"
+		libdirs { "Hazel/vendor/assimp/lib" }
+		
 		
 	filter "configurations:Debug"
 		defines "HZ_DEBUG"
 		runtime "Debug"
 		symbols "on"
+		links
+		{
+			"assimp-vc142-mtd-dbg"
+		}
 
 	filter "configurations:Release"
 		defines "HZ_RELEASE"
 		runtime "Release"
 		optimize "on"
+		links
+		{
+			"assimp-vc142-mtd-release"
+		}
 
 	filter "configurations:Dist"
 		defines "HZ_DIST"

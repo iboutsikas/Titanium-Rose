@@ -31,7 +31,7 @@ DeferedTexturePass::DeferedTexturePass(Hazel::D3D12Context* ctx, Hazel::D3D12Sha
 	m_PassCB = Hazel::CreateRef<Hazel::D3D12UploadBuffer<HPassData>>(1, true);
 	m_PassCB->Resource()->SetName(L"DeferedTexturePass::Scene CB");
 
-	m_PerObjectCB = Hazel::CreateRef<Hazel::D3D12UploadBuffer<HPerObjectData>>(2, true);
+	m_PerObjectCB = Hazel::CreateRef<Hazel::D3D12UploadBuffer<HPerObjectData>>(1, true);
 	m_PerObjectCB->Resource()->SetName(L"DeferedTexturePass::Per Object CB");
 }
 
@@ -50,9 +50,12 @@ void DeferedTexturePass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject* sc
 	HPerObjectData PerObjectData;
 	PerObjectData.Glossiness = sceneRoot->Material->Glossines;
 	PerObjectData.ModelMatrix = sceneRoot->Transform.LocalToWorldMatrix();
-	auto scale = glm::transpose(glm::inverse(sceneRoot->Transform.ScaleMatrix()));
+	/*auto scale = glm::transpose(glm::inverse(sceneRoot->Transform.ScaleMatrix()));
 	auto rot = sceneRoot->Transform.RotationMatrix();
-	PerObjectData.NormalsMatrix = rot * scale;
+	PerObjectData.NormalsMatrix = rot * scale;*/
+
+	auto worldIT = glm::transpose(sceneRoot->Transform.WorldToLocalMatrix());
+	PerObjectData.NormalsMatrix = worldIT;
 	m_PerObjectCB->CopyData(0, PerObjectData);
 
 	// Render

@@ -9,14 +9,22 @@
 struct Vertex {
 	glm::vec3 Position;
 	glm::vec3 Normal;
+	glm::vec3 Tangent;
 	glm::vec2 UV;
 
-	Vertex(glm::vec3 position, glm::vec3 normal, glm::vec2 uv)
-		: Position(position), Normal(normal), UV(uv)
+	Vertex() :
+		Position({0.0f, 0.0f, 0.0f}),
+		Normal({1.0f, 1.0f, 1.0f}),
+		Tangent({ 1.0f, 1.0f, 1.0f }),
+		UV({1.0f, 1.0f})
+	{}
+
+	Vertex(glm::vec3 position, glm::vec3 normal, glm::vec3 tangent, glm::vec2 uv)
+		: Position(position), Normal(normal), Tangent(tangent), UV(uv)
 	{ }
 
 	Vertex(glm::vec3 position)
-		: Position(position), Normal({ 1.0f, 1.0f, 1.0f }), UV({ 1.0f, 1.0f })
+		: Position(position), Normal({ 1.0f, 1.0f, 1.0f }), Tangent({ 1.0f, 1.0f, 1.0f }), UV({ 1.0f, 1.0f })
 	{ }
 
 	bool operator==(const Vertex& other) const {

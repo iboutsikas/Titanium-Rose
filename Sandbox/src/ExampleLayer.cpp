@@ -23,6 +23,8 @@
 #include "tinyobjloader/tiny_obj_loader.h"
 #include "tinygltf/tiny_gltf.h"
 
+#include"ModelLoader.h"
+
 #include <unordered_map>
 
 #define TEXTURE_WIDTH 512.0f
@@ -57,7 +59,6 @@ ExampleLayer::ExampleLayer()
 	m_SphereMesh = Hazel::CreateRef<Hazel::HMesh>();
 
 	LoadTestCube();
-	LoadGltfTest();
 	LoadTestSphere();
 	BuildPipeline();
 	LoadTextures();
@@ -69,7 +70,7 @@ ExampleLayer::ExampleLayer()
 	// Cube #1
 	m_CubeGO = Hazel::CreateRef<Hazel::GameObject>();
 	m_CubeGO->Name = "Cube#1";
-	m_CubeGO->Mesh = m_SphereMesh;
+	m_CubeGO->Mesh = m_SphereGO->Mesh;
 	m_CubeGO->Material = Hazel::CreateRef<Hazel::HMaterial>();
 	m_CubeGO->Material->Glossines = 32.0f;
 	m_CubeGO->Material->TextureId = 1;
@@ -367,6 +368,7 @@ void ExampleLayer::LoadTestCube()
 				Vertex vertex(
 					glm::vec3(vx, vy, vz),
 					glm::vec3(nx, ny, nz),
+					glm::vec3(nx, ny, nz),
 					glm::vec2(tx, ty)
 				);
 
@@ -432,6 +434,7 @@ void ExampleLayer::LoadTestSphere()
 				Vertex vertex(
 					glm::vec3(vx, vy, vz),
 					glm::vec3(nx, ny, nz),
+					glm::vec3(nx, ny, nz),
 					glm::vec2(tx, ty)
 				);
 
@@ -452,14 +455,9 @@ void ExampleLayer::LoadTestSphere()
 
 void ExampleLayer::LoadGltfTest()
 {
+	std::string filename = "assets/models/test_sphere.glb";
 
-	tinygltf::Model gltf_model;
-	tinygltf::TinyGLTF loader;
-	std::string err;
-	std::string warn;
-	std::string filename = "assets/models/triangle.gltf";
-
-	bool ret = loader.LoadASCIIFromFile(&gltf_model, &err, &warn, filename);
+	m_SphereGO = ModelLoader::LoadFromFile(filename);
 	//bool ret = loader.LoadBinaryFromFile(&model, &err, &warn, argv[1]); // for binary glTF(.glb)
 	
 	//Hazel::Ref<Hazel::GameObject> modelRoot = Hazel::CreateRef<Hazel::GameObject>();
@@ -477,8 +475,11 @@ void ExampleLayer::BuildPipeline()
 			nullptr
 		);
 
+
+		//m_CubeGO = ModelLoader::LoadFromFile("assets/models/test_cube.glb");
+
 		m_CubeMesh->vertexBuffer = std::dynamic_pointer_cast<Hazel::D3D12VertexBuffer>(Hazel::VertexBuffer::Create((float*)m_CubeVertices.data(), m_CubeVertices.size() * sizeof(Vertex)));
-		m_CubeMesh->indexBuffer = std::dynamic_pointer_cast<Hazel::D3D12IndexBuffer>(Hazel::IndexBuffer::Create(m_CubeIndices.data(), m_CubeIndices.size()));
+		m_CubeMesh->indexBuffer =  std::dynamic_pointer_cast<Hazel::D3D12IndexBuffer>(Hazel::IndexBuffer::Create(m_CubeIndices.data(), m_CubeIndices.size()));
 
 		m_SphereMesh->vertexBuffer = std::dynamic_pointer_cast<Hazel::D3D12VertexBuffer>(Hazel::VertexBuffer::Create((float*)m_SphereVertices.data(), m_SphereVertices.size() * sizeof(Vertex)));
 		m_SphereMesh->indexBuffer = std::dynamic_pointer_cast<Hazel::D3D12IndexBuffer>(Hazel::IndexBuffer::Create(m_SphereIndices.data(), m_SphereIndices.size()));
