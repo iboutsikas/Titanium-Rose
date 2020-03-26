@@ -4,6 +4,8 @@
                 "CBV(b0)," \
                 "CBV(b1)" 
 
+#include "Common.hlsli"
+
 cbuffer cbPass : register(b0) {
     matrix gViewProjection;
     float4 gNormalColor;
@@ -15,13 +17,6 @@ cbuffer cbPass : register(b0) {
 cbuffer cbPerObject : register(b1) {
     matrix oLocalToWorld;
     matrix oNormalsMatrix;
-};
-
-struct VSInput
-{
-    float3 position : POSITION;
-    float3 normal: NORMAL;
-    float2 uv: UV;
 };
 
 struct VSOutput

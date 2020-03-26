@@ -6,12 +6,21 @@
                 "CBV(b1)," \
                 "DescriptorTable(SRV(t0, numDescriptors = 2, flags = DESCRIPTORS_VOLATILE), visibility = SHADER_VISIBILITY_PIXEL), " \
                 "StaticSampler(s0," \
-                      "addressU = TEXTURE_ADDRESS_BORDER," \
-                      "addressV = TEXTURE_ADDRESS_BORDER," \
-                      "addressW = TEXTURE_ADDRESS_BORDER," \
+                      "addressU = TEXTURE_ADDRESS_WRAP," \
+                      "addressV = TEXTURE_ADDRESS_WRAP," \
+                      "addressW = TEXTURE_ADDRESS_WRAP," \
                       "borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK," \
                       "filter = FILTER_MIN_MAG_MIP_POINT, "\
+                      "visibility = SHADER_VISIBILITY_PIXEL),"\
+                "StaticSampler(s1," \
+                      "addressU = TEXTURE_ADDRESS_WRAP," \
+                      "addressV = TEXTURE_ADDRESS_WRAP," \
+                      "addressW = TEXTURE_ADDRESS_WRAP," \
+                      "borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK," \
+                      "filter = FILTER_MIN_MAG_MIP_LINEAR, "\
                       "visibility = SHADER_VISIBILITY_PIXEL)"
+
+#include "Common.hlsli"
 
 cbuffer cbPass : register(b0) {
     matrix   gViewProjection;
@@ -32,6 +41,7 @@ cbuffer cbPerObject : register(b1) {
 Texture2D g_DiffuseTexture : register(t0);
 Texture2D g_NormalTexture : register(t1);
 SamplerState g_sampler : register(s0);
+SamplerState g_NormalSampler : register(s1);
 
 struct PSInput
 {
@@ -39,15 +49,8 @@ struct PSInput
     float3 normal : NORMAL;
     float2 uv: UV;
     float3 worldPosition : POSITION;
+    float3x3 TBN : TBN;
 };
-
-struct VSInput
-{
-    float3 position : POSITION;
-    float3 normal: NORMAL;
-    float2 uv: UV;
-};
-
 
 [RootSignature(MyRS1)]
 PSInput VS_Main(VSInput input)
@@ -57,12 +60,19 @@ PSInput VS_Main(VSInput input)
     vUv = (vUv * 2.0) - 1.0;
 
     // matrix mvp = mul(gViewProjection, oLocalToWorld);
+    float3 N = normalize(mul((float3x3)oNormalsMatrix, input.normal));
 
     result.position = float4(vUv, 1.0, 1.0);
     result.worldPosition = mul(oLocalToWorld, float4(input.position, 1.0)).xyz;
-    result.normal = input.normal;//  mul(oNormalsMatrix , float4(input.normal, 0.0)).xyz;
+    result.normal = N;
     result.uv = input.uv;
     result.uv.y = 1.0 - result.uv.y;
+
+    float3 T = normalize(mul((float3x3)oNormalsMatrix, input.tangent));
+    float3 B = normalize(cross(T, N));
+
+    float3x3 TBN = float3x3(T, B, N);
+    result.TBN = TBN;
 
     return result;
 }
@@ -72,19 +82,19 @@ float4 PS_Main(PSInput input) : SV_TARGET
 {
     float4 texColor = g_DiffuseTexture.Sample(g_sampler, input.uv);
     // This won't work until I implement proper normal maps
-    // float3 normal = g_NormalTexture.Sample(g_sampler, input.uv);
-    // normal = normalize(normal * 2.0 - 1.0);
-    // normal = mul(oNormalsMatrix, float4(normal, 0.0)).xyz;
+    float3 normal = g_NormalTexture.Sample(g_NormalSampler, input.uv).rgb;
+    normal = 2 * normal - 1;
+    normal = normalize(mul(normal, input.TBN));
 
     float3 fragmentToLight = normalize(gDirectionalLightPosition - input.worldPosition);
     float3 fragmentToEye = normalize(gCameraPosition - input.worldPosition);
-    float3 normal = normalize(input.normal);
+    // float3 normal = normalize(input.normal);
 
     // Ambient Light
     float3 ambient = gAmbientLight * gAmbientIntensity;
 
     // Direct Diffuse Light
-    float brightness = max(dot(normal, fragmentToLight), 0.0);
+    float brightness = max(dot(normal, fragmentToLight), 0);
     float3 directDiffuseLight = gDirectionalLight * brightness;
 
     // Direct Specular Light
@@ -117,5 +127,6 @@ float4 PS_Main(PSInput input) : SV_TARGET
     float3 diffuseLight = ambient + directDiffuseLight + directSpecular;
     float4 finalSurfaceColor = float4((diffuseLight * texColor.xyz) , texColor.a);
 
-    return finalSurfaceColor;
+    // return finalSurfaceColor;
+    return float4(directDiffuseLight, 1);
 }

@@ -36,61 +36,55 @@ static bool render_normals = false;
 
 static D3D12_INPUT_ELEMENT_DESC inputLayout[] = {
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(Vertex, Position), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		//{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, offsetof(Vertex, Color), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(Vertex, Normal), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "TANGENT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, offsetof(Vertex, Tangent), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 		{ "UV", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(Vertex, UV), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 };
 
 ExampleLayer::ExampleLayer()
 	: Layer("ExampleLayer"), /*m_CameraController(1280.0f / 720.0f, false)*/ 
 	m_CameraController(glm::vec3(0.0f, 0.0f, -15.0f), 28.0f, (1280.0f / 720.0f), 0.1f, 100.0f),
-	//m_ClearColor({ 0.1f, 0.1f, 0.1f, 1.0f }),
-	m_Pos({ 0.0f, 0.0f, 0.0f}),
 	m_UpdateRate(60),
 	m_RenderedFrames(61),
 	m_AmbientLight({1.0f, 1.0f, 1.0f, 1.0f}),
-	//m_DirectionalLight({1.0f, 1.0f, 1.0f, 1.0f}),
 	m_AmbientIntensity(0.1f),
 	m_RotateCube(false)
 {
 	m_Context = static_cast<Hazel::D3D12Context*>(Hazel::Application::Get().GetWindow().GetContext());
 	
-	m_CubeMesh = Hazel::CreateRef<Hazel::HMesh>();
-	m_SphereMesh = Hazel::CreateRef<Hazel::HMesh>();
 
-	LoadTestCube();
-	LoadTestSphere();
-	BuildPipeline();
+	LoadAssets();
 	LoadTextures();
+	BuildPipeline();
 
 	// Scene Root
 	m_SceneGO = Hazel::CreateRef<Hazel::GameObject>();
 	m_SceneGO->Transform.SetPosition(glm::vec3({ 0.0f, 0.0f, 0.0f }));
 	m_SceneGO->Name = "Scene Root";
 	// Cube #1
-	m_CubeGO = Hazel::CreateRef<Hazel::GameObject>();
-	m_CubeGO->Name = "Cube#1";
-	m_CubeGO->Mesh = m_SphereGO->Mesh;
-	m_CubeGO->Material = Hazel::CreateRef<Hazel::HMaterial>();
-	m_CubeGO->Material->Glossines = 32.0f;
-	m_CubeGO->Material->TextureId = 1;
-	m_CubeGO->Material->Color = glm::vec4(1.0f);
-	m_SceneGO->AddChild(m_CubeGO);
+	m_MainObject = Hazel::CreateRef<Hazel::GameObject>();
+	m_MainObject->Name = "Main Object";
+	m_MainObject->Mesh = m_SphereModel->Mesh;
+	m_MainObject->Material = Hazel::CreateRef<Hazel::HMaterial>();
+	m_MainObject->Material->Glossines = 32.0f;
+	m_MainObject->Material->TextureId = 1;
+	m_MainObject->Material->Color = glm::vec4(1.0f);
+	m_SceneGO->AddChild(m_MainObject);
 	// Cube #2
 	auto secondCube = Hazel::CreateRef<Hazel::GameObject>();
 	secondCube->Name = "Cube#2";
 	secondCube->Transform.SetPosition(glm::vec3(5.0f, 3.0f, 0.0f));
-	secondCube->Mesh = m_SphereMesh;
+	secondCube->Mesh = m_CubeModel->Mesh;
 	secondCube->Material = Hazel::CreateRef<Hazel::HMaterial>();
 	secondCube->Material->Glossines = 2.0f;
 	secondCube->Material->TextureId = 1;
 	secondCube->Material->Color = glm::vec4(1.0f);
-	m_CubeGO->AddChild(secondCube);
+	m_MainObject->AddChild(secondCube);
 	
 	// "Light" Sphere
 	m_PositionalLightGO = Hazel::CreateRef<Hazel::GameObject>();
 	m_PositionalLightGO->Name = "Light Sphere";
-	m_PositionalLightGO->Mesh = m_SphereMesh;
+	m_PositionalLightGO->Mesh = m_SphereModel->Mesh;
 	m_PositionalLightGO->Transform.SetPosition({ 1.0, 8.0, -15.0 });
 	m_PositionalLightGO->Material = Hazel::CreateRef<Hazel::HMaterial>();
 	m_PositionalLightGO->Material->Glossines = 2.0f;
@@ -130,17 +124,16 @@ void ExampleLayer::OnUpdate(Hazel::Timestep ts)
 
 	float angle = ts * 30.0f;
 	static glm::vec3 rotationAxis = glm::vec3(0.0f, 1.0f, 0.0f);
-	m_CubeGO->Transform.SetPosition(m_Pos);
 
 	if (m_RotateCube) {
-		m_CubeGO->Transform.RotateAround(rotationAxis, angle);
+		m_MainObject->Transform.RotateAround(rotationAxis, angle);
 	}
 	
 	if (use_rendered_texture) {
-		m_CubeGO->Material->TextureId = 0;
+		m_MainObject->Material->TextureId = 0;
 	}
 	else {
-		m_CubeGO->Material->TextureId = 1;
+		m_MainObject->Material->TextureId = 1;
 	}
 
 	//auto cmdList = m_Context->DeviceResources->CommandList;
@@ -161,7 +154,7 @@ void ExampleLayer::OnUpdate(Hazel::Timestep ts)
 		m_DeferredTexturePass->PassData.DirectionalLight = m_PositionalLightGO->Material->Color;
 		m_DeferredTexturePass->PassData.DirectionalLightPosition = m_PositionalLightGO->Transform.Position();
 						 
-		m_DeferredTexturePass->Process(m_Context, m_CubeGO.get(), m_CameraController.GetCamera());
+		m_DeferredTexturePass->Process(m_Context, m_MainObject.get(), m_CameraController.GetCamera());
 	}
 #endif
 	
@@ -169,7 +162,7 @@ void ExampleLayer::OnUpdate(Hazel::Timestep ts)
 
 	if (render_normals) {
 		m_NormalsPass->PassData.LightPosition = m_PositionalLightGO->Transform.Position();
-		m_NormalsPass->Process(m_Context, m_CubeGO.get(), m_CameraController.GetCamera());
+		m_NormalsPass->Process(m_Context, m_MainObject.get(), m_CameraController.GetCamera());
 	}
 
 	Hazel::Renderer::EndScene();
@@ -192,18 +185,18 @@ void ExampleLayer::OnImGuiRender()
 	ImGui::InputFloat3("Camera Position", &camera_pos.x);
 	m_CameraController.GetCamera().SetPosition(camera_pos);
 
-	if (ImGui::Button("Look at cube")) {
-		m_CameraController.GetCamera().GetTransform().LookAt(m_Pos, m_CameraController.GetCamera().GetTransform().Up());
-	}
+	//if (ImGui::Button("Look at cube")) {
+	//	m_CameraController.GetCamera().GetTransform().LookAt(m_Pos, m_CameraController.GetCamera().GetTransform().Up());
+	//}
 
 	if (ImGui::CollapsingHeader("Main Object")) {
 
-		ImGui::PushID(m_CubeGO->Name.c_str());
+		ImGui::PushID(m_MainObject->Name.c_str());
 		
 		ImGui::Text("Transform");
-		ImGui::TransformControl(&m_CubeGO->Transform);
+		ImGui::TransformControl(&m_MainObject->Transform);
 		ImGui::Text("Material");
-		ImGui::MaterialControl(m_CubeGO->Material.get());
+		ImGui::MaterialControl(m_MainObject->Material.get());
 
 		ImGui::Checkbox("Rotate", &m_RotateCube);
 		ImGui::Checkbox("Render Normals", &render_normals);
@@ -321,151 +314,7 @@ void ExampleLayer::LoadTextures()
 	}
 }
 
-void ExampleLayer::LoadTestCube()
-{
-	std::string err;
-	std::string warn;
-	std::string filename = "assets/models/test_cube.obj";
-	tinyobj::attrib_t attrib;
-	std::vector<tinyobj::shape_t> shapes;
-	std::vector<tinyobj::material_t> materials;
-
-	bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filename.c_str(),"assets/models/");
-
-	if (!warn.empty()) {
-		HZ_WARN("Loading cube warning: {0}", warn);
-	}
-
-	if (!err.empty()) {
-		HZ_ERROR("Loading cube error: {0}", err);
-	}
-	std::unordered_map<Vertex, uint32_t> uniqueVertices = {};
-
-	// Loop over shapes
-	for (size_t s = 0; s < shapes.size(); s++) {
-		// Loop over faces(polygon)
-		size_t index_offset = 0;
-		for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++) {
-			int fv = shapes[s].mesh.num_face_vertices[f];
-
-			// Loop over vertices in the face.
-			for (size_t v = 0; v < fv; v++) {
-				// access to vertex
-				tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
-				tinyobj::real_t vx = attrib.vertices[3 * idx.vertex_index + 0];
-				tinyobj::real_t vy = attrib.vertices[3 * idx.vertex_index + 1];
-				tinyobj::real_t vz = attrib.vertices[3 * idx.vertex_index + 2];
-				tinyobj::real_t nx = attrib.normals[3 * idx.normal_index + 0];
-				tinyobj::real_t ny = attrib.normals[3 * idx.normal_index + 1];
-				tinyobj::real_t nz = attrib.normals[3 * idx.normal_index + 2];
-				tinyobj::real_t tx = attrib.texcoords[2 * idx.texcoord_index + 0];
-				tinyobj::real_t ty = attrib.texcoords[2 * idx.texcoord_index + 1];
-				// Optional: vertex colors
-				// tinyobj::real_t red = attrib.colors[3*idx.vertex_index+0];
-				// tinyobj::real_t green = attrib.colors[3*idx.vertex_index+1];
-				// tinyobj::real_t blue = attrib.colors[3*idx.vertex_index+2];
-
-				Vertex vertex(
-					glm::vec3(vx, vy, vz),
-					glm::vec3(nx, ny, nz),
-					glm::vec3(nx, ny, nz),
-					glm::vec2(tx, ty)
-				);
-
-				if (uniqueVertices.count(vertex) == 0) {
-					uniqueVertices[vertex] = static_cast<uint32_t>(m_CubeVertices.size());
-					m_CubeVertices.push_back(vertex);
-				}
-
-				m_CubeIndices.push_back(uniqueVertices[vertex]);
-			}
-			index_offset += fv;
-
-			// per-face material
-			shapes[s].mesh.material_ids[f];
-		}
-	}
-}
-
-void ExampleLayer::LoadTestSphere()
-{
-	std::string err;
-	std::string warn;
-	std::string filename = "assets/models/test_sphere.obj";
-	tinyobj::attrib_t attrib;
-	std::vector<tinyobj::shape_t> shapes;
-	std::vector<tinyobj::material_t> materials;
-
-	bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filename.c_str());
-
-	if (!warn.empty()) {
-		HZ_WARN("Loading cube warning: {0}", warn);
-	}
-
-	if (!err.empty()) {
-		HZ_ERROR("Loading cube error: {0}", err);
-	}
-	std::unordered_map<Vertex, uint32_t> uniqueVertices = {};
-
-	// Loop over shapes
-	for (size_t s = 0; s < shapes.size(); s++) {
-		// Loop over faces(polygon)
-		size_t index_offset = 0;
-		for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++) {
-			int fv = shapes[s].mesh.num_face_vertices[f];
-
-			// Loop over vertices in the face.
-			for (size_t v = 0; v < fv; v++) {
-				// access to vertex
-				tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
-				tinyobj::real_t vx = attrib.vertices[3 * idx.vertex_index + 0];
-				tinyobj::real_t vy = attrib.vertices[3 * idx.vertex_index + 1];
-				tinyobj::real_t vz = attrib.vertices[3 * idx.vertex_index + 2];
-				tinyobj::real_t nx = attrib.normals[3 * idx.normal_index + 0];
-				tinyobj::real_t ny = attrib.normals[3 * idx.normal_index + 1];
-				tinyobj::real_t nz = attrib.normals[3 * idx.normal_index + 2];
-				tinyobj::real_t tx = attrib.texcoords[2 * idx.texcoord_index + 0];
-				tinyobj::real_t ty = attrib.texcoords[2 * idx.texcoord_index + 1];
-				// Optional: vertex colors
-				// tinyobj::real_t red = attrib.colors[3*idx.vertex_index+0];
-				// tinyobj::real_t green = attrib.colors[3*idx.vertex_index+1];
-				// tinyobj::real_t blue = attrib.colors[3*idx.vertex_index+2];
-
-				Vertex vertex(
-					glm::vec3(vx, vy, vz),
-					glm::vec3(nx, ny, nz),
-					glm::vec3(nx, ny, nz),
-					glm::vec2(tx, ty)
-				);
-
-				if (uniqueVertices.count(vertex) == 0) {
-					uniqueVertices[vertex] = static_cast<uint32_t>(m_SphereVertices.size());
-					m_SphereVertices.push_back(vertex);
-				}
-
-				m_SphereIndices.push_back(uniqueVertices[vertex]);
-			}
-			index_offset += fv;
-
-			// per-face material
-			shapes[s].mesh.material_ids[f];
-		}
-	}
-}
-
-void ExampleLayer::LoadGltfTest()
-{
-	std::string filename = "assets/models/test_sphere.glb";
-
-	m_SphereGO = ModelLoader::LoadFromFile(filename);
-	//bool ret = loader.LoadBinaryFromFile(&model, &err, &warn, argv[1]); // for binary glTF(.glb)
-	
-	//Hazel::Ref<Hazel::GameObject> modelRoot = Hazel::CreateRef<Hazel::GameObject>();
-	//// We hardcode to the first scene for now
-	//auto rootScene = gltf_model.scenes.front();
-}
-
-void ExampleLayer::BuildPipeline()
+void ExampleLayer::LoadAssets()
 {
 	// Geometry Buffers and Texture Resource
 	{
@@ -476,13 +325,8 @@ void ExampleLayer::BuildPipeline()
 		);
 
 
-		//m_CubeGO = ModelLoader::LoadFromFile("assets/models/test_cube.glb");
-
-		m_CubeMesh->vertexBuffer = std::dynamic_pointer_cast<Hazel::D3D12VertexBuffer>(Hazel::VertexBuffer::Create((float*)m_CubeVertices.data(), m_CubeVertices.size() * sizeof(Vertex)));
-		m_CubeMesh->indexBuffer =  std::dynamic_pointer_cast<Hazel::D3D12IndexBuffer>(Hazel::IndexBuffer::Create(m_CubeIndices.data(), m_CubeIndices.size()));
-
-		m_SphereMesh->vertexBuffer = std::dynamic_pointer_cast<Hazel::D3D12VertexBuffer>(Hazel::VertexBuffer::Create((float*)m_SphereVertices.data(), m_SphereVertices.size() * sizeof(Vertex)));
-		m_SphereMesh->indexBuffer = std::dynamic_pointer_cast<Hazel::D3D12IndexBuffer>(Hazel::IndexBuffer::Create(m_SphereIndices.data(), m_SphereIndices.size()));
+		m_CubeModel = ModelLoader::LoadFromFile(std::string("assets/models/test_cube.glb"));
+		m_SphereModel = ModelLoader::LoadFromFile(std::string("assets/models/test_sphere.glb"));
 
 		m_DiffuseTexture = std::dynamic_pointer_cast<Hazel::D3D12Texture2D>(Hazel::Texture2D::Create("assets/textures/earth.png"));
 		m_DiffuseTexture->Transition(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -510,6 +354,10 @@ void ExampleLayer::BuildPipeline()
 
 		m_Context->Flush();
 	}
+}
+
+void ExampleLayer::BuildPipeline()
+{
 	// Color Pass
 	{
 		D3D12_RT_FORMAT_ARRAY rtvFormats = {};
@@ -518,7 +366,7 @@ void ExampleLayer::BuildPipeline()
 
 		CD3DX12_RASTERIZER_DESC rasterizer(D3D12_DEFAULT);
 		rasterizer.FrontCounterClockwise = TRUE;
-		rasterizer.CullMode = D3D12_CULL_MODE_NONE;
+		rasterizer.CullMode = D3D12_CULL_MODE_BACK;
 
 		Hazel::D3D12Shader::PipelineStateStream pipelineStateStream;
 
@@ -573,5 +421,4 @@ void ExampleLayer::BuildPipeline()
 
 		m_NormalsPass = Hazel::CreateRef<NormalsDebugPass>(m_Context, pipelineStateStream);
 	}
-	
 }

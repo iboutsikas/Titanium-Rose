@@ -13,6 +13,8 @@
                       "filter = FILTER_MIN_MAG_MIP_POINT, "\
                       "visibility = SHADER_VISIBILITY_PIXEL)"
 
+#include "Common.hlsli"
+
 cbuffer cbPass : register(b0) {
     matrix gViewProjection;
 };
@@ -29,13 +31,6 @@ SamplerState g_sampler : register(s0);
 struct PSInput
 {
     float4 position : SV_POSITION;
-    float2 uv: UV;
-};
-
-struct VSInput
-{
-    float3 position : POSITION;
-    float3 normal: NORMAL;
     float2 uv: UV;
 };
 

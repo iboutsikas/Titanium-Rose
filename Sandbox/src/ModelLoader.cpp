@@ -123,7 +123,7 @@ Hazel::Ref<Hazel::GameObject> ModelLoader::LoadFromFile(std::string& filepath)
 
 	Assimp::Importer importer;
 
-	const aiScene* scene = importer.ReadFile(filepath, aiProcess_CalcTangentSpace | aiProcess_JoinIdenticalVertices);
+	const aiScene* scene = importer.ReadFile(filepath, aiProcess_JoinIdenticalVertices);
 	
 	if (scene == nullptr) {
 		HZ_ERROR("Error loading model {} :\n {}", filepath, importer.GetErrorString());

@@ -49,12 +49,13 @@ private:
 	Hazel::PerspectiveCameraController m_CameraController;
 	//Hazel::OrthographicCameraController m_CameraController;
 	Hazel::D3D12Context* m_Context;
-	glm::vec3 m_Pos;
-	Hazel::Ref<Hazel::GameObject> m_CubeGO;
-	//Hazel::Ref<Hazel::GameObject> m_SphereGO;
-	Hazel::Ref<Hazel::GameObject> m_PositionalLightGO;
+	Hazel::Ref<Hazel::GameObject> m_CubeModel;
+	Hazel::Ref<Hazel::GameObject> m_SphereModel;
+
+
 	Hazel::Ref<Hazel::GameObject> m_SceneGO;
-	Hazel::Ref<Hazel::GameObject> m_SphereGO;
+	Hazel::Ref<Hazel::GameObject> m_PositionalLightGO;
+	Hazel::Ref<Hazel::GameObject> m_MainObject;
 
 	int m_UpdateRate;
 	int m_RenderedFrames;
@@ -62,22 +63,8 @@ private:
 
 	//Lights
 	glm::vec4 m_AmbientLight;
-	//glm::vec4 m_DirectionalLight;
-	//glm::vec3 m_DirectionalLightPosition;
 	float	  m_AmbientIntensity;
-	//float	  m_Glossiness;
 
-	std::vector<Vertex> m_CubeVertices;
-	std::vector<uint32_t> m_CubeIndices;
-
-	std::vector<Vertex> m_SphereVertices;
-	std::vector<uint32_t> m_SphereIndices;
-
-	// Meshes
-	Hazel::Ref<Hazel::HMesh> m_CubeMesh;
-	Hazel::Ref<Hazel::HMesh> m_SphereMesh;
-	//Hazel::Ref<Hazel::D3D12VertexBuffer> m_VertexBuffer;
-	//Hazel::Ref<Hazel::D3D12IndexBuffer> m_IndexBuffer;
 
 	// Textures
 	Hazel::Ref<Hazel::D3D12Texture2D> m_Texture;
@@ -91,10 +78,8 @@ private:
 	Hazel::Ref<BaseColorPass> m_BaseColorPass;
 	Hazel::Ref<NormalsDebugPass> m_NormalsPass;
 
+	void LoadAssets();
 	void BuildPipeline();
 	void LoadTextures();
-	void LoadTestCube();
-	void LoadTestSphere();
-	void LoadGltfTest();
 };
 
