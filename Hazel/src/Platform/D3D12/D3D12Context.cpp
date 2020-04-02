@@ -187,6 +187,7 @@ namespace Hazel {
 
 	void D3D12Context::SwapBuffers()
 	{
+		HZ_PROFILE_FUNCTION();
 		auto backBuffer = DeviceResources->BackBuffers[m_CurrentBackbufferIndex];
 
 		CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
@@ -343,6 +344,7 @@ namespace Hazel {
 
 	void D3D12Context::NewFrame()
 	{
+		HZ_PROFILE_FUNCTION();
 		NextFrameResource();
 		// Get from resource
 		auto commandAllocator = m_CurrentFrameResource->CommandAllocator;

@@ -44,6 +44,7 @@ void NormalsDebugPass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject* scen
 	m_PerObjectCB->CopyData(0, PerObjectData);
 
 	auto cmdList = ctx->DeviceResources->CommandList;
+	PIXScopedEvent(cmdList.Get(), PIX_COLOR(1, 0, 1), "Normals Pass");
 
 	cmdList->SetPipelineState(m_Shader->GetPipelineState());
 	cmdList->SetGraphicsRootSignature(m_Shader->GetRootSignature());

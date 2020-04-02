@@ -4,19 +4,20 @@
 
 #include "Platform/D3D12/D3D12Texture.h"
 #include "Platform/D3D12/D3D12Context.h"
+#include "Platform/D3D12/DDSTextureLoader/DDSTextureLoader.h"
 
-#include "stb_image.h"
+//#include "stb_image.h"
 
 namespace Hazel {
-	D3D12Texture2D::D3D12Texture2D(uint32_t width, uint32_t height)
-		: m_Width(width), m_Height(height)
+	D3D12Texture2D::D3D12Texture2D(uint32_t width, uint32_t height, uint32_t mipLevels)
+		: m_Width(width), m_Height(height), m_MipLevels(mipLevels)
 	{
 		HZ_PROFILE_FUNCTION();
 
 		m_Context = static_cast<D3D12Context*>(Application::Get().GetWindow().GetContext());
 
 		D3D12_RESOURCE_DESC textureDesc = {};
-		textureDesc.MipLevels = 1;
+		textureDesc.MipLevels = m_MipLevels;
 		textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 		textureDesc.Width = width;
 		textureDesc.Height = height;
@@ -39,44 +40,65 @@ namespace Hazel {
 
 
 	D3D12Texture2D::D3D12Texture2D(const std::string& path)
-		: m_Path(path)
+		: m_Path(path), m_MipLevels(1)
 	{
 		HZ_PROFILE_FUNCTION();
 		m_Context = static_cast<D3D12Context*>(Application::Get().GetWindow().GetContext());
-	
-		int width, height, channels;
-		//stbi_set_flip_vertically_on_load(1);
-		stbi_uc* data = nullptr;
-		{
-			HZ_PROFILE_SCOPE("stbi_load - D3D12Texture2D::D3D12Texture2D(const std:string&)");
-			data = stbi_load(path.c_str(), &width, &height, &channels, 0);
-		}
 
-		HZ_CORE_ASSERT(data, "Failed to load image!");
-		m_Width = width;
-		m_Height = height;
+		std::wstring filepath(path.begin(), path.end());
 
-		D3D12_RESOURCE_DESC textureDesc = {};
-		textureDesc.MipLevels = 1;
-		textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-		textureDesc.Width = width;
-		textureDesc.Height = height;
-		textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
-		textureDesc.DepthOrArraySize = 1;
-		textureDesc.SampleDesc.Count = 1;
-		textureDesc.SampleDesc.Quality = 0;
-		textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+		std::unique_ptr<uint8_t[]> ddsData = nullptr;
+		bool isCube;
+		DirectX::DDS_ALPHA_MODE alphaMode;
 
-		D3D12::ThrowIfFailed(m_Context->DeviceResources->Device->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-			D3D12_HEAP_FLAG_NONE,
-			&textureDesc,
-			D3D12_RESOURCE_STATE_COPY_DEST,
-			nullptr,
-			IID_PPV_ARGS(&m_CommittedResource)));
+		DirectX::LoadDDSTextureFromFile(
+			m_Context->DeviceResources->Device.Get(),
+			filepath.c_str(),
+			&m_CommittedResource,
+			ddsData,
+			m_SubData,
+			0,
+			&alphaMode,
+			&isCube
+		);
+
+		m_MipLevels = m_SubData.size();
 		m_CurrentState = D3D12_RESOURCE_STATE_COPY_DEST;
 
-		const uint64_t uploadSize = GetRequiredIntermediateSize(m_CommittedResource.Get(), 0, 1);
+	
+		//int width, height, channels;
+		////stbi_set_flip_vertically_on_load(1);
+		//stbi_uc* data = nullptr;
+		//{
+		//	HZ_PROFILE_SCOPE("stbi_load - D3D12Texture2D::D3D12Texture2D(const std:string&)");
+		//	data = stbi_load(path.c_str(), &width, &height, &channels, 0);
+		//}
+
+		//HZ_CORE_ASSERT(data, "Failed to load image!");
+		//m_Width = width;
+		//m_Height = height;
+
+		//D3D12_RESOURCE_DESC textureDesc = {};
+		//textureDesc.MipLevels = 1;
+		//textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		//textureDesc.Width = width;
+		//textureDesc.Height = height;
+		//textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+		//textureDesc.DepthOrArraySize = 1;
+		//textureDesc.SampleDesc.Count = 1;
+		//textureDesc.SampleDesc.Quality = 0;
+		//textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+
+		//D3D12::ThrowIfFailed(m_Context->DeviceResources->Device->CreateCommittedResource(
+		//	&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+		//	D3D12_HEAP_FLAG_NONE,
+		//	&textureDesc,
+		//	D3D12_RESOURCE_STATE_COPY_DEST,
+		//	nullptr,
+		//	IID_PPV_ARGS(&m_CommittedResource)));
+		//m_CurrentState = D3D12_RESOURCE_STATE_COPY_DEST;
+
+		const uint64_t uploadSize = GetRequiredIntermediateSize(m_CommittedResource.Get(), 0, m_MipLevels);
 
 		D3D12::ThrowIfFailed(m_Context->DeviceResources->Device->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
@@ -86,15 +108,15 @@ namespace Hazel {
 			nullptr,
 			IID_PPV_ARGS(m_UploadResource.GetAddressOf())));
 
-		D3D12_SUBRESOURCE_DATA subresourceData = {};
-		subresourceData.pData = data;
-		subresourceData.RowPitch = width * (channels * sizeof(uint8_t));
-		subresourceData.SlicePitch = subresourceData.RowPitch * height;
-		
+		//D3D12_SUBRESOURCE_DATA subresourceData = {};
+		//subresourceData.pData = data;
+		//subresourceData.RowPitch = width * (channels * sizeof(uint8_t));
+		//subresourceData.SlicePitch = subresourceData.RowPitch * height;
+		//
 		UpdateSubresources(m_Context->DeviceResources->CommandList.Get(),
 			m_CommittedResource.Get(), m_UploadResource.Get(),
-			0, 0, 1, &subresourceData);
-		stbi_image_free(data);
+			0, 0, m_SubData.size(), m_SubData.data());
+		//stbi_image_free(data);
 	}
 
 	void D3D12Texture2D::SetData(void* data, uint32_t size)

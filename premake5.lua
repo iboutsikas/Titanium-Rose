@@ -5,6 +5,7 @@ workspace "Hazel"
 	configurations
 	{
 		"Debug",
+		"DebugNoDXL",
 		"Release",
 		"Dist"
 	}
@@ -19,17 +20,18 @@ outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
 -- Include directories relative to root folder (solution directory)
 IncludeDir = {}
 IncludeDir["GLFW"] = "Hazel/vendor/GLFW/include"
-IncludeDir["Glad"] = "Hazel/vendor/Glad/include"
+-- IncludeDir["Glad"] = "Hazel/vendor/Glad/include"
 IncludeDir["ImGui"] = "Hazel/vendor/imgui"
 IncludeDir["glm"] = "Hazel/vendor/glm"
 IncludeDir["stb_image"] = "Hazel/vendor/stb_image"
 IncludeDir["tinygltf"] = "Hazel/vendor/tinygltf"
 IncludeDir["tinyobjloader"] = "Hazel/vendor/tinyobjloader"
 IncludeDir["assimp"] = "Hazel/vendor/assimp"
+IncludeDir["winpix"] = "Hazel/vendor/winpixeventruntime/Include"
 
 group "Dependencies"
 	include "Hazel/vendor/GLFW"
-	include "Hazel/vendor/Glad"
+	-- include "Hazel/vendor/Glad"
 	include "Hazel/vendor/imgui"
 
 group ""
@@ -54,13 +56,7 @@ project "Hazel"
 		"%{prj.name}/vendor/stb_image/**.h",
 		"%{prj.name}/vendor/stb_image/**.cpp",
 		"%{prj.name}/vendor/glm/glm/**.hpp",
-		"%{prj.name}/vendor/glm/glm/**.inl",
-		"%{prj.name}/vendor/tinyobjloader/tiny_obj_loader.h",
-		"%{prj.name}/vendor/tinyobjloader/tiny_obj_loader.cc",
-		"%{prj.name}/vendor/tinygltf/tiny_gltf.h",
-		"%{prj.name}/vendor/tinygltf/stb_image_write.h",
-		"%{prj.name}/vendor/tinygltf/json.hpp",
-		"%{prj.name}/vendor/tinygltf/tiny_gltf.cpp",
+		"%{prj.name}/vendor/glm/glm/**.inl"
 	}
 
 	defines
@@ -76,7 +72,7 @@ project "Hazel"
 		"%{prj.name}/src",
 		"%{prj.name}/vendor/spdlog/include",
 		"%{IncludeDir.GLFW}",
-		"%{IncludeDir.Glad}",
+		-- "%{IncludeDir.Glad}",
 		"%{IncludeDir.ImGui}",
 		"%{IncludeDir.glm}",
 		"%{IncludeDir.stb_image}",
@@ -87,26 +83,42 @@ project "Hazel"
 	links 
 	{ 
 		"GLFW",
-		"Glad",
+		-- "Glad",
 		"ImGui",
-		"opengl32.lib",
+		-- "opengl32.lib",
 		"D3DCompiler.lib",
 		"dxguid",
 		"d3d12",
 		"dxgi"
 	}
 
+	filter { "system:windows", "configurations:Debug"}
+		libdirs { "Hazel/vendor/assimp/lib/debug" }
+		links {	"assimp-vc142-mtd" }
+
+	filter { "system:windows", "configurations:Release"}
+		libdirs { "Hazel/vendor/assimp/lib/release" }
+		links {	"assimp-vc142-mt" }
+
 	filter "system:windows"
 		systemversion "latest"
-
-		defines
-		{
+		libdirs { "Hazel/vendor/winpixeventruntime/bin/x64" }
+		links {  "WinPixEventRuntime.lib" }
+		includedirs {
+			"%{IncludeDir.winpix}"
+		}
+		defines {
 			"HZ_BUILD_DLL",
 			"GLFW_INCLUDE_NONE"
 		}
 
 	filter "configurations:Debug"
 		defines "HZ_DEBUG"
+		runtime "Debug"
+		symbols "on"
+	
+	filter "configurations:DebugNoDXL"
+		defines { "HZ_NO_D3D12_DEBUG_LAYER", "HZ_DEBUG" }
 		runtime "Debug"
 		symbols "on"
 
@@ -142,8 +154,6 @@ project "Sandbox"
 		"Hazel/src",
 		"Hazel/vendor",
 		"%{IncludeDir.glm}",
-		"%{IncludeDir.tinyobjloader}",
-		"%{IncludeDir.tinygltf}",
 		"%{IncludeDir.assimp}"
 	}
 
@@ -163,28 +173,36 @@ project "Sandbox"
 		"dxgi"
 	}
 
+	filter { "system:windows", "configurations:Debug"}
+		libdirs { "Hazel/vendor/assimp/lib/debug" }
+		links {	"assimp-vc142-mtd" }
+
+	filter { "system:windows", "configurations:Release"}
+		libdirs { "Hazel/vendor/assimp/lib/release" }
+		links {	"assimp-vc142-mt" }
+
 	filter "system:windows"
 		systemversion "latest"
-		libdirs { "Hazel/vendor/assimp/lib" }
-		
-		
+		libdirs { "Hazel/vendor/winpixeventruntime/bin/x64" }
+		links {  "WinPixEventRuntime.lib" }
+		includedirs {
+			"%{IncludeDir.winpix}"
+		}
+
 	filter "configurations:Debug"
 		defines "HZ_DEBUG"
 		runtime "Debug"
 		symbols "on"
-		links
-		{
-			"assimp-vc142-mtd-dbg"
-		}
+		
+	filter "configurations:DebugNoDXL"
+		defines { "HZ_NO_D3D12_DEBUG_LAYER", "HZ_DEBUG" }
+		runtime "Debug"
+		symbols "on"
 
 	filter "configurations:Release"
 		defines "HZ_RELEASE"
 		runtime "Release"
 		optimize "on"
-		links
-		{
-			"assimp-vc142-mtd-release"
-		}
 
 	filter "configurations:Dist"
 		defines "HZ_DIST"

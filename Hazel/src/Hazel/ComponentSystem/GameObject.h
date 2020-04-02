@@ -17,6 +17,8 @@ namespace Hazel {
 	{
 		Hazel::Ref<Hazel::D3D12VertexBuffer> vertexBuffer;
 		Hazel::Ref<Hazel::D3D12IndexBuffer> indexBuffer;
+		Hazel::Ref<Hazel::D3D12Texture2D> diffuseTexture;
+		Hazel::Ref<Hazel::D3D12Texture2D> normalMap;
 	};
 
 	struct HMaterial {

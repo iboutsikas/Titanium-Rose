@@ -93,6 +93,7 @@ namespace Hazel {
 
 	void D3D12RendererAPI::EndFrame()
 	{
+		HZ_PROFILE_FUNCTION();
 		Context->SwapBuffers();
 	}
 }

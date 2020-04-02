@@ -4,7 +4,7 @@
                         "DENY_GEOMETRY_SHADER_ROOT_ACCESS), " \
               "CBV(b0)," \
               "CBV(b1)," \
-              "DescriptorTable(SRV(t0, numDescriptors = 3, flags = DESCRIPTORS_VOLATILE), visibility = SHADER_VISIBILITY_PIXEL), " \
+              "DescriptorTable(SRV(t0, numDescriptors = 4, flags = DESCRIPTORS_VOLATILE), visibility = SHADER_VISIBILITY_PIXEL), " \
               "StaticSampler(s0," \
                       "addressU = TEXTURE_ADDRESS_BORDER," \
                       "addressV = TEXTURE_ADDRESS_BORDER," \
@@ -25,7 +25,7 @@ cbuffer cbPerObject : register(b1) {
     uint   oTextureIndex;
 }
 
-Texture2D g_texture[3] : register(t0);
+Texture2D g_texture[4] : register(t0);
 SamplerState g_sampler : register(s0);
 
 struct PSInput

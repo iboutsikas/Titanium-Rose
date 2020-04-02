@@ -4,7 +4,7 @@
 #include "glm/vec4.hpp"
 #include "glm/mat4x4.hpp"
 
-class BaseColorPass : public Hazel::D3D12RenderPass<3, 1>
+class BaseColorPass : public Hazel::D3D12RenderPass<4, 1>
 {
 public:
 	struct alignas(16) HPassData {

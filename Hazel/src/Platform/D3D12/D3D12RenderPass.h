@@ -10,6 +10,8 @@
 #include "Platform/D3D12/D3D12Shader.h"
 #include "d3d12.h"
 
+#include "WinPixEventRuntime/pix3.h"
+
 namespace Hazel {
 
 	template <uint32_t TNumInputs, uint32_t TNumOutputs>
@@ -41,7 +43,7 @@ namespace Hazel {
 				index,
 				m_Context->GetSRVDescriptorSize()
 			);
-
+			//D3D12_SHADER_RESOURCE_VIEW_DESC
 			// If SetInput did not throw we are in a valid range;
 			m_Context->DeviceResources->Device->CreateShaderResourceView(
 				input->GetCommitedResource(),

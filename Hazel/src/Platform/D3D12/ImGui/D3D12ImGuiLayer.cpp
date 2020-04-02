@@ -9,6 +9,8 @@
 #include "examples/imgui_impl_dx12.cpp"
 #include "examples/imgui_impl_win32.cpp"
 
+#include "WinPixEventRuntime/pix3.h"
+
 namespace Hazel {
     static LRESULT(*originalWindowProc)(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) = nullptr;
 

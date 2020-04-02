@@ -30,6 +30,7 @@ BaseColorPass::BaseColorPass(Hazel::D3D12Context* ctx, Hazel::D3D12Shader::Pipel
 
 void BaseColorPass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject* sceneRoot, Hazel::PerspectiveCamera& camera)
 {
+	HZ_PROFILE_FUNCTION();
 	PassData.ViewProjection = camera.GetViewProjectionMatrix();
 	m_PassCB->CopyData(0, PassData);
 
@@ -37,6 +38,7 @@ void BaseColorPass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject* sceneRo
 	BuildConstantsBuffer(sceneRoot);
 
 	auto cmdList = m_Context->DeviceResources->CommandList;
+	PIXScopedEvent(cmdList.Get(), PIX_COLOR(1, 0, 1), "Base Color Pass");
 
 	cmdList->SetPipelineState(m_Shader->GetPipelineState());
 	cmdList->SetGraphicsRootSignature(m_Shader->GetRootSignature());

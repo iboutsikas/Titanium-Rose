@@ -2,6 +2,8 @@
 #include "DeferedTexturePass.h"
 #include "Vertex.h"
 
+
+
 #include "Platform/D3D12/D3D12Helpers.h"
 
 // TODO: Maybe get these from an .hlsli file like normal people
@@ -37,7 +39,9 @@ DeferedTexturePass::DeferedTexturePass(Hazel::D3D12Context* ctx, Hazel::D3D12Sha
 
 void DeferedTexturePass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject* sceneRoot, Hazel::PerspectiveCamera& camera)
 {
-	// Create the pass data first
+	auto cmdList = ctx->DeviceResources->CommandList;
+
+	PIXScopedEvent(cmdList.Get(), PIX_COLOR(1, 0, 1), "Deferred Pass");
 
 	
 	PassData.ViewProjection = camera.GetViewProjectionMatrix();
@@ -60,7 +64,7 @@ void DeferedTexturePass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject* sc
 
 	// Render
 	auto target = m_Outputs[0];
-	auto cmdList = ctx->DeviceResources->CommandList;
+
 
 	D3D12_VIEWPORT vp = { 0.0f, 0.0f, (float)target->GetWidth(), (float)target->GetHeight(), 0.0f, 1.0f };
 	D3D12_RECT rect = { 0.0f, 0.0f, (float)target->GetWidth(), (float)target->GetHeight() };
@@ -99,7 +103,7 @@ void DeferedTexturePass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject* sc
 
 	cmdList->DrawIndexedInstanced(mesh->indexBuffer->GetCount(), 1, 0, 0, 0);
 
-	target->Transition(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	//target->Transition(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void DeferedTexturePass::SetOutput(uint32_t index, Hazel::Ref<Hazel::D3D12Texture2D> output)

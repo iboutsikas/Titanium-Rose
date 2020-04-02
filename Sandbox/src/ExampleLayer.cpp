@@ -28,9 +28,10 @@
 #include <unordered_map>
 
 #define TEXTURE_WIDTH 512.0f
-#define TEXTURE_HEIGHT 512.0f
+#define TEXTURE_HEIGHT 256.0f
 
 static bool use_rendered_texture = true;
+static bool show_rendered_texture = false;
 static bool render_normals = false;
 //extern template class Hazel::D3D12UploadBuffer<PassData>;
 
@@ -44,7 +45,7 @@ static D3D12_INPUT_ELEMENT_DESC inputLayout[] = {
 ExampleLayer::ExampleLayer()
 	: Layer("ExampleLayer"), /*m_CameraController(1280.0f / 720.0f, false)*/ 
 	m_CameraController(glm::vec3(0.0f, 0.0f, -15.0f), 28.0f, (1280.0f / 720.0f), 0.1f, 100.0f),
-	m_UpdateRate(60),
+	m_UpdateRate(15),
 	m_RenderedFrames(61),
 	m_AmbientLight({1.0f, 1.0f, 1.0f, 1.0f}),
 	m_AmbientIntensity(0.1f),
@@ -71,24 +72,24 @@ ExampleLayer::ExampleLayer()
 	m_MainObject->Material->Color = glm::vec4(1.0f);
 	m_SceneGO->AddChild(m_MainObject);
 	// Cube #2
-	auto secondCube = Hazel::CreateRef<Hazel::GameObject>();
-	secondCube->Name = "Cube#2";
-	secondCube->Transform.SetPosition(glm::vec3(5.0f, 3.0f, 0.0f));
-	secondCube->Mesh = m_CubeModel->Mesh;
-	secondCube->Material = Hazel::CreateRef<Hazel::HMaterial>();
-	secondCube->Material->Glossines = 2.0f;
-	secondCube->Material->TextureId = 1;
-	secondCube->Material->Color = glm::vec4(1.0f);
-	m_MainObject->AddChild(secondCube);
+	//auto secondCube = Hazel::CreateRef<Hazel::GameObject>();
+	//secondCube->Name = "Cube#2";
+	//secondCube->Transform.SetPosition(glm::vec3(5.0f, 3.0f, 0.0f));
+	//secondCube->Mesh = m_CubeModel->Mesh;
+	//secondCube->Material = Hazel::CreateRef<Hazel::HMaterial>();
+	//secondCube->Material->Glossines = 2.0f;
+	//secondCube->Material->TextureId = 2;
+	//secondCube->Material->Color = glm::vec4(1.0f);
+	//m_MainObject->AddChild(secondCube);
 	
 	// "Light" Sphere
 	m_PositionalLightGO = Hazel::CreateRef<Hazel::GameObject>();
 	m_PositionalLightGO->Name = "Light Sphere";
 	m_PositionalLightGO->Mesh = m_SphereModel->Mesh;
-	m_PositionalLightGO->Transform.SetPosition({ 1.0, 8.0, -15.0 });
+	m_PositionalLightGO->Transform.SetPosition({ 1.0, 8.0, -8.0 });
 	m_PositionalLightGO->Material = Hazel::CreateRef<Hazel::HMaterial>();
 	m_PositionalLightGO->Material->Glossines = 2.0f;
-	m_PositionalLightGO->Material->TextureId = 2;
+	m_PositionalLightGO->Material->TextureId = 3;
 	m_PositionalLightGO->Material->Color = glm::vec4({1.0f, 1.0f, 1.0f, 1.0f});
 	m_PositionalLightGO->Transform.SetScale({ 0.3f,0.3, 0.3f });
 	m_SceneGO->AddChild(m_PositionalLightGO);
@@ -99,7 +100,8 @@ ExampleLayer::ExampleLayer()
 	
 	m_BaseColorPass->SetInput(0, m_Texture);
 	m_BaseColorPass->SetInput(1, m_DiffuseTexture);
-	m_BaseColorPass->SetInput(2, m_WhiteTexture);
+	m_BaseColorPass->SetInput(2, m_CubeTexture);
+	m_BaseColorPass->SetInput(3, m_WhiteTexture);
 	m_BaseColorPass->ClearColor = glm::vec4({ 0.0f, 0.0f, 0.0f, 1.0f });
 
 	Hazel::Application::Get().GetWindow().SetVSync(false);
@@ -107,9 +109,7 @@ ExampleLayer::ExampleLayer()
 
 void ExampleLayer::OnAttach()
 {
-	uint8_t bytes[] = { 0xde, 0xad, 0xbe, 0xef, 0x12, 0x34, 0x56, 0x78};
-
-	uint32_t* ints = (uint32_t* )bytes;
+	uint8_t bytes[] = { 0xde, 0xad, 0xbe, 0xef, 0x12, 0x34 };
 
 }
 
@@ -122,27 +122,34 @@ void ExampleLayer::OnUpdate(Hazel::Timestep ts)
 	HZ_PROFILE_FUNCTION();
 	m_CameraController.OnUpdate(ts);
 
-	float angle = ts * 30.0f;
-	static glm::vec3 rotationAxis = glm::vec3(0.0f, 1.0f, 0.0f);
+	{
+		HZ_PROFILE_SCOPE("Game Object update");
+		float angle = ts * 30.0f;
+		static glm::vec3 rotationAxis = glm::vec3(0.0f, 1.0f, 0.0f);
 
-	if (m_RotateCube) {
-		m_MainObject->Transform.RotateAround(rotationAxis, angle);
+		if (m_RotateCube) {
+			m_MainObject->Transform.RotateAround(rotationAxis, angle);
+		}
+
+		if (use_rendered_texture) {
+			m_MainObject->Material->TextureId = 0;
+		}
+		else {
+			m_MainObject->Material->TextureId = 1;
+		}
 	}
 	
-	if (use_rendered_texture) {
-		m_MainObject->Material->TextureId = 0;
-	}
-	else {
-		m_MainObject->Material->TextureId = 1;
-	}
 
 	//auto cmdList = m_Context->DeviceResources->CommandList;
 	
 	
-	//// look into gltf format
-	// Shader reloading
-	// Mipmaps
-	// Basic Material
+	// TODO List:
+	// We need a texture cache, this is getting stupid
+	// Use Microsoft's DDSLoader to load every texture. At least for the DX12 backend
+	// Mipmaps => These will be prepacked into the texture with NVIDIA tools or something.
+	// NO we will not generate mipmaps on the fly.
+	// PBR Material? Pretty please?
+	// Shadow maps
 
 #if 1
 	if (m_RenderedFrames >= m_UpdateRate) {
@@ -160,11 +167,12 @@ void ExampleLayer::OnUpdate(Hazel::Timestep ts)
 	
 	m_BaseColorPass->Process(m_Context, m_SceneGO.get(), m_CameraController.GetCamera());
 
+#if 0
 	if (render_normals) {
 		m_NormalsPass->PassData.LightPosition = m_PositionalLightGO->Transform.Position();
 		m_NormalsPass->Process(m_Context, m_MainObject.get(), m_CameraController.GetCamera());
 	}
-
+#endif
 	Hazel::Renderer::EndScene();
 	m_RenderedFrames++;
 }
@@ -172,22 +180,16 @@ void ExampleLayer::OnUpdate(Hazel::Timestep ts)
 void ExampleLayer::OnImGuiRender() 
 {
 	HZ_PROFILE_FUNCTION();
-
 	static bool show_diffuse = false;
 	static int diffuse_dim[] = { 512, 512 };
 
 	ImGui::ShowMetricsWindow();
-
 	ImGui::Begin("Controls");
 	ImGui::ColorEdit4("Clear Color", &m_BaseColorPass->ClearColor.x);
 
 	auto camera_pos = m_CameraController.GetCamera().GetPosition();
 	ImGui::InputFloat3("Camera Position", &camera_pos.x);
 	m_CameraController.GetCamera().SetPosition(camera_pos);
-
-	//if (ImGui::Button("Look at cube")) {
-	//	m_CameraController.GetCamera().GetTransform().LookAt(m_Pos, m_CameraController.GetCamera().GetTransform().Up());
-	//}
 
 	if (ImGui::CollapsingHeader("Main Object")) {
 
@@ -217,6 +219,7 @@ void ExampleLayer::OnImGuiRender()
 	if (ImGui::CollapsingHeader("Rendered Texture")) {
 		ImGui::InputInt("Texture update rate (frames)", &m_UpdateRate);
 		ImGui::Checkbox("Use rendered texture", &use_rendered_texture);
+		ImGui::Checkbox("Show rendered textre", &show_rendered_texture);
 	}
 	
 
@@ -252,9 +255,11 @@ void ExampleLayer::OnImGuiRender()
 	}
 	ImGui::End();
 	
-	ImGui::Begin("Texture View");
-	ImGui::Image((ImTextureID)m_TextureGPUHandle.ptr, ImVec2(TEXTURE_WIDTH, TEXTURE_HEIGHT));
-	ImGui::End();
+	if (show_rendered_texture) {
+		ImGui::Begin("Texture View", &show_rendered_texture);
+		ImGui::Image((ImTextureID)m_TextureGPUHandle.ptr, ImVec2(TEXTURE_WIDTH, TEXTURE_HEIGHT));
+		ImGui::End();
+	}
 
 	if (show_diffuse) {
 		CD3DX12_GPU_DESCRIPTOR_HANDLE handle(
@@ -285,7 +290,7 @@ void ExampleLayer::LoadTextures()
 		auto width = TEXTURE_WIDTH; // Hazel::Application::Get().GetWindow().GetWidth();
 		auto height = TEXTURE_HEIGHT; // Hazel::Application::Get().GetWindow().GetHeight();
 				
-		m_Texture = std::dynamic_pointer_cast<Hazel::D3D12Texture2D>(Hazel::Texture2D::Create(width, height));
+		m_Texture = Hazel::CreateRef<Hazel::D3D12Texture2D>(width, height, 1);
 
 		CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(
 			m_Context->DeviceResources->SRVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
@@ -328,22 +333,28 @@ void ExampleLayer::LoadAssets()
 		m_CubeModel = ModelLoader::LoadFromFile(std::string("assets/models/test_cube.glb"));
 		m_SphereModel = ModelLoader::LoadFromFile(std::string("assets/models/test_sphere.glb"));
 
-		m_DiffuseTexture = std::dynamic_pointer_cast<Hazel::D3D12Texture2D>(Hazel::Texture2D::Create("assets/textures/earth.png"));
+		m_DiffuseTexture = std::dynamic_pointer_cast<Hazel::D3D12Texture2D>(Hazel::Texture2D::Create("assets/textures/earth.dds"));
 		m_DiffuseTexture->Transition(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-		std::wstring name = L"Diffuse";
-		m_DiffuseTexture->DebugNameResource(name);
+		/*std::wstring name = L"Diffuse";
+		m_DiffuseTexture->DebugNameResource(name);*/
 
-		m_NormalTexture = std::dynamic_pointer_cast<Hazel::D3D12Texture2D>(Hazel::Texture2D::Create("assets/textures/earth_normal.png"));
+		m_NormalTexture = std::dynamic_pointer_cast<Hazel::D3D12Texture2D>(Hazel::Texture2D::Create("assets/textures/earth_normal.dds"));
 		m_NormalTexture->Transition(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		/*name = L"Normal Map";
+		m_NormalTexture->DebugNameResource(name);*/
 
 		m_WhiteTexture = std::dynamic_pointer_cast<Hazel::D3D12Texture2D>(Hazel::Texture2D::Create(1, 1));
 		uint8_t white[] = { 255, 255, 255, 255 };
 		m_WhiteTexture->Transition(D3D12_RESOURCE_STATE_COPY_DEST);
 		m_WhiteTexture->SetData(white, sizeof(white));
 		m_WhiteTexture->Transition(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
 		std::wstring name2 = L"White Texture";
 		m_WhiteTexture->DebugNameResource(name2);
+
+		m_CubeTexture = std::dynamic_pointer_cast<Hazel::D3D12Texture2D>(Hazel::Texture2D::Create("assets/textures/Cube_Texture.dds"));
+		m_CubeTexture->Transition(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		/*name = L"Cube Texture";
+		m_CubeTexture->DebugNameResource(name);*/
 
 		Hazel::D3D12::ThrowIfFailed(m_Context->DeviceResources->CommandList->Close());
 

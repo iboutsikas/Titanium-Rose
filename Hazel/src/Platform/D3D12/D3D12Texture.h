@@ -14,7 +14,7 @@ namespace Hazel {
 	class D3D12Texture2D : public Texture2D
 	{
 	public:
-		D3D12Texture2D(uint32_t width, uint32_t height);
+		D3D12Texture2D(uint32_t width, uint32_t height, uint32_t mipLevels = 1);
 		D3D12Texture2D(const std::string& path);
 
 		virtual uint32_t GetWidth() const override { return m_Width; }
@@ -29,21 +29,20 @@ namespace Hazel {
 
 		inline ID3D12Resource* GetCommitedResource() const { return m_CommittedResource.Get(); }
 		inline ID3D12Resource* GetUploadResource() const { return m_UploadResource.Get(); }
-		inline void SetHeapIndex(uint32_t index) { this->m_Index = index; }
-		inline uint32_t GetHeapIndex() const { return this->m_Index; }
-		/*inline CD3DX12_GPU_DESCRIPTOR_HANDLE& GetGPUHandle() { return m_GPUHandle; }
-		inline CD3DX12_CPU_DESCRIPTOR_HANDLE& GetCPUHandle() { return m_CPUHandle; }*/
+		inline uint32_t GetMipLevels() const { return  m_MipLevels; }
+		inline bool HasMips() const { return m_MipLevels > 1; }
+
 		void DebugNameResource(std::wstring& name);
 	private:
 		std::string m_Path;
 		uint32_t m_Width;
 		uint32_t m_Height;
-		uint32_t m_Index;
+		uint32_t m_MipLevels;
+
 		D3D12_RESOURCE_STATES m_CurrentState;
 		D3D12Context* m_Context;
 		TComPtr<ID3D12Resource> m_CommittedResource;
 		TComPtr<ID3D12Resource> m_UploadResource;
-		/*CD3DX12_GPU_DESCRIPTOR_HANDLE m_GPUHandle;
-		CD3DX12_CPU_DESCRIPTOR_HANDLE m_CPUHandle;*/
+		std::vector<D3D12_SUBRESOURCE_DATA> m_SubData;
 	};
 }

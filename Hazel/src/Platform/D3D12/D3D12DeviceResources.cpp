@@ -16,7 +16,7 @@ namespace Hazel {
 
     void D3D12DeviceResources::EnableDebugLayer()
     {
-#if defined(HZ_DEBUG)
+#if defined(HZ_DEBUG) && !defined(HZ_NO_D3D12_DEBUG_LAYER)
         TComPtr<ID3D12Debug> debugInterface;
         D3D12::ThrowIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&debugInterface)));
         debugInterface->EnableDebugLayer();
@@ -28,7 +28,7 @@ namespace Hazel {
         TComPtr<IDXGIFactory4> dxgiFactory;
         UINT factoryFlags = 0;
 
-#if defined(HZ_DEBUG)
+#if defined(HZ_DEBUG) && !defined(HZ_NO_D3D12_DEBUG_LAYER)
         factoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
 #endif
 
@@ -54,14 +54,14 @@ namespace Hazel {
                 DXGI_ADAPTER_DESC1 dxgiAdapterDesc1;
                 dxgiAdapter1->GetDesc1(&dxgiAdapterDesc1);
 
-                if (((dxgiAdapterDesc1.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) == 0
-                    && dxgiAdapterDesc1.VendorId == (UINT)preferedVendor)
-                    || dxgiAdapterDesc1.VendorId == (UINT)D3D12::VendorID::CAPTURE)
-                {
-                    D3D12::ThrowIfFailed(D3D12CreateDevice(dxgiAdapter1.Get(), D3D_FEATURE_LEVEL_11_0, __uuidof(ID3D12Device), nullptr));
-                    //maxDedicatedVideoMemory = dxgiAdapterDesc1.DedicatedVideoMemory;
-                    D3D12::ThrowIfFailed(dxgiAdapter1.As(&dxgiAdapter4));
+                if (dxgiAdapterDesc1.VendorId == (UINT)D3D12::VendorID::INTEL) {
+                    continue;
                 }
+
+                D3D12::ThrowIfFailed(D3D12CreateDevice(dxgiAdapter1.Get(), D3D_FEATURE_LEVEL_11_0, __uuidof(ID3D12Device2), nullptr));
+                //maxDedicatedVideoMemory = dxgiAdapterDesc1.DedicatedVideoMemory;
+                D3D12::ThrowIfFailed(dxgiAdapter1.As(&dxgiAdapter4));
+
             }
         }
         return dxgiAdapter4;
@@ -72,7 +72,7 @@ namespace Hazel {
         TComPtr<ID3D12Device2> d3d12Device2;
         D3D12::ThrowIfFailed(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&d3d12Device2)));
 
-#if defined(HZ_DEBUG)
+#if defined(HZ_DEBUG) && !defined(HZ_NO_D3D12_DEBUG_LAYER)
         // Add some message suppression in debug mode
         TComPtr<ID3D12InfoQueue> pInfoQueue;
         if (SUCCEEDED(d3d12Device2.As(&pInfoQueue)))
@@ -152,7 +152,7 @@ namespace Hazel {
         TComPtr<IDXGISwapChain4> dxgiSwapChain4;
         TComPtr<IDXGIFactory4> dxgiFactory4;
         UINT createFactoryFlags = 0;
-#if defined(_DEBUG)
+#if defined(HZ_DEBUG) && !defined(HZ_NO_D3D12_DEBUG_LAYER)
         createFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
 #endif
 

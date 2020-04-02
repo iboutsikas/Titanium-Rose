@@ -71,6 +71,7 @@ private:
 	Hazel::Ref<Hazel::D3D12Texture2D> m_DiffuseTexture;
 	Hazel::Ref<Hazel::D3D12Texture2D> m_NormalTexture;
 	Hazel::Ref<Hazel::D3D12Texture2D> m_WhiteTexture;
+	Hazel::Ref<Hazel::D3D12Texture2D> m_CubeTexture;
 	CD3DX12_GPU_DESCRIPTOR_HANDLE m_TextureGPUHandle; // This is to render it in ImGui without messing too much with SRV heaps
 
 	// Render Passes

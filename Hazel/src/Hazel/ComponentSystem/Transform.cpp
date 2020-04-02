@@ -104,6 +104,7 @@ namespace Hazel {
 	}
 
 	glm::mat4 HTransform::LocalToWorldMatrix() {
+		HZ_PROFILE_FUNCTION();
 
 		if (m_IsDirty) {
 			glm::mat4 local(1);
@@ -126,6 +127,7 @@ namespace Hazel {
 	}
 
 	glm::mat4 HTransform::WorldToLocalMatrix() {
+		HZ_PROFILE_FUNCTION();
 		if (m_IsInverseDirty) {
 			m_WorldToLocalMatrix = glm::inverse(LocalToWorldMatrix());
 			m_IsInverseDirty = false;
