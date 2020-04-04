@@ -63,8 +63,7 @@ project "Hazel"
 	{
 		"_CRT_SECURE_NO_WARNINGS",
 		"GLM_FORCE_DEPTH_ZERO_TO_ONE",
-		"GLM_ENABLE_EXPERIMENTAL",
-		"_CRTDBG_MAP_ALLOC"
+		"GLM_ENABLE_EXPERIMENTAL"
 	}
 
 	includedirs
@@ -76,8 +75,6 @@ project "Hazel"
 		"%{IncludeDir.ImGui}",
 		"%{IncludeDir.glm}",
 		"%{IncludeDir.stb_image}",
-		"%{IncludeDir.tinyobjloader}",
-		"%{IncludeDir.tinygltf}"
 	}
 
 	links 
@@ -86,7 +83,7 @@ project "Hazel"
 		-- "Glad",
 		"ImGui",
 		-- "opengl32.lib",
-		"D3DCompiler.lib",
+		"D3DCompiler",
 		"dxguid",
 		"d3d12",
 		"dxgi"
@@ -160,17 +157,12 @@ project "Sandbox"
 	defines
 	{
 		"GLM_FORCE_DEPTH_ZERO_TO_ONE",
-		"GLM_ENABLE_EXPERIMENTAL",
-		"_CRTDBG_MAP_ALLOC"
+		"GLM_ENABLE_EXPERIMENTAL"
 	}
 
 	links
 	{
-		"Hazel",
-		"D3DCompiler.lib",
-		"dxguid",
-		"d3d12",
-		"dxgi"
+		"Hazel"
 	}
 
 	filter { "system:windows", "configurations:Debug"}

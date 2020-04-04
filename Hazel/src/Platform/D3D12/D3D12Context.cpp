@@ -68,8 +68,7 @@ namespace Hazel {
 	void D3D12Context::Init()
 	{
 		HZ_PROFILE_FUNCTION();
-
-		
+				
 		auto width = m_Window->GetWidth();
 		auto height = m_Window->GetHeight();
 		m_TearingSupported = CheckTearingSupport();

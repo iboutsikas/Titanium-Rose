@@ -48,7 +48,7 @@ namespace Hazel {
         else
         {
             // We grab the adapter with the highest VRAM. It "should" be the most performant one.
-            //SIZE_T maxDedicatedVideoMemory = 0;
+            SIZE_T maxDedicatedVideoMemory = 0;
             for (UINT i = 0; DXGI_ERROR_NOT_FOUND != dxgiFactory->EnumAdapters1(i, &dxgiAdapter1); ++i)
             {
                 DXGI_ADAPTER_DESC1 dxgiAdapterDesc1;
@@ -58,10 +58,11 @@ namespace Hazel {
                     continue;
                 }
 
-                D3D12::ThrowIfFailed(D3D12CreateDevice(dxgiAdapter1.Get(), D3D_FEATURE_LEVEL_11_0, __uuidof(ID3D12Device2), nullptr));
-                //maxDedicatedVideoMemory = dxgiAdapterDesc1.DedicatedVideoMemory;
-                D3D12::ThrowIfFailed(dxgiAdapter1.As(&dxgiAdapter4));
-
+                if (dxgiAdapterDesc1.DedicatedVideoMemory > maxDedicatedVideoMemory) {
+                    D3D12::ThrowIfFailed(D3D12CreateDevice(dxgiAdapter1.Get(), D3D_FEATURE_LEVEL_11_0, __uuidof(ID3D12Device2), nullptr));
+                    maxDedicatedVideoMemory = dxgiAdapterDesc1.DedicatedVideoMemory;
+                    D3D12::ThrowIfFailed(dxgiAdapter1.As(&dxgiAdapter4));
+                }
             }
         }
         return dxgiAdapter4;

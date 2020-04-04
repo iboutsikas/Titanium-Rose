@@ -9,8 +9,6 @@
 
 #include "Hazel/Renderer/Renderer.h"
 
-#include "Platform/OpenGL/OpenGLContext.h"
-
 namespace Hazel {
 	
 	static uint8_t s_GLFWWindowCount = 0;
@@ -75,11 +73,13 @@ namespace Hazel {
 		SetVSync(true);
 
 		
-		if (glfwRawMouseMotionSupported()) {
+		if (glfwRawMouseMotionSupported()) 
+		{
 			glfwSetInputMode(m_Window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
 			HZ_CORE_INFO("Raw mouse input enabled");
 		}
-		else {
+		else 
+		{
 			HZ_CORE_WARN("Raw mouse input not supported");
 		}
 

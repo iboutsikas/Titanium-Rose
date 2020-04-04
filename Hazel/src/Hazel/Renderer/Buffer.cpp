@@ -3,7 +3,6 @@
 
 #include "Hazel/Renderer/Renderer.h"
 
-#include "Platform/OpenGL/OpenGLBuffer.h"
 #include "Platform/D3D12/D3D12Buffer.h"
 namespace Hazel {
 
@@ -12,7 +11,7 @@ namespace Hazel {
 		switch (Renderer::GetAPI())
 		{
 			case RendererAPI::API::None:    HZ_CORE_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;
-			case RendererAPI::API::OpenGL:  return CreateRef<OpenGLVertexBuffer>(vertices, size);
+			case RendererAPI::API::OpenGL:  HZ_CORE_ASSERT(false, "RendererAPI::OpenGL is currently not supported!"); return nullptr;
 			case RendererAPI::API::D3D12:	return CreateRef<D3D12VertexBuffer>(vertices, size);
 		}
 
@@ -25,7 +24,7 @@ namespace Hazel {
 		switch (Renderer::GetAPI())
 		{
 			case RendererAPI::API::None:    HZ_CORE_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;
-			case RendererAPI::API::OpenGL:  return CreateRef<OpenGLIndexBuffer>(indices, count);
+			case RendererAPI::API::OpenGL:  HZ_CORE_ASSERT(false, "RendererAPI::OpenGL is currently not supported!"); return nullptr;
 			case RendererAPI::API::D3D12:	return CreateRef<D3D12IndexBuffer>(indices, count);
 		}
 
