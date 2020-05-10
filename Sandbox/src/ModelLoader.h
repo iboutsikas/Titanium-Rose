@@ -5,6 +5,6 @@
 class ModelLoader
 {
 public:
-	static Hazel::Ref<Hazel::GameObject>LoadFromFile(std::string& filepath);
+	static Hazel::Ref<Hazel::GameObject>LoadFromFile(std::string& filepath, bool swapHandeness = false);
 };
 

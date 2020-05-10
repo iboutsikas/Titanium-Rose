@@ -13,7 +13,7 @@ void processNode(aiNode* node, const aiScene* scene, Hazel::Ref<Hazel::GameObjec
 	aiVector3D translation;
 	aiVector3D scale;
 	aiQuaternion rotation;
-
+	translation.Length();
 	node->mTransformation.Decompose(scale, rotation, translation);
 
 	target->Name = std::string(scene->mRootNode->mName.C_Str());
@@ -26,6 +26,7 @@ void processNode(aiNode* node, const aiScene* scene, Hazel::Ref<Hazel::GameObjec
 	if (node->mNumMeshes >= 1) {
 		// We only support 1 mesh per node/go right now
 		aiMesh* aimesh = scene->mMeshes[node->mMeshes[0]];
+		auto len = aimesh->mMaxBitangent.Length();
 		Hazel::Ref<Hazel::HMesh> hmesh = Hazel::CreateRef<Hazel::HMesh>();
 
 		std::vector<Vertex> vertices;
@@ -46,14 +47,10 @@ void processNode(aiNode* node, const aiScene* scene, Hazel::Ref<Hazel::GameObjec
 
 			if (aimesh->HasNormals())
 			{
-				auto nx = aimesh->mNormals[i].x;
-				auto ny = aimesh->mNormals[i].y;
-				auto nz = aimesh->mNormals[i].z;
-				the_vertex.Normal = glm::vec3(vx, vy, vz);
-			}
-			else
-			{
-				HZ_WARN("Model has no normals. WTF did you load?");
+				float nx = aimesh->mNormals[i].x;
+				float ny = aimesh->mNormals[i].y;
+				float nz = aimesh->mNormals[i].z;
+				the_vertex.Normal = glm::vec3(nx, ny, nz);
 			}
 
 			if (aimesh->HasTangentsAndBitangents())
@@ -62,10 +59,9 @@ void processNode(aiNode* node, const aiScene* scene, Hazel::Ref<Hazel::GameObjec
 				auto ty = aimesh->mTangents[i].y;
 				auto tz = aimesh->mTangents[i].z;
 				the_vertex.Tangent = glm::vec3(tx, ty, tz);
-			}
-			else
-			{
-				HZ_INFO("No tangents in the mesh");
+				//auto length = glm::length(the_vertex.Tangent);
+
+				//void* p = &length;
 			}
 
 			if (aimesh->HasTextureCoords(0))
@@ -73,10 +69,6 @@ void processNode(aiNode* node, const aiScene* scene, Hazel::Ref<Hazel::GameObjec
 				auto tu = aimesh->mTextureCoords[0][i].x;
 				auto tv = aimesh->mTextureCoords[0][i].y;
 				the_vertex.UV = glm::vec2(tu, tv);
-			}
-			else
-			{
-				HZ_WARN("Model has no UVs. WTF did you load?");
 			}
 
 			vertices.push_back(the_vertex);
@@ -102,8 +94,20 @@ void processNode(aiNode* node, const aiScene* scene, Hazel::Ref<Hazel::GameObjec
 		
 		hmesh->indexBuffer = Hazel::CreateRef<Hazel::D3D12IndexBuffer>(indices.data(), indices.size());
 		hmesh->indexBuffer->GetResource()->SetName(L"Index buffer");
-		
+#ifdef HZ_DEBUG
+		hmesh->vertices = vertices;
+#endif
 		target->Mesh = hmesh;
+
+		if (aimesh->HasTangentsAndBitangents()) {
+			target->Mesh->maxTangent.x = aimesh->mMaxTangent.x;
+			target->Mesh->maxTangent.y = aimesh->mMaxTangent.y;
+			target->Mesh->maxTangent.z = aimesh->mMaxTangent.z;
+
+			target->Mesh->maxBitangent.x = aimesh->mMaxBitangent.x;
+			target->Mesh->maxBitangent.y = aimesh->mMaxBitangent.y;
+			target->Mesh->maxBitangent.z = aimesh->mMaxBitangent.z;
+		}
 	}
 
 	// Recursive call for children of target
@@ -117,13 +121,21 @@ void processNode(aiNode* node, const aiScene* scene, Hazel::Ref<Hazel::GameObjec
 	}
 }
 
-Hazel::Ref<Hazel::GameObject> ModelLoader::LoadFromFile(std::string& filepath)
+Hazel::Ref<Hazel::GameObject> ModelLoader::LoadFromFile(std::string& filepath, bool swapHandedness)
 {
 	Hazel::Ref<Hazel::GameObject> rootGO = Hazel::CreateRef<Hazel::GameObject>();
 
 	Assimp::Importer importer;
 
-	const aiScene* scene = importer.ReadFile(filepath, aiProcess_JoinIdenticalVertices);
+	uint32_t importFlags = 0;
+
+	if (swapHandedness) {
+		importFlags |= aiProcess_ConvertToLeftHanded;
+	}
+	//importFlags |= aiProcess_JoinIdenticalVertices;
+	importFlags |= aiProcess_CalcTangentSpace;
+
+	const aiScene* scene = importer.ReadFile(filepath, importFlags);
 	
 	if (scene == nullptr) {
 		HZ_ERROR("Error loading model {} :\n {}", filepath, importer.GetErrorString());
@@ -131,8 +143,13 @@ Hazel::Ref<Hazel::GameObject> ModelLoader::LoadFromFile(std::string& filepath)
 		return nullptr;
 	}
 	
-	// TODO: Chances are we will end of with a ton of root objects named ROOT. Maybe fix that ?
-	processNode(scene->mRootNode, scene, rootGO);
+	if (scene->mRootNode->mNumMeshes == 0) {
+		processNode(scene->mRootNode->mChildren[0], scene, rootGO);
+	}
+	else {
+		processNode(scene->mRootNode, scene, rootGO);
+	}
+
 
 	return rootGO;
 }
