@@ -26,11 +26,18 @@ namespace Hazel {
 		
 		void Transition(D3D12_RESOURCE_STATES from, D3D12_RESOURCE_STATES to);
 		void Transition(D3D12_RESOURCE_STATES to);
+		void TransitionFeedback(D3D12_RESOURCE_STATES from, D3D12_RESOURCE_STATES to);
+		void TransitionFeedback(D3D12_RESOURCE_STATES to);
+
+		void CreateFeedbackResource(UINT TileWidth, UINT TileHeight);
 
 		inline ID3D12Resource* GetCommitedResource() const { return m_CommittedResource.Get(); }
 		inline ID3D12Resource* GetUploadResource() const { return m_UploadResource.Get(); }
+		inline ID3D12Resource* GetFeedbackResource() const { return m_FeedbackResource.Get(); }
 		inline uint32_t GetMipLevels() const { return  m_MipLevels; }
 		inline bool HasMips() const { return m_MipLevels > 1; }
+		inline uint32_t  GetFeedbackSize() const { return m_FeedbackSize; }
+		inline glm::ivec2 GetFeedbackDims() const { return m_FeedbackDims; }
 
 		void DebugNameResource(std::wstring& name);
 	private:
@@ -38,11 +45,15 @@ namespace Hazel {
 		uint32_t m_Width;
 		uint32_t m_Height;
 		uint32_t m_MipLevels;
+		uint32_t m_FeedbackSize;
+		glm::ivec2 m_FeedbackDims;
 
 		D3D12_RESOURCE_STATES m_CurrentState;
+		D3D12_RESOURCE_STATES m_FeedbackState;
 		D3D12Context* m_Context;
 		TComPtr<ID3D12Resource> m_CommittedResource;
 		TComPtr<ID3D12Resource> m_UploadResource;
+		TComPtr<ID3D12Resource> m_FeedbackResource;
 		std::vector<D3D12_SUBRESOURCE_DATA> m_SubData;
 	};
 }
