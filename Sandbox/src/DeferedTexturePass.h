@@ -6,7 +6,7 @@
 #include "Platform/D3D12/D3D12RenderPass.h"
 #include "Platform/D3D12/D3D12Texture.h"
 
-class DeferedTexturePass : public Hazel::D3D12RenderPass<2, 1>
+class DeferredTexturePass : public Hazel::D3D12RenderPass<2, 1>
 {
 public:
 	struct alignas(16) HPassData {
@@ -19,20 +19,20 @@ public:
 		float     AmbientIntensity;
 	};
 
-	DeferedTexturePass(Hazel::D3D12Context* ctx, Hazel::D3D12Shader::PipelineStateStream& pipelineStream);
+	DeferredTexturePass(Hazel::D3D12Context* ctx, Hazel::D3D12Shader::PipelineStateStream& pipelineStream);
 
 	virtual void Process(Hazel::D3D12Context* ctx, Hazel::GameObject* sceneRoot, Hazel::PerspectiveCamera& camera) override;
 	virtual void SetOutput(uint32_t index, Hazel::Ref<Hazel::D3D12Texture2D> output) override;
 
 	HPassData PassData;
-
+	int MaxMipLevel = 0;
 private:
 	struct alignas(16) HPerObjectData {
 		glm::mat4 ModelMatrix;
 		glm::mat4 NormalsMatrix;
 		float     Glossiness;
 	};
-	
+
 	Hazel::Ref<Hazel::D3D12UploadBuffer<HPassData>> m_PassCB;
 	Hazel::Ref<Hazel::D3D12UploadBuffer<HPerObjectData>> m_PerObjectCB;
 	Hazel::TComPtr<ID3D12DescriptorHeap> m_RTVHeap;

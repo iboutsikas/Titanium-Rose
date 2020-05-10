@@ -7,12 +7,20 @@ static int cbOffset = 0;
 static constexpr uint32_t PassCBIndex = 0;
 static constexpr uint32_t PerObjectCBIndex = 1;
 static constexpr uint32_t SRVIndex = 2;
+static constexpr char* ShaderPath = "assets/shaders/BasicShader.hlsl";
 
 BaseColorPass::BaseColorPass(Hazel::D3D12Context* ctx, Hazel::D3D12Shader::PipelineStateStream& pipelineStream)
 	: D3D12RenderPass(ctx)
 {
-	m_Shader = Hazel::CreateRef<Hazel::D3D12Shader>("assets/shaders/BasicShader.hlsl", pipelineStream);
-	Hazel::ShaderLibrary::GlobalLibrary()->Add(m_Shader);
+	if (Hazel::ShaderLibrary::GlobalLibrary()->Exists(ShaderPath))
+	{
+		m_Shader = Hazel::ShaderLibrary::GlobalLibrary()->GetAs<Hazel::D3D12Shader>(ShaderPath);
+	}
+	else
+	{
+		m_Shader = Hazel::CreateRef<Hazel::D3D12Shader>(ShaderPath, pipelineStream);
+		Hazel::ShaderLibrary::GlobalLibrary()->Add(m_Shader);
+	}
 	
 	m_SRVHeap = ctx->DeviceResources->CreateDescriptorHeap(
 		ctx->DeviceResources->Device.Get(),

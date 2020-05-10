@@ -10,34 +10,43 @@
 static constexpr uint32_t PassCBIndex = 0;
 static constexpr uint32_t PerObjectCBIndex = 1;
 static constexpr uint32_t SRVIndex = 2;
+static constexpr char* TextureShaderPath = "assets/shaders/TextureShader.hlsl";
 
-DeferedTexturePass::DeferedTexturePass(Hazel::D3D12Context* ctx, Hazel::D3D12Shader::PipelineStateStream& pipelineStream)
+DeferredTexturePass::DeferredTexturePass(Hazel::D3D12Context* ctx, Hazel::D3D12Shader::PipelineStateStream& pipelineStream)
 	: D3D12RenderPass(ctx)
 {
-	m_Shader = Hazel::CreateRef<Hazel::D3D12Shader>("assets/shaders/TextureShader.hlsl", pipelineStream);
-	Hazel::ShaderLibrary::GlobalLibrary()->Add(m_Shader);
-	// We need to create the shader and add get it by name or something here
+	if (Hazel::ShaderLibrary::GlobalLibrary()->Exists(TextureShaderPath))
+	{
+		m_Shader = Hazel::ShaderLibrary::GlobalLibrary()->GetAs<Hazel::D3D12Shader>(TextureShaderPath);
+	}
+	else
+	{
+		m_Shader = Hazel::CreateRef<Hazel::D3D12Shader>(TextureShaderPath, pipelineStream);
+		Hazel::ShaderLibrary::GlobalLibrary()->Add(m_Shader);
+	}
+
 	m_RTVHeap = ctx->DeviceResources->CreateDescriptorHeap(
 		ctx->DeviceResources->Device.Get(),
 		D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
-		DeferedTexturePass::PassOutputCount
+		DeferredTexturePass::PassOutputCount
 	);
 
 	m_SRVHeap = ctx->DeviceResources->CreateDescriptorHeap(
 		ctx->DeviceResources->Device.Get(),
 		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-		DeferedTexturePass::PassInputCount,
+		DeferredTexturePass::PassInputCount,
 		D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
 	);
+	m_SRVHeap->SetName(L"DeferredTexturePass::ResourceHeap");
 
 	m_PassCB = Hazel::CreateRef<Hazel::D3D12UploadBuffer<HPassData>>(1, true);
-	m_PassCB->Resource()->SetName(L"DeferedTexturePass::Scene CB");
+	m_PassCB->Resource()->SetName(L"DeferredTexturePass::Scene CB");
 
 	m_PerObjectCB = Hazel::CreateRef<Hazel::D3D12UploadBuffer<HPerObjectData>>(1, true);
-	m_PerObjectCB->Resource()->SetName(L"DeferedTexturePass::Per Object CB");
+	m_PerObjectCB->Resource()->SetName(L"DeferredTexturePass::Per Object CB");
 }
 
-void DeferedTexturePass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject* sceneRoot, Hazel::PerspectiveCamera& camera)
+void DeferredTexturePass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject* sceneRoot, Hazel::PerspectiveCamera& camera)
 {
 	auto cmdList = ctx->DeviceResources->CommandList;
 
@@ -92,29 +101,36 @@ void DeferedTexturePass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject* sc
 
 	auto rtv = m_RTVHeap->GetCPUDescriptorHandleForHeapStart();
 
-	cmdList->OMSetRenderTargets(1, &rtv, true, nullptr);
 
 	float clearColor[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+	cmdList->OMSetRenderTargets(1, &rtv, true, nullptr);
 
 	m_Context
 		->DeviceResources
 		->CommandList
 		->ClearRenderTargetView(rtv, clearColor, 0, nullptr);
 
+
 	cmdList->DrawIndexedInstanced(mesh->indexBuffer->GetCount(), 1, 0, 0, 0);
 
-	//target->Transition(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	// We transition back to shader resource
+	target->Transition(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void DeferedTexturePass::SetOutput(uint32_t index, Hazel::Ref<Hazel::D3D12Texture2D> output)
+void DeferredTexturePass::SetOutput(uint32_t index, Hazel::Ref<Hazel::D3D12Texture2D> output)
 {
 	D3D12RenderPass::SetOutput(index, output);
 
-	if (index == 0) {
-		m_Context->DeviceResources->Device->CreateRenderTargetView(
-			output->GetCommitedResource(),
-			nullptr,
-			m_RTVHeap->GetCPUDescriptorHandleForHeapStart()
-		);
-	}
+	auto rtvHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(
+		m_RTVHeap->GetCPUDescriptorHandleForHeapStart(),
+		index,
+		m_Context->GetRTVDescriptorSize()
+	);
+
+	m_Context->DeviceResources->Device->CreateRenderTargetView(
+		output->GetCommitedResource(),
+		nullptr,
+		rtvHandle		
+	);
 }

@@ -7,7 +7,7 @@ static constexpr uint32_t PerObjectCBIndex = 1;
 NormalsDebugPass::NormalsDebugPass(Hazel::D3D12Context* ctx, Hazel::D3D12Shader::PipelineStateStream& pipelineStream)
 	: D3D12RenderPass(ctx)
 {
-	Hazel::D3D12Shader::OptionalShaderType shaderTypes = Hazel::D3D12Shader::OptionalShaderType::Geometry;
+	Hazel::ShaderType shaderTypes = Hazel::ShaderType::Vertex | Hazel::ShaderType::Fragment | Hazel::ShaderType::Geometry;
 	m_Shader = Hazel::CreateRef<Hazel::D3D12Shader>("assets/shaders/NormalsDebugShader.hlsl", pipelineStream, shaderTypes);
 
 	Hazel::ShaderLibrary::GlobalLibrary()->Add(m_Shader);
