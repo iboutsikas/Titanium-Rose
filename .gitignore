@@ -15,3 +15,5 @@ bin-int/
 *.json
 
 Sandbox/imgui.ini
+
+Hazel/vendor/assimp/lib/
