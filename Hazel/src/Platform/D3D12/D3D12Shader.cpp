@@ -7,8 +7,8 @@
 
 namespace Hazel {
 
-	D3D12Shader::D3D12Shader(const std::string& filepath, PipelineStateStream pipelineStream, OptionalShaderType optionalShaders)
-		:m_Path(filepath), m_PipelineDesc(pipelineStream), m_OptionalShaders(optionalShaders)
+	D3D12Shader::D3D12Shader(const std::string& filepath, PipelineStateStream pipelineStream, ShaderType shaderTypes)
+		:m_Path(filepath), m_PipelineDesc(pipelineStream), m_ShaderTypes(shaderTypes)
 	{
 		HZ_PROFILE_FUNCTION();
 
@@ -49,61 +49,31 @@ namespace Hazel {
 
 	bool D3D12Shader::Recompile(void* stream)
 	{
-		PipelineStateStream* pipelineStream = (PipelineStateStream * )stream;
-		if (pipelineStream != nullptr) {
-			m_PipelineDesc.InputLayout = pipelineStream->InputLayout;
-			m_PipelineDesc.PrimitiveTopologyType = pipelineStream->PrimitiveTopologyType;
-			m_PipelineDesc.DSVFormat = pipelineStream->DSVFormat;
-			m_PipelineDesc.RTVFormats = pipelineStream->RTVFormats;
-			m_PipelineDesc.Rasterizer = pipelineStream->Rasterizer;
-		}
-		m_CompilationState = new CompilationSate;
+		PipelineStateStream* pipelineStream = static_cast<PipelineStateStream*>(stream);
 
-		m_Errors.clear();
-		std::wstring stemp = std::wstring(m_Path.begin(), m_Path.end());
-		if (FAILED(Compile(stemp, "VS_Main", "vs_5_1", &m_CompilationState->vertexBlob))) {
-			delete m_CompilationState;
-			m_CompilationState = nullptr;
-			return false;
-		}
-		if (FAILED(Compile(stemp, "PS_Main", "ps_5_1", &m_CompilationState->fragmentBlob))) {
-			delete m_CompilationState;
-			m_CompilationState = nullptr;
-			return false;
+		if ((m_ShaderTypes & ShaderType::Compute) == ShaderType::Compute)
+		{
+			return RecompileCompute(pipelineStream);
 		}
 
-		if (m_OptionalShaders & OptionalShaderType::Geometry) {
-			if (FAILED(Compile(stemp, "GS_Main", "gs_5_1", &m_CompilationState->geometryBlob))) {
-				delete m_CompilationState;
-				m_CompilationState = nullptr;
-				return false;
-			}
-		}
-
-		if (FAILED(ExtractRootSignature(m_CompilationState, m_CompilationState->vertexBlob))) {
-			delete m_CompilationState;
-			m_CompilationState = nullptr;
-			return false;
-		}
-		if (FAILED(BuildPSO(m_CompilationState, &m_PipelineDesc))) {
-			delete m_CompilationState;
-			m_CompilationState = nullptr;
-			return false;
-		}
-
-		// Everything has compiled, time to swap them around. This only works in single thread mode
-		return true;
+		return RecompileGraphics(pipelineStream);
 	}
 
 	void D3D12Shader::UpdateReferences()
 	{
 		if (m_CompilationState != nullptr) {
-			m_VertexBlob = m_CompilationState->vertexBlob;
-			m_FragmentBlob = m_CompilationState->fragmentBlob;
 			m_RootSignature = m_CompilationState->rootSignature;
 			m_PipelineState = m_CompilationState->pipelineState;
 
-			if (m_OptionalShaders & OptionalShaderType::Geometry) {
+			if ((m_ShaderTypes & ShaderType::Vertex) == ShaderType::Vertex) {
+				m_VertexBlob = m_CompilationState->vertexBlob;
+			}
+
+			if ((m_ShaderTypes & ShaderType::Fragment) == ShaderType::Fragment) {
+				m_FragmentBlob = m_CompilationState->fragmentBlob;
+			}
+
+			if ((m_ShaderTypes & ShaderType::Geometry) == ShaderType::Geometry) {
 				m_GeometryBlob = m_CompilationState->geometryBlob;
 			}
 			m_CompilationState = nullptr;
@@ -115,6 +85,82 @@ namespace Hazel {
 		return std::string();
 	
 	}
+	
+	bool D3D12Shader::RecompileCompute(PipelineStateStream* pipelineStream)
+	{
+		if (pipelineStream != nullptr)
+		{
+			// copy anything we need from the new stream. Currently we don't need anythign for compute
+		}
+
+		m_CompilationState.reset(new CompilationSate());
+
+		m_Errors.clear();
+		std::wstring stemp = std::wstring(m_Path.begin(), m_Path.end());
+
+		if (FAILED(Compile(stemp, "CS_Main", "cs_5_1", &m_CompilationState->computeBlob))) {
+			goto r_cleanup;
+		}
+
+		if (FAILED(ExtractRootSignature(m_CompilationState.get(), m_CompilationState->computeBlob))) {
+			goto r_cleanup;
+		}
+		if (FAILED(BuildPSO(m_CompilationState.get(), &m_PipelineDesc))) {
+			goto r_cleanup;
+		}
+
+		return true;
+
+	r_cleanup:
+		m_CompilationState.reset();
+		m_CompilationState = nullptr;
+		return false;
+	}
+
+	bool D3D12Shader::RecompileGraphics(PipelineStateStream* pipelineStream)
+	{
+		if (pipelineStream != nullptr) {
+			m_PipelineDesc.InputLayout = pipelineStream->InputLayout;
+			m_PipelineDesc.PrimitiveTopologyType = pipelineStream->PrimitiveTopologyType;
+			m_PipelineDesc.DSVFormat = pipelineStream->DSVFormat;
+			m_PipelineDesc.RTVFormats = pipelineStream->RTVFormats;
+			m_PipelineDesc.Rasterizer = pipelineStream->Rasterizer;
+		}
+
+		m_CompilationState.reset(new CompilationSate());
+
+		m_Errors.clear();
+		std::wstring stemp = std::wstring(m_Path.begin(), m_Path.end());
+
+		if (FAILED(Compile(stemp, "VS_Main", "vs_5_1", &m_CompilationState->vertexBlob))) {
+			goto r_cleanup;
+		}
+		if (FAILED(Compile(stemp, "PS_Main", "ps_5_1", &m_CompilationState->fragmentBlob))) {
+			goto r_cleanup;
+		}
+
+		if ((m_ShaderTypes & ShaderType::Geometry) == ShaderType::Geometry) {
+			if (FAILED(Compile(stemp, "GS_Main", "gs_5_1", &m_CompilationState->geometryBlob))) {
+				goto r_cleanup;
+			}
+		}
+
+		if (FAILED(ExtractRootSignature(m_CompilationState.get(), m_CompilationState->vertexBlob))) {
+			goto r_cleanup;
+		}
+		if (FAILED(BuildPSO(m_CompilationState.get(), &m_PipelineDesc))) {
+			goto r_cleanup;
+		}
+
+		// Everything has compiled, time to swap them around. This only works in single thread mode
+		return true;
+
+	r_cleanup:
+		m_CompilationState.reset();
+		m_CompilationState = nullptr;
+		return false;
+	}
+
 	HRESULT D3D12Shader::Compile(const std::wstring& filepathW, LPCSTR entryPoint, LPCSTR profile, ID3DBlob** blob)
 	{
 		UINT flags = D3DCOMPILE_ENABLE_STRICTNESS;
@@ -198,12 +244,23 @@ namespace Hazel {
 
 	HRESULT D3D12Shader::BuildPSO(CompilationSate* state, PipelineStateStream* pipelineStream)
 	{
-		pipelineStream->pRootSignature = m_RootSignature.Get();
-		pipelineStream->VS = CD3DX12_SHADER_BYTECODE(state->vertexBlob.Get());
-		pipelineStream->PS = CD3DX12_SHADER_BYTECODE(state->fragmentBlob.Get());
+		pipelineStream->pRootSignature = state->rootSignature.Get();
 
-		if (m_OptionalShaders & OptionalShaderType::Geometry) {
+		
+		if ((m_ShaderTypes & ShaderType::Vertex) == ShaderType::Vertex) {
+			pipelineStream->VS = CD3DX12_SHADER_BYTECODE(state->vertexBlob.Get());
+		}
+
+		if ((m_ShaderTypes & ShaderType::Fragment) == ShaderType::Fragment) {
+			pipelineStream->PS = CD3DX12_SHADER_BYTECODE(state->fragmentBlob.Get());
+		}
+
+		if ((m_ShaderTypes & ShaderType::Geometry) == ShaderType::Geometry) {
 			pipelineStream->GS = CD3DX12_SHADER_BYTECODE(state->geometryBlob.Get());
+		}
+
+		if ((m_ShaderTypes & ShaderType::Compute) == ShaderType::Compute) {
+			pipelineStream->CS = CD3DX12_SHADER_BYTECODE(state->computeBlob.Get());
 		}
 
 

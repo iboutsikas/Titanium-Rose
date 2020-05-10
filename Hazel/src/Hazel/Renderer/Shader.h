@@ -2,10 +2,23 @@
 
 #include <string>
 #include <unordered_map>
+#include <type_traits>
 
 #include <glm/glm.hpp>
+#include "Hazel/Core/BitfieldEnum.h"
 
 namespace Hazel {
+
+	enum class ShaderType {
+		None = 0x00000000,
+		Geometry = 0x00000001,
+		Vertex = 0x00000010,
+		Fragment = 0x00000100,
+		Compute = 0x00001000	
+	};
+	ENABLE_BITMASK_OPERATORS(ShaderType);
+
+	static constexpr ShaderType VertexAndFragment = ShaderType::Vertex | ShaderType::Fragment;
 
 	class Shader
 	{
@@ -45,6 +58,14 @@ namespace Hazel {
 		Ref<Shader> Load(const std::string& name, const std::string& filepath);
 
 		Ref<Shader> Get(const std::string& name);
+		
+		template<typename T,
+			typename = std::enable_if_t<std::is_base_of_v<Hazel::Shader, T>>>
+			Ref<T> GetAs(const std::string& name)
+		{
+			return std::dynamic_pointer_cast<T>(Get(name));
+		}
+
 
 		bool Exists(const std::string& name) const;
 		void Update();
@@ -64,5 +85,4 @@ namespace Hazel {
 
 		static ShaderLibrary* s_GlobalLibrary;
 	};
-
 }

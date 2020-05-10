@@ -7,13 +7,12 @@
 #include "d3d12.h"
 
 namespace Hazel {
+	
+	
 	class D3D12Shader : public Shader
 	{
 	public:
-		enum OptionalShaderType : uint32_t {
-			None		= 0x00000000,
-			Geometry	= 0x00000001
-		};
+		
 
 		struct PipelineStateStream
 		{
@@ -23,12 +22,13 @@ namespace Hazel {
 			CD3DX12_PIPELINE_STATE_STREAM_VS VS;
 			CD3DX12_PIPELINE_STATE_STREAM_PS PS;
 			CD3DX12_PIPELINE_STATE_STREAM_GS GS;
+			CD3DX12_PIPELINE_STATE_STREAM_CS CS;
 			CD3DX12_PIPELINE_STATE_STREAM_DEPTH_STENCIL_FORMAT DSVFormat;
 			CD3DX12_PIPELINE_STATE_STREAM_RENDER_TARGET_FORMATS RTVFormats;
 			CD3DX12_PIPELINE_STATE_STREAM_RASTERIZER Rasterizer;
 		};
 
-		D3D12Shader(const std::string& filepath, PipelineStateStream pipelineStream, OptionalShaderType optionalShaders = OptionalShaderType::None);
+		D3D12Shader(const std::string& filepath, PipelineStateStream pipelineStream, ShaderType shaderTypes = VertexAndFragment);
 		D3D12Shader(const std::string& name, const std::string& vertexSrc, const std::string& fragmentSrc);
 		virtual ~D3D12Shader();
 
@@ -49,7 +49,7 @@ namespace Hazel {
 		ID3D12RootSignature* GetRootSignature();
 		ID3D12PipelineState* GetPipelineState();
 
-		inline bool ContainsShader(OptionalShaderType shaderType) const { return m_OptionalShaders & shaderType; }
+		inline bool ContainsShader(ShaderType shaderType) const { return static_cast<bool>(m_ShaderTypes & shaderType); }
 
 
 		// TODO: This is a very bad hack to get a "generic" recompile for OGL and DX12
@@ -62,10 +62,15 @@ namespace Hazel {
 			TComPtr<ID3DBlob> vertexBlob;
 			TComPtr<ID3DBlob> fragmentBlob;
 			TComPtr<ID3DBlob> geometryBlob;
+			TComPtr<ID3DBlob> computeBlob;
 			TComPtr<ID3D12RootSignature> rootSignature;
 			TComPtr<ID3D12PipelineState> pipelineState;
 		};
-		
+
+		bool RecompileCompute(PipelineStateStream* pipelineStream);
+		bool RecompileGraphics(PipelineStateStream* pipelineStream);
+
+
 		HRESULT Compile(const std::wstring& filepathW, LPCSTR entryPoint, LPCSTR profile, ID3DBlob** blob);
 		HRESULT ExtractRootSignature(CompilationSate* state, TComPtr<ID3DBlob> shaderBlob);
 		HRESULT BuildPSO(CompilationSate* state, PipelineStateStream* pipelineStream);
@@ -77,10 +82,10 @@ namespace Hazel {
 		TComPtr<ID3D12PipelineState> m_PipelineState;
 		PipelineStateStream m_PipelineDesc;
 		D3D12Context* m_Context;
-		CompilationSate* m_CompilationState;
+		Ref<CompilationSate> m_CompilationState;
 
 		std::string m_Name;
 		std::string m_Path;
-		OptionalShaderType m_OptionalShaders;
+		ShaderType m_ShaderTypes;
 	};
 }
