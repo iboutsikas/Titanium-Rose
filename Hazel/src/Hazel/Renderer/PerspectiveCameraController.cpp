@@ -16,6 +16,7 @@ namespace Hazel {
 		m_zFar(zFar),
 		m_Camera(position, fov, aspectRatio, zNear, zFar)
 	{
+		m_Camera.GetTransform().RotateAround(HTransform::VECTOR_UP, 180);
 	}
 
 	void PerspectiveCameraController::OnUpdate(Timestep ts)
@@ -26,11 +27,12 @@ namespace Hazel {
 
 		if (Input::IsKeyPressed(HZ_KEY_A))
 		{
-			cameraPosition += m_Camera.GetRight() * m_CameraTranslationSpeed * glm::vec3(ts);
+			auto thing = m_Camera.GetRight();
+			cameraPosition -= thing * m_CameraTranslationSpeed * glm::vec3(ts);
 		}
 		else if (Input::IsKeyPressed(HZ_KEY_D))
 		{
-			cameraPosition -= m_Camera.GetRight() * m_CameraTranslationSpeed * glm::vec3(ts);
+			cameraPosition += m_Camera.GetRight() * m_CameraTranslationSpeed * glm::vec3(ts);
 		}
 
 		if (Input::IsKeyPressed(HZ_KEY_W))
@@ -78,10 +80,10 @@ namespace Hazel {
 			float roll = 0.0f; // maybe implement this in the future?
 			m_LastMouseX = x;
 			m_LastMouseY = y;
-			glm::vec3 angles(-pitch, yaw, roll);
+			/*glm::vec3 angles(pitch, yaw, roll);*/
 
 			auto& tf = m_Camera.GetTransform();
-			tf.RotateAround(tf.Right(), -pitch);
+			tf.RotateAround(tf.Right(), pitch);
 			tf.RotateAround(HTransform::VECTOR_UP, yaw);
 			Input::SetMousePosition(centerX, centerY);
 		}

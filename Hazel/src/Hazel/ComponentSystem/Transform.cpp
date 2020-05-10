@@ -6,9 +6,9 @@ namespace Hazel {
 	
 
 	HTransform::HTransform() :
-		m_Position(glm::vec3(0.0f)),
+		m_Position(glm::vec3(0.0f, 0.0f, 0.0f)),
 		m_Rotation(glm::quat(1.0f, 0.0f, 0.0f, 0.0f)),
-		m_Scale(glm::vec3(1.0f)),
+		m_Scale(glm::vec3(1.0f, 1.0f, 1.0f)),
 		m_IsDirty(true),
 		m_IsInverseDirty(true),
 		m_Parent(nullptr)

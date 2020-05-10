@@ -11,6 +11,7 @@
 #include <vector>
 #include <string>
 
+struct Vertex;
 
 namespace Hazel {
 	struct HMesh
@@ -19,6 +20,11 @@ namespace Hazel {
 		Hazel::Ref<Hazel::D3D12IndexBuffer> indexBuffer;
 		Hazel::Ref<Hazel::D3D12Texture2D> diffuseTexture;
 		Hazel::Ref<Hazel::D3D12Texture2D> normalMap;
+		glm::vec3 maxTangent;
+		glm::vec3 maxBitangent;
+#ifdef HZ_DEBUG
+		std::vector<Vertex> vertices;
+#endif
 	};
 
 	struct HMaterial {

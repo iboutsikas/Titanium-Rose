@@ -4,10 +4,6 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 
-static constexpr glm::vec3 WORLD_FORWARD = glm::vec3(0.0f, 0.0f, -1.0f);
-static constexpr glm::vec3 WORLD_RIGHT = glm::vec3(1.0f, 0.0f, 0.0f);
-static constexpr glm::vec3 WORLD_UP = glm::vec3(0.0f, 1.0f, 0.0f);
-
 namespace Hazel {
 
 	PerspectiveCamera::PerspectiveCamera(const glm::vec3& position, float fov, float aspectRatio, float zNear, float zFar) : 
