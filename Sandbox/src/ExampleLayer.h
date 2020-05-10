@@ -23,6 +23,7 @@
 #include "DeferedTexturePass.h"
 #include "BaseColorPass.h"
 #include "NormalsDebugPass.h"
+#include "MipMapPass.h"
 
 
 enum ExampleShaders : size_t {
@@ -46,16 +47,25 @@ public:
 	void OnEvent(Hazel::Event& e) override;
 
 private:
+
+	
+
 	Hazel::PerspectiveCameraController m_CameraController;
 	//Hazel::OrthographicCameraController m_CameraController;
 	Hazel::D3D12Context* m_Context;
-	Hazel::Ref<Hazel::GameObject> m_CubeModel;
-	Hazel::Ref<Hazel::GameObject> m_SphereModel;
 
+	enum Models {
+		CubeModel,
+		SphereModel,
+		TriangleModel,
+		CountModel
+	};
+	std::vector<Hazel::Ref<Hazel::GameObject>> m_Models;
 
 	Hazel::Ref<Hazel::GameObject> m_SceneGO;
 	Hazel::Ref<Hazel::GameObject> m_PositionalLightGO;
 	Hazel::Ref<Hazel::GameObject> m_MainObject;
+	Hazel::Ref<Hazel::GameObject> m_SecondaryObject;
 
 	int m_UpdateRate;
 	int m_RenderedFrames;
@@ -65,20 +75,29 @@ private:
 	glm::vec4 m_AmbientLight;
 	float	  m_AmbientIntensity;
 
+	// Mip Stuff
+	float m_MaxMip = 1.0f;
+	float m_BlendFactor = 0.0f;
 
 	// Textures
-	Hazel::Ref<Hazel::D3D12Texture2D> m_Texture;
-	Hazel::Ref<Hazel::D3D12Texture2D> m_DiffuseTexture;
-	Hazel::Ref<Hazel::D3D12Texture2D> m_NormalTexture;
-	Hazel::Ref<Hazel::D3D12Texture2D> m_WhiteTexture;
-	Hazel::Ref<Hazel::D3D12Texture2D> m_CubeTexture;
+	enum Textures {
+		DeferredTexture,
+		DiffuseTexture,
+		NormalTexture,
+		FeedbackTexture,
+		CubeTexture,
+		TriangleTexture,
+		WhiteTexture,
+		CountTexure
+	};
+	std::vector<Hazel::Ref<Hazel::D3D12Texture2D>> m_Textures;
 	CD3DX12_GPU_DESCRIPTOR_HANDLE m_TextureGPUHandle; // This is to render it in ImGui without messing too much with SRV heaps
 
 	// Render Passes
-	Hazel::Ref<DeferedTexturePass> m_DeferredTexturePass;
+	Hazel::Ref<DeferredTexturePass> m_DeferredTexturePass;
 	Hazel::Ref<BaseColorPass> m_BaseColorPass;
 	Hazel::Ref<NormalsDebugPass> m_NormalsPass;
-
+	Hazel::Ref<MipMapPass>	m_MipsPass;
 	void LoadAssets();
 	void BuildPipeline();
 	void LoadTextures();

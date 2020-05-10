@@ -4,7 +4,8 @@
                         "DENY_GEOMETRY_SHADER_ROOT_ACCESS), " \
               "CBV(b0)," \
               "CBV(b1)," \
-              "DescriptorTable(SRV(t0, numDescriptors = 4, flags = DESCRIPTORS_VOLATILE), visibility = SHADER_VISIBILITY_PIXEL), " \
+              "DescriptorTable(SRV(t0, numDescriptors = 5, flags = DESCRIPTORS_VOLATILE)," \
+                              "UAV(u0, numDescriptors = 5, flags = DESCRIPTORS_VOLATILE), visibility = SHADER_VISIBILITY_PIXEL)," \
               "StaticSampler(s0," \
                       "addressU = TEXTURE_ADDRESS_BORDER," \
                       "addressV = TEXTURE_ADDRESS_BORDER," \
@@ -22,10 +23,13 @@ cbuffer cbPass : register(b0) {
 cbuffer cbPerObject : register(b1) {
     matrix oLocalToWorld;
     float4 oMaterialColor;
-    uint   oTextureIndex;
+    float4 gTextureDims;
+    uint2 gFeedbackDims;
+    uint gTextureIndex;
 }
 
-Texture2D g_texture[4] : register(t0);
+Texture2D g_DiffuseTextures[5] : register(t0);
+RWStructuredBuffer<uint> g_FeedbackBuffers[5]: register(u0);
 SamplerState g_sampler : register(s0);
 
 struct PSInput
@@ -51,6 +55,11 @@ PSInput VS_Main(VSInput input)
 [RootSignature(MyRS1)]
 float4 PS_Main(PSInput input) : SV_TARGET
 {
-    // return float4(1.0, 0.0, 0.0, 1.0);
-    return g_texture[oTextureIndex].Sample(g_sampler, input.uv) * oMaterialColor;
+    float mipLevel = g_DiffuseTextures[gTextureIndex].CalculateLevelOfDetail(g_sampler, input.uv);
+    uint2 feedbackMapCoords;
+    feedbackMapCoords.x = (uint)(gFeedbackDims.x * input.uv.x);
+    feedbackMapCoords.y = (uint)(gFeedbackDims.y * input.uv.y);
+
+    InterlockedMin(g_FeedbackBuffers[gTextureIndex][feedbackMapCoords.y * gFeedbackDims.y + feedbackMapCoords.y], mipLevel);
+    return g_DiffuseTextures[gTextureIndex].Sample(g_sampler, input.uv) * oMaterialColor;
 }

@@ -4,13 +4,14 @@
                         "DENY_GEOMETRY_SHADER_ROOT_ACCESS), " \
                 "CBV(b0)," \
                 "CBV(b1)," \
-                "DescriptorTable(SRV(t0, numDescriptors = 2, flags = DESCRIPTORS_VOLATILE), visibility = SHADER_VISIBILITY_PIXEL), " \
+                "DescriptorTable(SRV(t0, numDescriptors = 2, flags = DESCRIPTORS_VOLATILE)," \
+                                "visibility = SHADER_VISIBILITY_PIXEL), " \
                 "StaticSampler(s0," \
                       "addressU = TEXTURE_ADDRESS_WRAP," \
                       "addressV = TEXTURE_ADDRESS_WRAP," \
                       "addressW = TEXTURE_ADDRESS_WRAP," \
                       "borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK," \
-                      "filter = FILTER_ANISOTROPIC, "\
+                      "filter = FILTER_MIN_MAG_MIP_POINT, "\
                       "visibility = SHADER_VISIBILITY_PIXEL),"\
                 "StaticSampler(s1," \
                       "addressU = TEXTURE_ADDRESS_WRAP," \
@@ -63,7 +64,7 @@ PSInput VS_Main(VSInput input)
     // matrix mvp = mul(gViewProjection, oLocalToWorld);
     float3 N = normalize(mul((float3x3)oNormalsMatrix, input.normal));
 
-    result.position = float4(vUv, 1.0, 1.0);
+    result.position = float4(vUv, 0.0, 1.0);
     // result.position = mul(oLocalToWorld, float4(input.position, 1.0));
     result.worldPosition = mul(oLocalToWorld, float4(input.position, 1.0)).xyz;
     result.normal = N;
@@ -82,10 +83,18 @@ PSInput VS_Main(VSInput input)
 [RootSignature(MyRS1)]
 float4 PS_Main(PSInput input) : SV_TARGET
 {
-    float4 albedo = albedoTexture.Sample(g_sampler, input.uv);
-  
+    // uint lod = albedoTexture.CalculateLevelOfDetail(g_sampler, input.uv);
+    // float4 albedo = albedoTexture.Sample(g_sampler, input.uv);
+    float4 albedo = albedoTexture.SampleLevel(g_sampler, input.uv, 0);
+    
+    // float2 dx = ddx(4096 * input.uv);
+    // float2 dy = ddy(input.uv);
+
+
+    // float3 normal = normalTexture.SampleLevel(g_NormalSampler, input.uv, 0).rgb;
     float3 normal = normalTexture.Sample(g_NormalSampler, input.uv).rgb;
-    normal = 2 * normal - 1;
+
+    normal = 2.0 * normal - 1.0;
     normal = normalize(mul(normal, input.TBN));
 
     float3 geometricNormal = normalize(input.normal);
@@ -134,5 +143,4 @@ float4 PS_Main(PSInput input) : SV_TARGET
     float4 finalSurfaceColor = float4((diffuseLight * albedo.xyz) , albedo.a);
 
     return finalSurfaceColor;
-    return float4(0.2, 1, 0.74, 1);
 }

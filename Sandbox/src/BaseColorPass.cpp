@@ -22,10 +22,11 @@ BaseColorPass::BaseColorPass(Hazel::D3D12Context* ctx, Hazel::D3D12Shader::Pipel
 		Hazel::ShaderLibrary::GlobalLibrary()->Add(m_Shader);
 	}
 	
+	// The +1 is for the feedback resource
 	m_SRVHeap = ctx->DeviceResources->CreateDescriptorHeap(
 		ctx->DeviceResources->Device.Get(),
 		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-		BaseColorPass::PassInputCount,
+		BaseColorPass::PassInputCount * 2,
 		D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
 	);
 
@@ -81,8 +82,22 @@ void BaseColorPass::BuildConstantsBuffer(Hazel::GameObject* goptr)
 	if (goptr->Mesh != nullptr) {
 		HPerObjectData od;
 		od.LocalToWorld = goptr->Transform.LocalToWorldMatrix();
-		od.TextureIndex = goptr->Material->TextureId;
 		od.MaterialColor = goptr->Material->Color;
+		od.TextureDims = glm::vec4(
+			goptr->Material->DiffuseTexture->GetWidth(),
+			goptr->Material->DiffuseTexture->GetHeight(),
+			1.0f / goptr->Material->DiffuseTexture->GetWidth(),
+			1.0f / goptr->Material->DiffuseTexture->GetHeight()
+		);
+		od.FeedbackDims = goptr->Material->DiffuseTexture->GetFeedbackDims();
+
+		for (size_t i = 0; i < PassInputCount; i++)
+		{
+			if (m_Inputs[i] == goptr->Material->DiffuseTexture) {
+				od.TextureIndex = i;
+				break;
+			}
+		}
 		goptr->Material->cbIndex = cbOffset++;
 		m_PerObjectCB->CopyData(goptr->Material->cbIndex, od);
 	}	
@@ -103,8 +118,34 @@ void BaseColorPass::RenderItems(Hazel::TComPtr<ID3D12GraphicsCommandList> cmdLis
 		auto mesh = goptr->Mesh;
 		D3D12_VERTEX_BUFFER_VIEW vb = mesh->vertexBuffer->GetView();
 		vb.StrideInBytes = sizeof(Vertex);
-
 		D3D12_INDEX_BUFFER_VIEW ib = mesh->indexBuffer->GetView();
+
+		auto handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_SRVHeap->GetCPUDescriptorHandleForHeapStart());
+
+		// Bind the Feedback View
+		HPerObjectData* podata = m_PerObjectCB->ElementAt(goptr->Material->cbIndex);
+		handle.Offset(BaseColorPass::PassInputCount + podata->TextureIndex, m_Context->GetSRVDescriptorSize());
+
+		auto fbResource = goptr->Material->DiffuseTexture->GetFeedbackResource();
+		D3D12_UNORDERED_ACCESS_VIEW_DESC fbUAVDesc = {};
+		fbUAVDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+		fbUAVDesc.Format = DXGI_FORMAT_R32_UINT;
+
+		if (fbResource != nullptr) {
+			auto fbDesc = fbResource->GetDesc();
+
+			fbUAVDesc.Format = fbDesc.Format;
+			fbUAVDesc.Buffer.NumElements = goptr->Material->DiffuseTexture->GetFeedbackSize();
+			fbUAVDesc.Buffer.StructureByteStride = sizeof(uint32_t);
+		}
+		
+		m_Context->DeviceResources->Device->CreateUnorderedAccessView(
+			fbResource,
+			nullptr,
+			&fbUAVDesc,
+			handle
+		);
+
 		cmdList->IASetVertexBuffers(0, 1, &vb);
 		cmdList->IASetIndexBuffer(&ib);
 		cmdList->SetGraphicsRootConstantBufferView(PerObjectCBIndex,

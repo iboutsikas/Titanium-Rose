@@ -33,6 +33,7 @@ namespace Hazel{
 		inline HWND GetNativeHandle() { return m_NativeHandle; }
 		inline UINT GetRTVDescriptorSize() { return m_RTVDescriptorSize; }
 		inline UINT GetSRVDescriptorSize() { return m_SRVDescriptorSize; }
+		inline bool HaveSamplerFeedback() const { return m_SamplerFeedbackSupported; }
 		D3D12_VIEWPORT m_Viewport;
 		D3D12_RECT	m_ScissorRect;
 
@@ -41,10 +42,11 @@ namespace Hazel{
 		HWND m_NativeHandle;
 		bool m_TearingSupported;
 		bool m_VSyncEnabled;
+		bool m_SamplerFeedbackSupported;
 		UINT m_CurrentBackbufferIndex;
 		UINT m_RTVDescriptorSize;
 		UINT m_SRVDescriptorSize;
-		uint64_t    m_FenceValue = 0;
+		uint64_t  m_FenceValue = 0;
 		
 		void PerformInitializationTransitions();
 		void NextFrameResource();

@@ -102,6 +102,11 @@ namespace Hazel {
 			memcpy(m_MappedData + offset, &data, size);
 		}
 
+		inline T* ElementAt(uint32_t index) 
+		{
+			return (T*)(m_MappedData + (index * m_ElementByteSize));
+		}
+
 	private:
 		TComPtr<ID3D12Resource> m_UploadBuffer;
 		uint8_t* m_MappedData = nullptr;

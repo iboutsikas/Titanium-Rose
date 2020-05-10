@@ -18,8 +18,6 @@ namespace Hazel {
 	{
 		Hazel::Ref<Hazel::D3D12VertexBuffer> vertexBuffer;
 		Hazel::Ref<Hazel::D3D12IndexBuffer> indexBuffer;
-		Hazel::Ref<Hazel::D3D12Texture2D> diffuseTexture;
-		Hazel::Ref<Hazel::D3D12Texture2D> normalMap;
 		glm::vec3 maxTangent;
 		glm::vec3 maxBitangent;
 #ifdef HZ_DEBUG
@@ -28,10 +26,11 @@ namespace Hazel {
 	};
 
 	struct HMaterial {
-		uint32_t TextureId;
 		float Glossines;
-		uint32_t cbIndex;
 		glm::vec4 Color;
+		uint32_t cbIndex;
+		Hazel::Ref<Hazel::D3D12Texture2D> DiffuseTexture;
+		Hazel::Ref<Hazel::D3D12Texture2D> NormalMap;
 	};
 
 	class GameObject
