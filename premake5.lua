@@ -91,11 +91,11 @@ project "Hazel"
 
 	filter { "system:windows", "configurations:Debug"}
 		libdirs { "Hazel/vendor/assimp/lib/debug" }
-		links {	"assimp-vc142-mtd" }
+		links {	"IrrXMLd", "assimpd", "zlibstaticd" }
 
 	filter { "system:windows", "configurations:Release"}
 		libdirs { "Hazel/vendor/assimp/lib/release" }
-		links {	"assimp-vc142-mt" }
+		links {	"IrrXML", "assimp", "zlibstatic" }
 
 	filter "system:windows"
 		systemversion "latest"
@@ -175,8 +175,8 @@ project "Sandbox"
 
 	filter "system:windows"
 		systemversion "latest"
-		libdirs { "Hazel/vendor/winpixeventruntime/bin/x64" }
-		links {  "WinPixEventRuntime.lib" }
+		-- libdirs { "Hazel/vendor/winpixeventruntime/bin/x64" }
+		-- links {  "WinPixEventRuntime.lib" }
 		includedirs {
 			"%{IncludeDir.winpix}"
 		}
