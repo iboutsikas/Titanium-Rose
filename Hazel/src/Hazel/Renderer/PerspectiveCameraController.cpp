@@ -27,8 +27,7 @@ namespace Hazel {
 
 		if (Input::IsKeyPressed(HZ_KEY_A))
 		{
-			auto thing = m_Camera.GetRight();
-			cameraPosition -= thing * m_CameraTranslationSpeed * glm::vec3(ts);
+			cameraPosition -= m_Camera.GetRight() * m_CameraTranslationSpeed * glm::vec3(ts);
 		}
 		else if (Input::IsKeyPressed(HZ_KEY_D))
 		{

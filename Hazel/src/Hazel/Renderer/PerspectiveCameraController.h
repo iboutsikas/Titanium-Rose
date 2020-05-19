@@ -33,7 +33,7 @@ namespace Hazel {
 		float m_LastMouseY;
 		PerspectiveCamera m_Camera;
 
-		float m_CameraTranslationSpeed = 5.0f, m_CameraRotationSpeed = 5.0f;
+		float m_CameraTranslationSpeed = 10.0f, m_CameraRotationSpeed = 5.0f;
 	};
 
 }
