@@ -9,6 +9,10 @@
 #include "Hazel/Core/Log.h"
 namespace Hazel::D3D12 {
 
+    inline int32_t RoundToMultiple(int32_t number, int32_t multiple) {
+        return(number + multiple - 1) / multiple;
+    }
+
     inline uint32_t CalculateConstantBufferSize(uint32_t byteSize)
     {
         // Constant buffers must be a multiple of the minimum hardware
