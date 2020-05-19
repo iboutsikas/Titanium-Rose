@@ -24,6 +24,7 @@
 #include "BaseColorPass.h"
 #include "NormalsDebugPass.h"
 #include "MipMapPass.h"
+#include "ClearFeedbackPass.h"
 
 
 enum ExampleShaders : size_t {
@@ -98,6 +99,10 @@ private:
 	Hazel::Ref<BaseColorPass> m_BaseColorPass;
 	Hazel::Ref<NormalsDebugPass> m_NormalsPass;
 	Hazel::Ref<MipMapPass>	m_MipsPass;
+	Hazel::Ref<ClearFeedbackPass>	m_ClearUAVPass;
+
+	Hazel::TComPtr<ID3D12Resource> m_ReadbackBuffer;
+
 	void LoadAssets();
 	void BuildPipeline();
 	void LoadTextures();

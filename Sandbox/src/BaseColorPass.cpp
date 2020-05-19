@@ -89,7 +89,9 @@ void BaseColorPass::BuildConstantsBuffer(Hazel::GameObject* goptr)
 			1.0f / goptr->Material->DiffuseTexture->GetWidth(),
 			1.0f / goptr->Material->DiffuseTexture->GetHeight()
 		);
+		
 		od.FeedbackDims = goptr->Material->DiffuseTexture->GetFeedbackDims();
+
 
 		for (size_t i = 0; i < PassInputCount; i++)
 		{
@@ -120,32 +122,36 @@ void BaseColorPass::RenderItems(Hazel::TComPtr<ID3D12GraphicsCommandList> cmdLis
 		vb.StrideInBytes = sizeof(Vertex);
 		D3D12_INDEX_BUFFER_VIEW ib = mesh->indexBuffer->GetView();
 
-		auto handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_SRVHeap->GetCPUDescriptorHandleForHeapStart());
+		auto cpuHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_SRVHeap->GetCPUDescriptorHandleForHeapStart());
+		auto gpuHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_SRVHeap->GetGPUDescriptorHandleForHeapStart());
 
 		// Bind the Feedback View
 		HPerObjectData* podata = m_PerObjectCB->ElementAt(goptr->Material->cbIndex);
-		handle.Offset(BaseColorPass::PassInputCount + podata->TextureIndex, m_Context->GetSRVDescriptorSize());
+		cpuHandle.Offset(BaseColorPass::PassInputCount + podata->TextureIndex, m_Context->GetSRVDescriptorSize());
+		gpuHandle.Offset(BaseColorPass::PassInputCount + podata->TextureIndex, m_Context->GetSRVDescriptorSize());
 
 		auto fbResource = goptr->Material->DiffuseTexture->GetFeedbackResource();
 		D3D12_UNORDERED_ACCESS_VIEW_DESC fbUAVDesc = {};
 		fbUAVDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
 		fbUAVDesc.Format = DXGI_FORMAT_R32_UINT;
-
+		fbUAVDesc.Buffer.NumElements = 1;
+#if 1
 		if (fbResource != nullptr) {
 			auto fbDesc = fbResource->GetDesc();
 
 			fbUAVDesc.Format = fbDesc.Format;
-			fbUAVDesc.Buffer.NumElements = goptr->Material->DiffuseTexture->GetFeedbackSize();
+			auto dims = goptr->Material->DiffuseTexture->GetFeedbackDims();
+			fbUAVDesc.Buffer.NumElements = dims.x * dims.y;
 			fbUAVDesc.Buffer.StructureByteStride = sizeof(uint32_t);
 		}
-		
+#endif	
 		m_Context->DeviceResources->Device->CreateUnorderedAccessView(
 			fbResource,
 			nullptr,
 			&fbUAVDesc,
-			handle
+			cpuHandle
 		);
-
+		
 		cmdList->IASetVertexBuffers(0, 1, &vb);
 		cmdList->IASetIndexBuffer(&ib);
 		cmdList->SetGraphicsRootConstantBufferView(PerObjectCBIndex,

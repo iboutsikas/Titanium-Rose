@@ -30,6 +30,7 @@
 
 static bool use_rendered_texture = true;
 static bool show_rendered_texture = false;
+static bool show_mip_tiles = false;
 static bool render_normals = false;
 //extern template class Hazel::D3D12UploadBuffer<PassData>;
 
@@ -47,9 +48,9 @@ ExampleLayer::ExampleLayer()
 	m_UpdateRate(15),
 	m_RenderedFrames(61),
 	m_AmbientLight({ 1.0f, 1.0f, 1.0f, 1.0f }),
-	m_AmbientIntensity(1.0f),
+	m_AmbientIntensity(0.1f),
 	m_RotateCube(false)
-{
+{	
 	m_Context = static_cast<Hazel::D3D12Context*>(Hazel::Application::Get().GetWindow().GetContext());
 
 	m_Models.resize(Models::CountModel);
@@ -68,7 +69,7 @@ ExampleLayer::ExampleLayer()
 	m_MainObject->Transform.SetPosition(glm::vec3(0.0f, 0.0f, 0.0f));
 	m_MainObject->Transform.SetScale(glm::vec3(1.0f, 1.0f, 1.0f));
 	m_MainObject->Name = "Main Object";
-	m_MainObject->Mesh = m_Models[Models::TriangleModel]->Mesh;
+	m_MainObject->Mesh = m_Models[Models::SphereModel]->Mesh;
 	m_MainObject->Material = Hazel::CreateRef<Hazel::HMaterial>();
 	m_MainObject->Material->Glossines = 32.0f;
 	m_MainObject->Material->DiffuseTexture = m_Textures[Textures::DeferredTexture];
@@ -99,8 +100,7 @@ ExampleLayer::ExampleLayer()
 	m_SceneGO->AddChild(m_PositionalLightGO);
 
 	m_DeferredTexturePass->SetOutput(0, m_Textures[Textures::DeferredTexture]);
-	//m_DeferredTexturePass->SetInput(0, m_DiffuseTexture);
-	m_DeferredTexturePass->SetInput(0, m_Textures[Textures::TriangleTexture]);
+	m_DeferredTexturePass->SetInput(0, m_Textures[Textures::DiffuseTexture]);
 	m_DeferredTexturePass->SetInput(1, m_Textures[Textures::NormalTexture]);
 
 	m_BaseColorPass->SetInput(0, m_Textures[Textures::DeferredTexture]);
@@ -112,6 +112,13 @@ ExampleLayer::ExampleLayer()
 
 
 	m_MipsPass->SetInput(0, m_Textures[Textures::DeferredTexture]);
+
+	m_ClearUAVPass->SetInput(0, m_Textures[Textures::DeferredTexture]);
+	m_ClearUAVPass->SetInput(1, m_Textures[Textures::DiffuseTexture]);
+	m_ClearUAVPass->SetInput(2, m_Textures[Textures::CubeTexture]);
+	m_ClearUAVPass->SetInput(3, m_Textures[Textures::WhiteTexture]);
+	m_ClearUAVPass->SetInput(4, m_Textures[Textures::TriangleTexture]);
+
 
 	Hazel::Application::Get().GetWindow().SetVSync(false);
 }
@@ -146,11 +153,7 @@ void ExampleLayer::OnUpdate(Hazel::Timestep ts)
 		}
 	}
 
-	auto rot_matrix = m_MainObject->Transform.RotationMatrix();
-	auto transform = m_MainObject->Transform.LocalToWorldMatrix();
-
-
-	//auto cmdList = m_Context->DeviceResources->CommandList;
+	auto cmdList = m_Context->DeviceResources->CommandList;
 
 
 	// TODO List:
@@ -160,160 +163,39 @@ void ExampleLayer::OnUpdate(Hazel::Timestep ts)
 	// NO we will not generate mipmaps on the fly.
 	// PBR Material? Pretty please?
 	// Shadow maps
-
 #if 1
 	if (m_RenderedFrames >= m_UpdateRate) {
-		HZ_PROFILE_SCOPE("Deferred Texture");
 		m_RenderedFrames = 0;
 
-		glm::mat4 m = m_SecondaryObject->Transform.WorldToLocalMatrix();
-		glm::mat4 vp = m_CameraController.GetCamera().GetViewProjectionMatrix();
-		glm::mat4 mvp = vp * m;
-
-		glm::vec3 pos = m_SecondaryObject->Transform.Position();
-		glm::vec3 tan = m_SecondaryObject->Mesh->maxTangent;
-		glm::vec3 bitan = m_SecondaryObject->Mesh->maxBitangent;
-
-		//glm::vec4 vec1 = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
-
-		//glm::vec4 vec2 = mvp * vec1;
-		//vec2 /= vec2.w;
-
-		glm::mat3 jacobian_matrix = glm::mat3(0.0f);
-
-		// This is also the same as mvp * vec4(pos, 1.0) but for now let's leave it like that
-		float nomX  = (mvp[0][0] * pos.x) + (mvp[1][0] * pos.y) + (mvp[2][0] * pos.z) + mvp[3][0];
-		float nomY  = (mvp[0][1] * pos.x) + (mvp[1][1] * pos.y) + (mvp[2][1] * pos.z) + mvp[3][1];
-		float nomZ  = (mvp[0][2] * pos.x) + (mvp[1][2] * pos.y) + (mvp[2][2] * pos.z) + mvp[3][2];
-		float denom = (mvp[0][3] * pos.x) + (mvp[1][3] * pos.y) + (mvp[2][3] * pos.z) + mvp[3][3];
-
-		// Can also precal nomXYZ / denom**2
-
-		// diff(T, x)
-		jacobian_matrix[0][0] = (mvp[0][0] / denom) - ((mvp[0][3] * nomX) / (denom * denom));
-		jacobian_matrix[0][1] = (mvp[0][1] / denom) - ((mvp[0][3] * nomY) / (denom * denom));
-		jacobian_matrix[0][2] = (mvp[0][2] / denom) - ((mvp[0][3] * nomZ) / (denom * denom));
-
-		// diff(T, y)
-		jacobian_matrix[1][0] = (mvp[1][0] / denom) - ((mvp[1][3] * nomX) / (denom * denom));
-		jacobian_matrix[1][1] = (mvp[1][1] / denom) - ((mvp[1][3] * nomY) / (denom * denom));
-		jacobian_matrix[1][2] = (mvp[1][2] / denom) - ((mvp[1][3] * nomZ) / (denom * denom));
-		
-		// diff(T, z)
-		jacobian_matrix[2][0] = (mvp[2][0] / denom) - ((mvp[2][3] * nomX) / (denom * denom));
-		jacobian_matrix[2][1] = (mvp[2][1] / denom) - ((mvp[2][3] * nomY) / (denom * denom));
-		jacobian_matrix[2][2] = (mvp[2][2] / denom) - ((mvp[2][3] * nomZ) / (denom * denom));
-
-
-		float dXdu = tan.x * jacobian_matrix[0][0] + tan.y * jacobian_matrix[1][0] + tan.z * jacobian_matrix[2][0];
-		float dYdu = tan.x * jacobian_matrix[0][1] + tan.y * jacobian_matrix[1][1] + tan.z * jacobian_matrix[2][1];
-		
-		float dXdv = bitan.x * jacobian_matrix[0][0] + bitan.y * jacobian_matrix[1][0] + bitan.z * jacobian_matrix[2][0];
-		float dYdv = bitan.x * jacobian_matrix[0][1] + bitan.y * jacobian_matrix[1][1] + bitan.z * jacobian_matrix[2][1];
-		
-		glm::vec2 du = glm::vec2(0.0f);
-		du.x = dXdu != 0.0f ? 1.0f / dXdu : 0.0f;
-		du.y = dYdu != 0.0f ? 1.0f / dYdu : 0.0f;
-		
-		glm::vec2 dv = glm::vec2(0.0f); 
-		dv.x = dXdv != 0.0f ? 1.0f / dXdv : 0.0f;
-		dv.y = dYdv != 0.0f ? 1.0f / dYdv : 0.0f;
-
-		float lambda = 0.0f;
-		float lambda_prime = 0.0f;
-		// This is the level of detail calculcation based on the opengl spec
 		{
-			float lod_min = 0.0f;
-			float lod_max = 1000.0f;
-#if 0 // Calculations involving anisotropy from OpenGL 4.6
-			auto px = std::sqrtf(du.x * du.x + dv.x * dv.x);
-			auto py = std::sqrtf(du.y * du.y + dv.y * dv.y);
+			HZ_PROFILE_SCOPE("Readback update");
+			
+			auto tex = m_Textures[Textures::DeferredTexture];
+			auto feedback = tex->GetFeedbackResource();
+			tex->TransitionFeedback(D3D12_RESOURCE_STATE_COPY_SOURCE);
+			
+			cmdList->CopyResource(m_ReadbackBuffer.Get(), feedback);
 
-
-			auto p_max = std::max(px, py);
-			auto p_min = std::min(px, py);
-
-			auto n = std::min(std::ceil(p_max / p_min), 1.0f);
-			auto p = p_max / n;
-			lambda_prime = std::log2f(p);
-#endif			
-#if 1 // Calculations without anisotropy from OpenGL 4.5			
-			auto rho = std::max(glm::length(du), glm::length(dv));
-			auto lambda_base = (std::log(rho) / std::log(2.0));
-			lambda_prime = lambda_base + 0.0f; // Zero bias for now /*std::log2f(p);*/
-#endif
-			if (lambda_prime > lod_max) 
-			{
-				lambda = lod_max;
-			}
-			else if (lod_min <= lambda_prime <= lod_max)
-			{
-				lambda = lambda_prime;
-			}
-			else if (lambda_prime < lod_min)
-			{
-				lambda = lod_min;
-			}
-		}
-		// Selecting mipmap based on NEAREST_MIPMAP_NEAREST and LINEAR_MIPMAP_NEAREST, on OpenGL spec
-		float d = 0.0f;
-		{
-			float level_base = 0;
-			float level_max = m_Textures[Textures::DeferredTexture]->GetMipLevels() - 1;
-			// This is the same level max. The spec expresses it that way cuz the texture might be
-			// Some other subresource than the original texture. For us they are the same for now
-			float p = std::floor(std::log2(TEXTURE_WIDTH)) + level_base; 
-			float q = std::min(p, level_max);
-						
-			if (lambda <= 0.0f) 
-			{
-				d = level_base;
-			}
-			else {
-				if (level_base + lambda <= q + 0.5f) {
-					d = (level_base + lambda + 0.5f) - 1.0f;
-				}
-				else {
-					d = q;
-				}
-			}
+			m_Context->Flush();
+			tex->TransitionFeedback(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		}
 
-#if 0
-		auto tangent4 = glm::vec4(
-			m_MainObject->Mesh->maxTangent.x,
-			m_MainObject->Mesh->maxTangent.y,
-			m_MainObject->Mesh->maxTangent.z,
-			1.0f);
+		{
+			HZ_PROFILE_SCOPE("Deferred Texture");
+			m_DeferredTexturePass->PassData.AmbientLight = m_AmbientLight;
+			m_DeferredTexturePass->PassData.AmbientIntensity = m_AmbientIntensity;
+			m_DeferredTexturePass->PassData.DirectionalLight = m_PositionalLightGO->Material->Color;
+			m_DeferredTexturePass->PassData.DirectionalLightPosition = m_PositionalLightGO->Transform.Position();
 
-		auto bitangent4 = glm::vec4(
-			m_MainObject->Mesh->maxBitangent.x,
-			m_MainObject->Mesh->maxBitangent.y,
-			m_MainObject->Mesh->maxBitangent.z,
-			1.0f);
+			m_DeferredTexturePass->Process(m_Context, m_MainObject.get(), m_CameraController.GetCamera());
+		}
 
-		auto worldTangent = mvp * tangent4;
-		auto worldBitangent = mvp * bitangent4;
-
-		auto dTangent = glm::length(m_MainObject->Mesh->maxTangent) / glm::length(worldTangent);
-		auto dBitangent = glm::length(m_MainObject->Mesh->maxBitangent) / glm::length(worldBitangent);
-		auto dMax = std::max(dTangent, dBitangent);
-
-		auto maxMip = -std::log2f(dMax);
-
-#endif
-		m_BlendFactor = std::modff(d, &m_MaxMip);
-
-		m_DeferredTexturePass->PassData.AmbientLight = m_AmbientLight;
-		m_DeferredTexturePass->PassData.AmbientIntensity = m_AmbientIntensity;
-		m_DeferredTexturePass->PassData.DirectionalLight = m_PositionalLightGO->Material->Color;
-		m_DeferredTexturePass->PassData.DirectionalLightPosition = m_PositionalLightGO->Transform.Position();
-
-		m_DeferredTexturePass->Process(m_Context, m_MainObject.get(), m_CameraController.GetCamera());
+		//m_MipsPass->PassData.SourceLevel = 5;
 
 		m_MipsPass->Process(m_Context, m_MainObject.get(), m_CameraController.GetCamera());
 	}
 #endif
+	m_ClearUAVPass->Process(m_Context, m_SceneGO.get(), m_CameraController.GetCamera());
 
 	m_BaseColorPass->Process(m_Context, m_SceneGO.get(), m_CameraController.GetCamera());
 
@@ -385,7 +267,7 @@ void ExampleLayer::OnImGuiRender()
 		ImGui::InputInt("Texture update rate (frames)", &m_UpdateRate);
 		ImGui::Checkbox("Use rendered texture", &use_rendered_texture);
 		ImGui::Checkbox("Show rendered textre", &show_rendered_texture);
-		ImGui::Text("Max Mip: %.0f, Blend factor: %.6f", m_MaxMip, m_BlendFactor);
+		ImGui::Checkbox("Show mip tiles", &show_mip_tiles);
 	}
 
 
@@ -424,6 +306,67 @@ void ExampleLayer::OnImGuiRender()
 	if (show_rendered_texture) {
 		ImGui::Begin("Texture View", &show_rendered_texture);
 		ImGui::Image((ImTextureID)m_TextureGPUHandle.ptr, ImVec2(1024, 512));
+		ImGui::End();
+	}
+
+	if (show_mip_tiles) {
+		ImGui::Begin("Mip levels used", &show_mip_tiles);
+		auto tex = m_Textures[Textures::DeferredTexture];
+		auto dims = tex->GetFeedbackDims();
+		void* data;
+
+		m_ReadbackBuffer->Map(0, nullptr, static_cast<void**>(&data));
+
+		const uint32_t* mip_data = reinterpret_cast<uint32_t*>(data);
+		uint32_t finest_mip = 13;
+		uint32_t coarsest_mip = 0;
+		for (int y = 0; y < dims.y; y++)
+		{
+			for (int x = 0; x < dims.x; x++)
+			{
+				uint32_t mip = mip_data[y * dims.x + x];
+
+				if (mip < finest_mip) {
+					finest_mip = mip;
+				}
+
+				if (mip > coarsest_mip) {
+					coarsest_mip = mip;
+				}
+			}
+		}
+
+		ImGui::BeginGroup();
+		for (int y = 0; y < dims.y; y++)
+		{
+			ImGui::BeginGroup();
+			for (int x = 0; x < dims.x; x++)
+			{
+				uint32_t mip = mip_data[y * dims.x + x];
+				ImGui::PushID(y * dims.x + x);
+				if (mip == coarsest_mip) {
+					ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::ImColor(135, 252, 139));
+					ImGui::PushStyleColor(ImGuiCol_Text, (ImVec4)ImColor::ImColor(135, 252, 139));
+				}
+				else if (mip == finest_mip) {
+					ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::ImColor(245, 77, 61));
+					ImGui::PushStyleColor(ImGuiCol_Text, (ImVec4)ImColor::ImColor(245, 77, 61));
+				}
+
+				auto label = std::to_string(mip);
+				ImGui::Button(label.c_str(), ImVec2(40, 40));
+				ImGui::SameLine();
+
+				if (mip == coarsest_mip || mip == finest_mip) {
+					ImGui::PopStyleColor(2);
+				}
+				ImGui::PopID();
+			}
+			ImGui::EndGroup();
+		}
+		ImGui::EndGroup();
+		ImGui::Text("Finest Mip: %d, Coarsest Mip: %d", finest_mip, coarsest_mip);
+		m_ReadbackBuffer->Unmap(0, nullptr);
 		ImGui::End();
 	}
 
@@ -473,6 +416,21 @@ void ExampleLayer::LoadTextures()
 			1,
 			m_Context->GetSRVDescriptorSize()
 		);
+
+		tex->CreateFeedbackResource(128, 128);
+
+		auto readbackDesc = CD3DX12_RESOURCE_DESC::Buffer(tex->GetFeedbackSize());
+
+		Hazel::D3D12::ThrowIfFailed(m_Context->DeviceResources->Device->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK),
+			D3D12_HEAP_FLAG_NONE,
+			&readbackDesc,
+			D3D12_RESOURCE_STATE_COPY_DEST,
+			nullptr,
+			IID_PPV_ARGS(&m_ReadbackBuffer)
+		));
+
+		m_ReadbackBuffer->SetName(L"Readback buffer");
 	}
 
 	//Diffuse Texture
@@ -502,7 +460,8 @@ void ExampleLayer::LoadAssets()
 		m_Models[Models::SphereModel] = ModelLoader::LoadFromFile(std::string("assets/models/test_sphere.glb"));
 		m_Models[Models::TriangleModel] = ModelLoader::LoadFromFile(std::string("assets/models/test_triangle.glb"));
 
-		m_Textures[Textures::DiffuseTexture] = std::dynamic_pointer_cast<Hazel::D3D12Texture2D>(Hazel::Texture2D::Create("assets/textures/mips_debug.dds"));
+		m_Textures[Textures::DiffuseTexture] = std::dynamic_pointer_cast<Hazel::D3D12Texture2D>(Hazel::Texture2D::Create("assets/textures/earth.dds"));
+		m_Textures[Textures::DiffuseTexture]->CreateFeedbackResource(128, 64);
 		m_Textures[Textures::DiffuseTexture]->Transition(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		/*std::wstring name = L"Diffuse";
 		m_DiffuseTexture->DebugNameResource(name);*/
@@ -605,5 +564,10 @@ void ExampleLayer::BuildPipeline()
 		pipelineStateStream.Rasterizer = CD3DX12_PIPELINE_STATE_STREAM_RASTERIZER(rasterizer);
 
 		m_NormalsPass = Hazel::CreateRef<NormalsDebugPass>(m_Context, pipelineStateStream);
+	}
+
+	// UAV Clear Pass
+	{
+		m_ClearUAVPass = Hazel::CreateRef<ClearFeedbackPass>(m_Context);
 	}
 }
