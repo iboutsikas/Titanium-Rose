@@ -62,7 +62,11 @@ namespace Hazel {
 			&isCube
 		);
 
-		m_MipLevels = m_SubData.size();
+		auto desc = m_CommittedResource->GetDesc();
+		m_MipLevels = desc.MipLevels;
+		m_Width = desc.Width;
+		m_Height = desc.Height;
+
 		m_CurrentState = D3D12_RESOURCE_STATE_COPY_DEST;
 
 		const uint64_t uploadSize = GetRequiredIntermediateSize(m_CommittedResource.Get(), 0, m_MipLevels);
@@ -125,18 +129,7 @@ namespace Hazel {
 	{
 		if (to == m_CurrentState)
 			return;
-
-		auto cmdList = m_Context->DeviceResources->CommandList;
-
-		cmdList->ResourceBarrier(1,
-			&CD3DX12_RESOURCE_BARRIER::Transition(
-				m_CommittedResource.Get(),
-				m_CurrentState,
-				to
-			)
-		);
-
-		m_CurrentState = to;
+		this->Transition(m_CurrentState, to);
 	}
 
 	void D3D12Texture2D::TransitionFeedback(D3D12_RESOURCE_STATES from, D3D12_RESOURCE_STATES to)
@@ -145,7 +138,7 @@ namespace Hazel {
 
 		cmdList->ResourceBarrier(1,
 			&CD3DX12_RESOURCE_BARRIER::Transition(
-				m_CommittedResource.Get(),
+				m_FeedbackResource.Get(),
 				from,
 				to
 			)
@@ -157,18 +150,7 @@ namespace Hazel {
 	{
 		if (to == m_FeedbackState)
 			return;
-
-		auto cmdList = m_Context->DeviceResources->CommandList;
-
-		cmdList->ResourceBarrier(1,
-			&CD3DX12_RESOURCE_BARRIER::Transition(
-				m_CommittedResource.Get(),
-				m_FeedbackState,
-				to
-			)
-		);
-
-		m_FeedbackState = to;
+		this->TransitionFeedback(m_FeedbackState, to);
 	}
 
 	void D3D12Texture2D::CreateFeedbackResource(UINT TileWidth, UINT TileHeight)
@@ -179,7 +161,8 @@ namespace Hazel {
 
 		m_FeedbackDims.x = std::ceil((float)m_Width / TileWidth);
 		m_FeedbackDims.y = std::ceil((float)m_Height / TileHeight);
-		m_FeedbackSize = D3D12::CalculateConstantBufferSize(m_FeedbackDims.x * m_FeedbackDims.y);
+
+		m_FeedbackSize = D3D12::CalculateConstantBufferSize(m_FeedbackDims.x * m_FeedbackDims.y * sizeof(uint32_t));
 
 		auto resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(m_FeedbackSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
@@ -191,6 +174,8 @@ namespace Hazel {
 			nullptr,
 			IID_PPV_ARGS(&m_FeedbackResource)
 		));
+
+		m_FeedbackState = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
 	}
 
 
