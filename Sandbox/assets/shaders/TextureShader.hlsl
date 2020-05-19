@@ -103,7 +103,8 @@ float4 PS_Main(PSInput input) : SV_TARGET
     
     // This is here to prevent the glitches on the back of the model. Since
     // the backfaces are no longer culled.
-    float shadowFactor = step(0, dot(geometricNormal, fragmentToLight));
+    // float shadowFactor = step(0, dot(geometricNormal, fragmentToLight));
+    float shadowFactor = 1.0;
 
     // Ambient Light
     float3 ambient = gAmbientLight * gAmbientIntensity;

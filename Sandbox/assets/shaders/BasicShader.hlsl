@@ -21,15 +21,15 @@ cbuffer cbPass : register(b0) {
 };
 
 cbuffer cbPerObject : register(b1) {
-    matrix oLocalToWorld;
-    float4 oMaterialColor;
-    float4 gTextureDims;
-    uint2 gFeedbackDims;
-    uint gTextureIndex;
+    matrix  oLocalToWorld;
+    float4  oMaterialColor;
+    float4  oTextureDims; // width, height, 1/width, 1/height
+    uint2   oFeedbackDims;
+    uint    oTextureIndex;
 }
 
 Texture2D g_DiffuseTextures[5] : register(t0);
-RWStructuredBuffer<uint> g_FeedbackBuffers[5]: register(u0);
+RWBuffer<uint> g_FeedbackBuffers[5]: register(u0);
 SamplerState g_sampler : register(s0);
 
 struct PSInput
@@ -55,11 +55,15 @@ PSInput VS_Main(VSInput input)
 [RootSignature(MyRS1)]
 float4 PS_Main(PSInput input) : SV_TARGET
 {
-    float mipLevel = g_DiffuseTextures[gTextureIndex].CalculateLevelOfDetail(g_sampler, input.uv);
-    uint2 feedbackMapCoords;
-    feedbackMapCoords.x = (uint)(gFeedbackDims.x * input.uv.x);
-    feedbackMapCoords.y = (uint)(gFeedbackDims.y * input.uv.y);
+    float mipLevel = g_DiffuseTextures[oTextureIndex].CalculateLevelOfDetail(g_sampler, input.uv);
+    
+    uint feedbackX = (uint)((float)oFeedbackDims.x * input.uv.x) ;
+    uint feedbackY = (uint)((float)oFeedbackDims.y * input.uv.y);
 
-    InterlockedMin(g_FeedbackBuffers[gTextureIndex][feedbackMapCoords.y * gFeedbackDims.y + feedbackMapCoords.y], mipLevel);
-    return g_DiffuseTextures[gTextureIndex].Sample(g_sampler, input.uv) * oMaterialColor;
+    RWBuffer<uint> feedbackBuffer = g_FeedbackBuffers[oTextureIndex];
+
+    uint index = feedbackY * oFeedbackDims.x + feedbackX;
+    InterlockedMin(feedbackBuffer[index], mipLevel);
+
+    return g_DiffuseTextures[oTextureIndex].Sample(g_sampler, input.uv) * oMaterialColor;
 }
