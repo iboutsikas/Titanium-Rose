@@ -346,11 +346,11 @@ void ExampleLayer::OnImGuiRender()
 				ImGui::PushID(y * dims.x + x);
 				if (mip == coarsest_mip) {
 					ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::ImColor(135, 252, 139));
-					ImGui::PushStyleColor(ImGuiCol_Text, (ImVec4)ImColor::ImColor(135, 252, 139));
+					ImGui::PushStyleColor(ImGuiCol_Text, (ImVec4)ImColor::ImColor(0, 0, 0));
 				}
 				else if (mip == finest_mip) {
 					ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::ImColor(245, 77, 61));
-					ImGui::PushStyleColor(ImGuiCol_Text, (ImVec4)ImColor::ImColor(245, 77, 61));
+					ImGui::PushStyleColor(ImGuiCol_Text, (ImVec4)ImColor::ImColor(255, 255, 255));
 				}
 
 				auto label = std::to_string(mip);
