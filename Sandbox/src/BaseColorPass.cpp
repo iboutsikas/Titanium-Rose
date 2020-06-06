@@ -90,7 +90,9 @@ void BaseColorPass::BuildConstantsBuffer(Hazel::GameObject* goptr)
 			1.0f / goptr->Material->DiffuseTexture->GetHeight()
 		);
 		
-		od.FeedbackDims = goptr->Material->DiffuseTexture->GetFeedbackDims();
+		auto dims = goptr->Material->DiffuseTexture->GetFeedbackMap()->GetDimensions();
+		od.FeedbackDims.x = dims.x;
+		od.FeedbackDims.y = dims.y;
 
 
 		for (size_t i = 0; i < PassInputCount; i++)
@@ -130,7 +132,8 @@ void BaseColorPass::RenderItems(Hazel::TComPtr<ID3D12GraphicsCommandList> cmdLis
 		cpuHandle.Offset(BaseColorPass::PassInputCount + podata->TextureIndex, m_Context->GetSRVDescriptorSize());
 		gpuHandle.Offset(BaseColorPass::PassInputCount + podata->TextureIndex, m_Context->GetSRVDescriptorSize());
 
-		auto fbResource = goptr->Material->DiffuseTexture->GetFeedbackResource();
+		auto feedback = goptr->Material->DiffuseTexture->GetFeedbackMap();
+		auto fbResource = feedback->GetResource();
 		D3D12_UNORDERED_ACCESS_VIEW_DESC fbUAVDesc = {};
 		fbUAVDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
 		fbUAVDesc.Format = DXGI_FORMAT_R32_UINT;
@@ -140,7 +143,7 @@ void BaseColorPass::RenderItems(Hazel::TComPtr<ID3D12GraphicsCommandList> cmdLis
 			auto fbDesc = fbResource->GetDesc();
 
 			fbUAVDesc.Format = fbDesc.Format;
-			auto dims = goptr->Material->DiffuseTexture->GetFeedbackDims();
+			auto dims = feedback->GetDimensions();
 			fbUAVDesc.Buffer.NumElements = dims.x * dims.y;
 			fbUAVDesc.Buffer.StructureByteStride = sizeof(uint32_t);
 		}

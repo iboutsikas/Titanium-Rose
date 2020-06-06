@@ -36,7 +36,9 @@ void MipMapPass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject* sceneRoot,
 	{
 		auto resource = m_Inputs[0];
 		auto srcDesc = resource->GetCommitedResource()->GetDesc();
-		uint32_t remainingMips = srcDesc.MipLevels - 1;
+		uint32_t remainingMips = (srcDesc.MipLevels > PassData.SourceLevel) ?
+			srcDesc.MipLevels - PassData.SourceLevel - 1 :
+			srcDesc.MipLevels - 1;
 		resource->Transition(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
 		cmdList->SetComputeRootSignature(m_Shader->GetRootSignature());
@@ -51,7 +53,7 @@ void MipMapPass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject* sceneRoot,
 		);
 
 		// Looped
-		for (uint32_t srcMip = 0; srcMip < srcDesc.MipLevels - 1; )
+		for (uint32_t srcMip = PassData.SourceLevel; srcMip < srcDesc.MipLevels - 1; )
 		{
 			uint64_t srcWidth = srcDesc.Width >> srcMip;
 			uint32_t srcHeight = srcDesc.Height >> srcMip;

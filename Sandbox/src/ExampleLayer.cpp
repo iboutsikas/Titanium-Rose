@@ -20,6 +20,7 @@
 #include "Platform/D3D12/d3dx12.h"
 #include "Platform/D3D12/D3D12Buffer.h"
 #include "Platform/D3D12/D3D12Shader.h"
+#include "Platform/D3D12/D3D12UploadBatch.h"
 
 #include"ModelLoader.h"
 
@@ -34,13 +35,40 @@ static bool show_mip_tiles = false;
 static bool render_normals = false;
 //extern template class Hazel::D3D12UploadBuffer<PassData>;
 
-
 static D3D12_INPUT_ELEMENT_DESC inputLayout[] = {
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(Vertex, Position), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(Vertex, Normal), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 		{ "TANGENT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, offsetof(Vertex, Tangent), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 		{ "UV", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(Vertex, UV), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 };
+
+static std::pair<uint32_t, uint32_t> extractMipLevels(Hazel::Ref<Hazel::D3D12Texture2D> texture)
+{
+	auto fb = texture->GetFeedbackMap();
+	auto dims = fb->GetDimensions();
+	
+	uint32_t* data = fb->GetData<uint32_t*>();
+
+	uint32_t finest_mip = 13;
+	uint32_t coarsest_mip = 0;
+	for (int y = 0; y < dims.y; y++)
+	{
+		for (int x = 0; x < dims.x; x++)
+		{
+			uint32_t mip = data[y * dims.x + x];
+
+			if (mip < finest_mip) {
+				finest_mip = mip;
+			}
+
+			if (mip > coarsest_mip) {
+				coarsest_mip = mip;
+			}
+		}
+	}
+
+	return { finest_mip, coarsest_mip };
+}
 
 ExampleLayer::ExampleLayer()
 	: Layer("ExampleLayer"), /*m_CameraController(1280.0f / 720.0f, false)*/
@@ -154,15 +182,8 @@ void ExampleLayer::OnUpdate(Hazel::Timestep ts)
 	}
 
 	auto cmdList = m_Context->DeviceResources->CommandList;
+	auto device = m_Context->DeviceResources->Device;
 
-
-	// TODO List:
-	// We need a texture cache, this is getting stupid
-	// Use Microsoft's DDSLoader to load every texture. At least for the DX12 backend
-	// Mipmaps => These will be prepacked into the texture with NVIDIA tools or something.
-	// NO we will not generate mipmaps on the fly.
-	// PBR Material? Pretty please?
-	// Shadow maps
 #if 1
 	if (m_RenderedFrames >= m_UpdateRate) {
 		m_RenderedFrames = 0;
@@ -171,14 +192,14 @@ void ExampleLayer::OnUpdate(Hazel::Timestep ts)
 			HZ_PROFILE_SCOPE("Readback update");
 			
 			auto tex = m_Textures[Textures::DeferredTexture];
-			auto feedback = tex->GetFeedbackResource();
-			tex->TransitionFeedback(D3D12_RESOURCE_STATE_COPY_SOURCE);
-			
-			cmdList->CopyResource(m_ReadbackBuffer.Get(), feedback);
-
-			m_Context->Flush();
-			tex->TransitionFeedback(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			auto feedback = tex->GetFeedbackMap();
+			Hazel::D3D12ResourceUploadBatch batch(device);
+			auto cmd = batch.Begin(D3D12_COMMAND_LIST_TYPE_COPY);
+			feedback->Readback(device.Get(), cmd.Get());
+			batch.End(m_Context->DeviceResources->CommandQueue.Get()).wait();
 		}
+
+		auto [fine, coarse] = extractMipLevels(m_Textures[Textures::DeferredTexture]);
 
 		{
 			HZ_PROFILE_SCOPE("Deferred Texture");
@@ -186,11 +207,11 @@ void ExampleLayer::OnUpdate(Hazel::Timestep ts)
 			m_DeferredTexturePass->PassData.AmbientIntensity = m_AmbientIntensity;
 			m_DeferredTexturePass->PassData.DirectionalLight = m_PositionalLightGO->Material->Color;
 			m_DeferredTexturePass->PassData.DirectionalLightPosition = m_PositionalLightGO->Transform.Position();
-
+			m_DeferredTexturePass->PassData.FinestMip = fine;
 			m_DeferredTexturePass->Process(m_Context, m_MainObject.get(), m_CameraController.GetCamera());
 		}
 
-		//m_MipsPass->PassData.SourceLevel = 5;
+		m_MipsPass->PassData.SourceLevel = fine;
 
 		m_MipsPass->Process(m_Context, m_MainObject.get(), m_CameraController.GetCamera());
 	}
@@ -311,30 +332,13 @@ void ExampleLayer::OnImGuiRender()
 
 	if (show_mip_tiles) {
 		ImGui::Begin("Mip levels used", &show_mip_tiles);
+
+		auto [finest_mip, coarsest_mip ] = extractMipLevels(m_Textures[Textures::DeferredTexture]);
 		auto tex = m_Textures[Textures::DeferredTexture];
-		auto dims = tex->GetFeedbackDims();
-		void* data;
-
-		m_ReadbackBuffer->Map(0, nullptr, static_cast<void**>(&data));
-
-		const uint32_t* mip_data = reinterpret_cast<uint32_t*>(data);
-		uint32_t finest_mip = 13;
-		uint32_t coarsest_mip = 0;
-		for (int y = 0; y < dims.y; y++)
-		{
-			for (int x = 0; x < dims.x; x++)
-			{
-				uint32_t mip = mip_data[y * dims.x + x];
-
-				if (mip < finest_mip) {
-					finest_mip = mip;
-				}
-
-				if (mip > coarsest_mip) {
-					coarsest_mip = mip;
-				}
-			}
-		}
+		auto feedback = tex->GetFeedbackMap();
+		auto dims = feedback->GetDimensions();
+		
+		const uint32_t* mip_data = feedback->GetData<uint32_t*>();
 
 		ImGui::BeginGroup();
 		for (int y = 0; y < dims.y; y++)
@@ -366,7 +370,6 @@ void ExampleLayer::OnImGuiRender()
 		}
 		ImGui::EndGroup();
 		ImGui::Text("Finest Mip: %d, Coarsest Mip: %d", finest_mip, coarsest_mip);
-		m_ReadbackBuffer->Unmap(0, nullptr);
 		ImGui::End();
 	}
 
@@ -418,19 +421,6 @@ void ExampleLayer::LoadTextures()
 		);
 
 		tex->CreateFeedbackResource(128, 128);
-
-		auto readbackDesc = CD3DX12_RESOURCE_DESC::Buffer(tex->GetFeedbackSize());
-
-		Hazel::D3D12::ThrowIfFailed(m_Context->DeviceResources->Device->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK),
-			D3D12_HEAP_FLAG_NONE,
-			&readbackDesc,
-			D3D12_RESOURCE_STATE_COPY_DEST,
-			nullptr,
-			IID_PPV_ARGS(&m_ReadbackBuffer)
-		));
-
-		m_ReadbackBuffer->SetName(L"Readback buffer");
 	}
 
 	//Diffuse Texture
@@ -449,52 +439,49 @@ void ExampleLayer::LoadAssets()
 {
 	// Geometry Buffers and Texture Resource
 	{
-		m_Context->DeviceResources->CommandAllocator->Reset();
-		m_Context->DeviceResources->CommandList->Reset(
-			m_Context->DeviceResources->CommandAllocator.Get(),
-			nullptr
-		);
+		//m_Context->DeviceResources->CommandAllocator->Reset();
+		//m_Context->DeviceResources->CommandList->Reset(
+		//	m_Context->DeviceResources->CommandAllocator.Get(),
+		//	nullptr
+		//);
 
 
 		m_Models[Models::CubeModel] = ModelLoader::LoadFromFile(std::string("assets/models/test_cube.glb"));
 		m_Models[Models::SphereModel] = ModelLoader::LoadFromFile(std::string("assets/models/test_sphere.glb"));
 		m_Models[Models::TriangleModel] = ModelLoader::LoadFromFile(std::string("assets/models/test_triangle.glb"));
-
-		m_Textures[Textures::DiffuseTexture] = std::dynamic_pointer_cast<Hazel::D3D12Texture2D>(Hazel::Texture2D::Create("assets/textures/earth.dds"));
+		
+		Hazel::D3D12ResourceUploadBatch batch(m_Context->DeviceResources->Device);
+		auto cmdlist = batch.Begin();
+		
+		m_Textures[Textures::DiffuseTexture] = Hazel::CreateRef<Hazel::D3D12Texture2D>("assets/textures/earth.dds", cmdlist.Get());
 		m_Textures[Textures::DiffuseTexture]->CreateFeedbackResource(128, 64);
-		m_Textures[Textures::DiffuseTexture]->Transition(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		m_Textures[Textures::DiffuseTexture]->Transition(cmdlist.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		/*std::wstring name = L"Diffuse";
 		m_DiffuseTexture->DebugNameResource(name);*/
 
-		m_Textures[Textures::NormalTexture] = std::dynamic_pointer_cast<Hazel::D3D12Texture2D>(Hazel::Texture2D::Create("assets/textures/earth_normal.dds"));
-		m_Textures[Textures::NormalTexture]->Transition(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		m_Textures[Textures::NormalTexture] = Hazel::CreateRef<Hazel::D3D12Texture2D>("assets/textures/earth_normal.dds", cmdlist.Get());
+		m_Textures[Textures::NormalTexture]->Transition(cmdlist.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		/*name = L"Normal Map";
 		m_NormalTexture->DebugNameResource(name);*/
 
-		m_Textures[Textures::WhiteTexture] = std::dynamic_pointer_cast<Hazel::D3D12Texture2D>(Hazel::Texture2D::Create(1, 1));
+		m_Textures[Textures::WhiteTexture] = Hazel::CreateRef<Hazel::D3D12Texture2D>(1, 1);
 		uint8_t white[] = { 255, 255, 255, 255 };
-		m_Textures[Textures::WhiteTexture]->Transition(D3D12_RESOURCE_STATE_COPY_DEST);
-		m_Textures[Textures::WhiteTexture]->SetData(white, sizeof(white));
-		m_Textures[Textures::WhiteTexture]->Transition(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		m_Textures[Textures::WhiteTexture]->Transition(cmdlist.Get(), D3D12_RESOURCE_STATE_COPY_DEST);
+		m_Textures[Textures::WhiteTexture]->SetData(cmdlist.Get(), white, sizeof(white));
+		m_Textures[Textures::WhiteTexture]->Transition(cmdlist.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		std::wstring name2 = L"White Texture";
 		m_Textures[Textures::WhiteTexture]->DebugNameResource(name2);
 
-		m_Textures[Textures::CubeTexture] = std::dynamic_pointer_cast<Hazel::D3D12Texture2D>(Hazel::Texture2D::Create("assets/textures/Cube_Texture.dds"));
-		m_Textures[Textures::CubeTexture]->Transition(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		m_Textures[Textures::CubeTexture] = Hazel::CreateRef<Hazel::D3D12Texture2D>("assets/textures/Cube_Texture.dds", cmdlist.Get());
+		m_Textures[Textures::CubeTexture]->Transition(cmdlist.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		/*name = L"Cube Texture";
 		m_CubeTexture->DebugNameResource(name);*/
 
-		m_Textures[Textures::TriangleTexture] = std::dynamic_pointer_cast<Hazel::D3D12Texture2D>(Hazel::Texture2D::Create("assets/textures/test_texture.dds"));
-		m_Textures[Textures::TriangleTexture]->Transition(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		m_Textures[Textures::TriangleTexture] = Hazel::CreateRef<Hazel::D3D12Texture2D>("assets/textures/test_texture.dds", cmdlist.Get());
+		m_Textures[Textures::TriangleTexture]->Transition(cmdlist.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
-		Hazel::D3D12::ThrowIfFailed(m_Context->DeviceResources->CommandList->Close());
-
-		ID3D12CommandList* const commandLists[] = {
-			m_Context->DeviceResources->CommandList.Get()
-		};
-		m_Context->DeviceResources->CommandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
-
-		m_Context->Flush();
+		auto f = batch.End(m_Context->DeviceResources->CommandQueue.Get());
+		f.wait();
 	}
 }
 

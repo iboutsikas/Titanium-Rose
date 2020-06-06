@@ -101,8 +101,6 @@ private:
 	Hazel::Ref<MipMapPass>	m_MipsPass;
 	Hazel::Ref<ClearFeedbackPass>	m_ClearUAVPass;
 
-	Hazel::TComPtr<ID3D12Resource> m_ReadbackBuffer;
-
 	void LoadAssets();
 	void BuildPipeline();
 	void LoadTextures();

@@ -52,7 +52,6 @@ void DeferredTexturePass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject* s
 
 	PIXScopedEvent(cmdList.Get(), PIX_COLOR(1, 0, 1), "Deferred Pass");
 
-	
 	PassData.ViewProjection = camera.GetViewProjectionMatrix();
 	PassData.CameraPosition = camera.GetPosition();
 	// The rest of the light stuff
@@ -73,10 +72,30 @@ void DeferredTexturePass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject* s
 
 	// Render
 	auto target = m_Outputs[0];
+	auto rtvHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(
+		m_RTVHeap->GetCPUDescriptorHandleForHeapStart(),
+		0,
+		m_Context->GetRTVDescriptorSize()
+	);
 
+	auto desc = target->GetCommitedResource()->GetDesc();
+	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc;
+	rtvDesc.Format = desc.Format;
+	rtvDesc.Texture2D.MipSlice = PassData.FinestMip;
+	rtvDesc.Texture2D.PlaneSlice = 0;
+	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION::D3D12_RTV_DIMENSION_TEXTURE2D;
 
-	D3D12_VIEWPORT vp = { 0.0f, 0.0f, (float)target->GetWidth(), (float)target->GetHeight(), 0.0f, 1.0f };
-	D3D12_RECT rect = { 0.0f, 0.0f, (float)target->GetWidth(), (float)target->GetHeight() };
+	m_Context->DeviceResources->Device->CreateRenderTargetView(
+		target->GetCommitedResource(),
+		&rtvDesc,
+		rtvHandle
+	);
+
+	float targetWidth = (float)(target->GetWidth() >> PassData.FinestMip);
+	float targetHeight = (float)(target->GetHeight() >> PassData.FinestMip);
+
+	D3D12_VIEWPORT vp = { 0.0f, 0.0f, targetWidth, targetHeight, 0.0f, 1.0f };
+	D3D12_RECT rect = { 0.0f, 0.0f, targetWidth, targetHeight };
 	
 	cmdList->SetPipelineState(m_Shader->GetPipelineState());
 	cmdList->SetGraphicsRootSignature(m_Shader->GetRootSignature());

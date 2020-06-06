@@ -52,12 +52,13 @@ void ClearFeedbackPass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject* sce
 
 	for (size_t i = 0; i < PassInputCount; i++)
 	{
-		auto resource = m_Inputs[i]->GetFeedbackResource();
-		glm::ivec2 dims = glm::ivec2(1, 1);
+		auto feedback = m_Inputs[i]->GetFeedbackMap();
+		auto resource = feedback->GetResource();
+		glm::ivec3 dims = glm::ivec3(1, 1, 1);
 		if (resource != nullptr)
 		{
 			auto desc = resource->GetDesc();
-			dims = m_Inputs[i]->GetFeedbackDims();
+			dims = feedback->GetDimensions();
 		}
 
 		auto dispatch_count = Hazel::D3D12::RoundToMultiple(dims.x * dims.y, 64);
@@ -91,23 +92,26 @@ void ClearFeedbackPass::SetInput(uint32_t index, Hazel::Ref<Hazel::D3D12Texture2
 		m_Context->GetSRVDescriptorSize()
 	);
 
-	auto fbResource = input->GetFeedbackResource();
+	auto feedback = input->GetFeedbackMap();
+	ID3D12Resource* resource = nullptr;
+
 	D3D12_UNORDERED_ACCESS_VIEW_DESC fbUAVDesc = {};
 	fbUAVDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
 	fbUAVDesc.Format = DXGI_FORMAT_R32_UINT;
 	fbUAVDesc.Buffer.NumElements = 1;
 
-	if (fbResource != nullptr) {
-		auto fbDesc = fbResource->GetDesc();
+	if (feedback != nullptr) {
+		resource = feedback->GetResource();
+		auto fbDesc = resource->GetDesc();
 
 		fbUAVDesc.Format = fbDesc.Format;
-		auto dims = input->GetFeedbackDims();
+		auto dims = feedback->GetDimensions();
 		fbUAVDesc.Buffer.NumElements = dims.x * dims.y;
 		fbUAVDesc.Buffer.StructureByteStride = sizeof(uint32_t);
 	}
 
 	m_Context->DeviceResources->Device->CreateUnorderedAccessView(
-		fbResource,
+		resource,
 		nullptr,
 		&fbUAVDesc,
 		cpuHandle

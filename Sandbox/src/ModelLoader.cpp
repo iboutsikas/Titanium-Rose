@@ -86,17 +86,16 @@ void processNode(aiNode* node, const aiScene* scene, Hazel::Ref<Hazel::GameObjec
 			}
 #pragma endregion
 		}
-
-		// TODO: Material
 		
 		hmesh->vertexBuffer = Hazel::CreateRef<Hazel::D3D12VertexBuffer>((float*)vertices.data(), vertices.size() * sizeof(Vertex));
 		hmesh->vertexBuffer->GetResource()->SetName(L"Vertex buffer");
 		
 		hmesh->indexBuffer = Hazel::CreateRef<Hazel::D3D12IndexBuffer>(indices.data(), indices.size());
 		hmesh->indexBuffer->GetResource()->SetName(L"Index buffer");
-#ifdef HZ_DEBUG
+
 		hmesh->vertices = vertices;
-#endif
+		hmesh->indices = indices;
+
 		target->Mesh = hmesh;
 
 		if (aimesh->HasTangentsAndBitangents()) {

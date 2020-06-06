@@ -14,7 +14,7 @@ public:
 		glm::vec4 AmbientLight;
 		glm::vec4 DirectionalLight;
 		glm::vec3 DirectionalLightPosition;
-		float     __padding1;
+		uint32_t  FinestMip;
 		glm::vec3 CameraPosition;
 		float     AmbientIntensity;
 	};
@@ -25,7 +25,6 @@ public:
 	virtual void SetOutput(uint32_t index, Hazel::Ref<Hazel::D3D12Texture2D> output) override;
 
 	HPassData PassData;
-	int MaxMipLevel = 0;
 private:
 	struct alignas(16) HPerObjectData {
 		glm::mat4 ModelMatrix;
