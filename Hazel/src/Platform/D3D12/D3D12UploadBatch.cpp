@@ -51,6 +51,35 @@ namespace Hazel {
 		return m_CommandList;
 	}
 
+	void D3D12ResourceUploadBatch::Upload(ID3D12Resource* resource, uint32_t subresourceIndexStart, const D3D12_SUBRESOURCE_DATA* subResourceData, uint32_t numSubresources)
+	{
+		HZ_CORE_ASSERT(m_Finalized != true, "Batch has been finalized");
+
+		uint64_t uploadSize = GetRequiredIntermediateSize(
+			resource,
+			subresourceIndexStart,
+			numSubresources
+		);
+
+		TComPtr<ID3D12Resource> tmpResource = nullptr;
+		D3D12::ThrowIfFailed(m_Device->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+			D3D12_HEAP_FLAG_NONE,
+			&CD3DX12_RESOURCE_DESC::Buffer(uploadSize),
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			IID_PPV_ARGS(tmpResource.GetAddressOf())
+		));
+
+		UpdateSubresources(
+			m_CommandList.Get(), resource,
+			tmpResource.Get(), 0, subresourceIndexStart,
+			numSubresources, subResourceData
+		);
+
+		m_TrackedObjects.push_back(tmpResource);
+	}
+
 	std::future<void> D3D12ResourceUploadBatch::End(ID3D12CommandQueue* commandQueue)
 	{
 		HZ_CORE_ASSERT(m_Finalized != true, "Resource batch has been finalized");
@@ -72,6 +101,7 @@ namespace Hazel {
 		batch->CommandList = m_CommandList;
 		batch->Fence = fence;
 		batch->GpuCompleteEvent = evt;
+		std::swap(m_TrackedObjects, batch->TrackedObjects);
 
 		std::future<void> ret = std::async(std::launch::async, [batch]() {
 			auto wr = WaitForSingleObject(batch->GpuCompleteEvent, INFINITE);
@@ -92,7 +122,8 @@ namespace Hazel {
 		});
 
 		m_Finalized = true;
-
+		m_CommandList.Reset();
+		m_CommandAllocator.Reset();
 		return ret;
 	}
 }

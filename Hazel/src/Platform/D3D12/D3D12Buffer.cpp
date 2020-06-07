@@ -9,12 +9,11 @@
 
 namespace Hazel {
 	
-	D3D12VertexBuffer::D3D12VertexBuffer(float* vertices, uint32_t size)
+	D3D12VertexBuffer::D3D12VertexBuffer(D3D12ResourceUploadBatch& batch, float* vertices, uint32_t size)
 	{
 		m_Context = static_cast<D3D12Context*>(Application::Get().GetWindow().GetContext());
 		
 		auto device = m_Context->DeviceResources->Device;
-		auto commandList = m_Context->DeviceResources->CommandList;
 
 		D3D12::ThrowIfFailed(device->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
@@ -26,22 +25,13 @@ namespace Hazel {
 		));
 
 		if (vertices) {
-			D3D12::ThrowIfFailed(device->CreateCommittedResource(
-				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-				D3D12_HEAP_FLAG_NONE,
-				&CD3DX12_RESOURCE_DESC::Buffer(size),
-				D3D12_RESOURCE_STATE_GENERIC_READ,
-				nullptr,
-				IID_PPV_ARGS(m_UploadResource.GetAddressOf())));
-
+			
 			D3D12_SUBRESOURCE_DATA subresourceData = {};
 			subresourceData.pData = vertices;
 			subresourceData.RowPitch = size;
 			subresourceData.SlicePitch = subresourceData.RowPitch;
 
-			UpdateSubresources(commandList.Get(),
-				m_CommittedResource.Get(), m_UploadResource.Get(),
-				0, 0, 1, &subresourceData);
+			batch.Upload(m_CommittedResource.Get(), 0, &subresourceData, 1);
 
 			m_View.BufferLocation = m_CommittedResource->GetGPUVirtualAddress();
 			m_View.SizeInBytes = size;
@@ -54,7 +44,7 @@ namespace Hazel {
 		//m_UploadResource->Release();
 	}
 
-	D3D12IndexBuffer::D3D12IndexBuffer(uint32_t* indices, uint32_t count)
+	D3D12IndexBuffer::D3D12IndexBuffer(D3D12ResourceUploadBatch& batch, uint32_t* indices, uint32_t count)
 		:m_Count(count)
 	{
 		m_Context = static_cast<D3D12Context*>(Application::Get().GetWindow().GetContext());
@@ -73,22 +63,14 @@ namespace Hazel {
 		));
 
 		if (indices) {
-			D3D12::ThrowIfFailed(device->CreateCommittedResource(
-				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-				D3D12_HEAP_FLAG_NONE,
-				&CD3DX12_RESOURCE_DESC::Buffer(size),
-				D3D12_RESOURCE_STATE_GENERIC_READ,
-				nullptr,
-				IID_PPV_ARGS(m_UploadResource.GetAddressOf())));
 
 			D3D12_SUBRESOURCE_DATA subresourceData = {};
 			subresourceData.pData = indices;
 			subresourceData.RowPitch = size;
 			subresourceData.SlicePitch = subresourceData.RowPitch;
 
-			UpdateSubresources(commandList.Get(),
-				m_CommittedResource.Get(), m_UploadResource.Get(),
-				0, 0, 1, &subresourceData);
+			batch.Upload(m_CommittedResource.Get(), 0, &subresourceData, 1);
+
 			m_View.BufferLocation = m_CommittedResource->GetGPUVirtualAddress();
 			m_View.Format = DXGI_FORMAT_R32_UINT;
 			m_View.SizeInBytes = size;

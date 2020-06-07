@@ -1,9 +1,11 @@
 #pragma once
+#include "d3d12.h"
 
 #include "Hazel/Core/Application.h"
 #include "Hazel/Renderer/Buffer.h"
+
 #include "Platform/D3D12/ComPtr.h"
-#include "d3d12.h"
+#include "Platform/D3D12/D3D12UploadBatch.h"
 
 namespace Hazel {
 	// Forward Declarations
@@ -12,7 +14,7 @@ namespace Hazel {
 	class D3D12VertexBuffer : public VertexBuffer
 	{
 	public:
-		D3D12VertexBuffer(float* vertices, uint32_t size);
+		D3D12VertexBuffer(D3D12ResourceUploadBatch& batch, float* vertices, uint32_t size);
 		virtual ~D3D12VertexBuffer();
 
 		virtual void Bind() const override {};
@@ -27,14 +29,13 @@ namespace Hazel {
 		BufferLayout m_Layout;
 		D3D12Context* m_Context;
 		TComPtr<ID3D12Resource> m_CommittedResource;
-		TComPtr<ID3D12Resource> m_UploadResource;
 		D3D12_VERTEX_BUFFER_VIEW m_View;
 	};
 
 	class D3D12IndexBuffer : public IndexBuffer
 	{
 	public:
-		D3D12IndexBuffer(uint32_t* indices, uint32_t count);
+		D3D12IndexBuffer(D3D12ResourceUploadBatch& batch, uint32_t* indices, uint32_t count);
 		virtual ~D3D12IndexBuffer();
 
 		virtual void Bind() const override {};
@@ -47,7 +48,6 @@ namespace Hazel {
 		uint32_t m_Count;
 		D3D12Context* m_Context;
 		TComPtr<ID3D12Resource> m_CommittedResource;
-		TComPtr<ID3D12Resource> m_UploadResource;
 		D3D12_INDEX_BUFFER_VIEW m_View;
 	};
 	

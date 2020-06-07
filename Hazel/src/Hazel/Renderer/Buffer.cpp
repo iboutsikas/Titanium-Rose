@@ -12,7 +12,7 @@ namespace Hazel {
 		{
 			case RendererAPI::API::None:    HZ_CORE_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;
 			case RendererAPI::API::OpenGL:  HZ_CORE_ASSERT(false, "RendererAPI::OpenGL is currently not supported!"); return nullptr;
-			case RendererAPI::API::D3D12:	return CreateRef<D3D12VertexBuffer>(vertices, size);
+			//case RendererAPI::API::D3D12:	return CreateRef<D3D12VertexBuffer>(vertices, size);
 		}
 
 		HZ_CORE_ASSERT(false, "Unknown RendererAPI!");
@@ -25,7 +25,7 @@ namespace Hazel {
 		{
 			case RendererAPI::API::None:    HZ_CORE_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;
 			case RendererAPI::API::OpenGL:  HZ_CORE_ASSERT(false, "RendererAPI::OpenGL is currently not supported!"); return nullptr;
-			case RendererAPI::API::D3D12:	return CreateRef<D3D12IndexBuffer>(indices, count);
+			//case RendererAPI::API::D3D12:	return CreateRef<D3D12IndexBuffer>(indices, count);
 		}
 
 		HZ_CORE_ASSERT(false, "Unknown RendererAPI!");
