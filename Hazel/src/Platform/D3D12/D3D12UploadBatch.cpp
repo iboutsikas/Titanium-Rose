@@ -44,6 +44,11 @@ namespace Hazel {
 			IID_PPV_ARGS(&m_CommandList)
 		));
 
+		if (m_CommandAllocator == nullptr || m_CommandList == nullptr)
+		{
+			__debugbreak();
+		}
+
 #ifdef HZ_DEBUG
 		m_CommandAllocator->SetName(L"ResourceUpload Command Allocator");
 		m_CommandList->SetName(L"ResourceUpload Command List");

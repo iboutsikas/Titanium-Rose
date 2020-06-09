@@ -28,7 +28,7 @@ cbuffer cbPass : register(b0) {
     float4   gAmbientLight;
     float4   gDirectionalLight;
     float3   gDirectionalLightPosition;
-    float    __padding1;
+    uint     gFinestMip;
     float3   gCameraPosition;
     float1   gAmbientIntensity;
 };
@@ -37,6 +37,7 @@ cbuffer cbPerObject : register(b1) {
     matrix oLocalToWorld;
     matrix oNormalsMatrix;
     float  oGlossiness;
+    uint   oFinestMip;
 };
 
 Texture2D albedoTexture : register(t0);
@@ -61,11 +62,9 @@ PSInput VS_Main(VSInput input)
     float2 vUv = input.uv;
     vUv = (vUv * 2.0) - 1.0;
 
-    // matrix mvp = mul(gViewProjection, oLocalToWorld);
     float3 N = normalize(mul((float3x3)oNormalsMatrix, input.normal));
 
     result.position = float4(vUv, 0.0, 1.0);
-    // result.position = mul(oLocalToWorld, float4(input.position, 1.0));
     result.worldPosition = mul(oLocalToWorld, float4(input.position, 1.0)).xyz;
     result.normal = N;
     result.uv = input.uv;
@@ -83,16 +82,8 @@ PSInput VS_Main(VSInput input)
 [RootSignature(MyRS1)]
 float4 PS_Main(PSInput input) : SV_TARGET
 {
-    // uint lod = albedoTexture.CalculateLevelOfDetail(g_sampler, input.uv);
-    // float4 albedo = albedoTexture.Sample(g_sampler, input.uv);
-    float4 albedo = albedoTexture.SampleLevel(g_sampler, input.uv, 0);
-    
-    // float2 dx = ddx(4096 * input.uv);
-    // float2 dy = ddy(input.uv);
-
-
-    // float3 normal = normalTexture.SampleLevel(g_NormalSampler, input.uv, 0).rgb;
-    float3 normal = normalTexture.Sample(g_NormalSampler, input.uv).rgb;
+    float4 albedo = albedoTexture.SampleLevel(g_sampler, input.uv, gFinestMip);
+    float3 normal = normalTexture.SampleLevel(g_NormalSampler, input.uv, gFinestMip).rgb;
 
     normal = 2.0 * normal - 1.0;
     normal = normalize(mul(normal, input.TBN));
@@ -103,8 +94,8 @@ float4 PS_Main(PSInput input) : SV_TARGET
     
     // This is here to prevent the glitches on the back of the model. Since
     // the backfaces are no longer culled.
-    // float shadowFactor = step(0, dot(geometricNormal, fragmentToLight));
-    float shadowFactor = 1.0;
+    float shadowFactor = step(0, dot(geometricNormal, fragmentToLight));
+    // float shadowFactor = 1.0;
 
     // Ambient Light
     float3 ambient = gAmbientLight * gAmbientIntensity;

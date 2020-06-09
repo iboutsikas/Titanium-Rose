@@ -12,7 +12,7 @@ namespace Hazel {
         ~D3D12ResourceUploadBatch();
 
         inline TComPtr<ID3D12GraphicsCommandList> GetCommandList() { return m_CommandList; }
-
+        inline TComPtr<ID3D12Device2> GetDevice() { return m_Device; }
         TComPtr<ID3D12GraphicsCommandList> Begin(D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT);
         void Upload(_In_ ID3D12Resource* resource, uint32_t subresourceIndexStart,
             _In_reads_(numSubresources) const D3D12_SUBRESOURCE_DATA* subRes,

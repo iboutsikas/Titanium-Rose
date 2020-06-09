@@ -2,8 +2,8 @@
 #define GenerateMips_RootSignature \
     "RootFlags(0), " \
     "RootConstants(b0, num32BitConstants = 8), " \
-    "DescriptorTable(SRV(t0, numDescriptors = 1))," \
-    "DescriptorTable(UAV(u0, numDescriptors = 4))," \
+    "DescriptorTable(SRV(t0, numDescriptors = 1, flags = DESCRIPTORS_VOLATILE))," \
+    "DescriptorTable(UAV(u0, numDescriptors = 4, flags = DESCRIPTORS_VOLATILE))," \
     "StaticSampler(s0," \
         "addressU = TEXTURE_ADDRESS_CLAMP," \
         "addressV = TEXTURE_ADDRESS_CLAMP," \
@@ -22,9 +22,10 @@ struct CS_Input
 
 cbuffer GernerateMipsCB: register(b0)
 {
-    uint SrcMipLevel;   // Texture level of source mip
-    uint NumMipLevels;  // Number of OutMips to write: [1-4]
-    float4 TexelSize;   // width, height, 1 / width, 1 / height
+    float4  TexelSize;   // width, height, 1 / width, 1 / height
+    uint    SrcMipLevel;   // Texture level of source mip
+    uint    NumMipLevels;  // Number of OutMips to write: [1-4]
+    uint2   __padding;
 }
 
 // Source mip map.
@@ -65,7 +66,7 @@ float4 LoadColor( uint Index )
 void CS_Main( CS_Input IN )
 {   
           // width, height
-    float2 uv = TexelSize.xy * (IN.DispatchThreadID.xy + 0.5);
+    float2 uv = TexelSize.zw * (IN.DispatchThreadID.xy + 0.5);
     float4 Src1 = SrcMip.SampleLevel(TrillinearClamp, uv, SrcMipLevel);
 
     // OutMip1[IN.DispatchThreadID.xy    ] = float4(1, 1, 1, 1);

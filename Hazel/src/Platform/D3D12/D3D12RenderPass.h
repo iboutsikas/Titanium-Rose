@@ -46,7 +46,7 @@ namespace Hazel {
 			//D3D12_SHADER_RESOURCE_VIEW_DESC
 			// If SetInput did not throw we are in a valid range;
 			m_Context->DeviceResources->Device->CreateShaderResourceView(
-				input->GetCommitedResource(),
+				input->GetResource(),
 				nullptr,
 				srvHandle
 			);
