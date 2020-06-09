@@ -7,7 +7,7 @@
 namespace Hazel
 {
 	D3D12FeedbackMap::D3D12FeedbackMap(TComPtr<ID3D12Device2> device, uint32_t width, uint32_t height, uint32_t elementSize)
-		: m_Width(width), m_Height(height), m_ElementSize(elementSize), m_Data(nullptr)
+		: m_Width(width), m_Height(height), m_ElementSize(elementSize), m_IsMapped(false), m_Data(nullptr)
 	{
 		m_ActualSize = D3D12::CalculateConstantBufferSize(m_Width * m_Height * m_ElementSize);
 		
@@ -51,22 +51,24 @@ namespace Hazel
 	void D3D12FeedbackMap::Transition(ID3D12GraphicsCommandList* cmdList, D3D12_RESOURCE_STATES to)
 	{
 		if (to == m_CurrentState)
-			return
+			return;
 
-			this->Transition(cmdList, m_CurrentState, to);
+		this->Transition(cmdList, m_CurrentState, to);
 	}
 
 	void D3D12FeedbackMap::Map()
 	{
-		if (m_Data == nullptr) {
+		if (!m_IsMapped) {
 			m_Readback->Map(0, nullptr, &m_Data);
+			m_IsMapped = true;
 		}
 	}
 
 	void D3D12FeedbackMap::Unmap()
 	{
-		if (m_Data != nullptr) {
+		if (m_IsMapped) {
 			m_Readback->Unmap(0, nullptr);
+			m_IsMapped = false;
 		}
 	}
 

@@ -24,7 +24,7 @@ namespace Hazel
 		inline const uint32_t GetHeight() const { return m_Height; }
 		inline const uint32_t GetElementSize() const { return m_ElementSize; }
 		inline const uint32_t GetSize() const { return m_ActualSize; }
-		inline const bool IsMapped() const { return m_Data != nullptr; }
+		inline const bool IsMapped() const { return m_IsMapped; }
 
 		void Map();
 		void Unmap();
@@ -42,6 +42,7 @@ namespace Hazel
 		uint32_t m_Height;
 		uint32_t m_ElementSize;
 		uint32_t m_ActualSize;
+		bool m_IsMapped;
 		void* m_Data;
 		D3D12_RESOURCE_STATES m_CurrentState;
 		TComPtr<ID3D12Resource> m_Resource;
