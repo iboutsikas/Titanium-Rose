@@ -97,24 +97,21 @@ namespace Hazel {
 
 		ret->m_Resource->SetName(opts.Name.c_str());
 
-		UINT numTiles = 0;
-		D3D12_TILE_SHAPE tileShape = {};
 		UINT subresourceCount = desc.MipLevels;
-		D3D12_PACKED_MIP_INFO mipInfo;
-		std::vector<D3D12_SUBRESOURCE_TILING> tilings(subresourceCount);
+		ret->m_Tilings.resize(subresourceCount);
 
 		batch.GetDevice()->GetResourceTiling(
-			ret->m_Resource.Get(), &numTiles, &mipInfo,
-			&tileShape, &subresourceCount, 0, &tilings[0]);
+			ret->m_Resource.Get(), &ret->m_NumTiles, &ret->m_MipInfo,
+			&ret->m_TileShape, &subresourceCount, 0, &ret->m_Tilings[0]);
 
-		ret->m_TileAllocations.resize(tilings.size());
+		ret->m_TileAllocations.resize(subresourceCount);
 
-		for (uint32_t i = 0; i < tilings.size(); i++)
+		for (uint32_t i = 0; i < subresourceCount; i++)
 		{
 			auto& allocationVector = ret->m_TileAllocations[i];
-			auto& dims = tilings[i];
+			auto& dims = ret->m_Tilings[i];
 
-			allocationVector.resize(dims.WidthInTiles * dims.HeightInTiles);
+			allocationVector.resize((uint64_t)dims.WidthInTiles * dims.HeightInTiles);
 
 			for (uint32_t y = 0; y < dims.HeightInTiles; ++y)
 			{
@@ -247,8 +244,48 @@ namespace Hazel {
 	*
 	*/
 	D3D12VirtualTexture2D::D3D12VirtualTexture2D(std::wstring id, uint32_t width, uint32_t height, uint32_t mips)
-		: D3D12Texture2D(id, width, height, mips)
+		: D3D12Texture2D(id, width, height, mips),
+		m_NumTiles(0),
+		m_TileShape({}),
+		m_MipInfo({})
 	{
+	}
+
+	D3D12Texture2D::MipLevels D3D12VirtualTexture2D::ExtractMipsUsed()
+	{
+		HZ_CORE_ASSERT(m_FeedbackMap != nullptr, "Virtual textures should have a feedback map");
+
+		auto dims = m_FeedbackMap->GetDimensions();
+
+		uint32_t* data = m_FeedbackMap->GetData<uint32_t*>();
+
+		uint32_t finest_mip = 13;
+		uint32_t coarsest_mip = 0;
+		for (int y = 0; y < dims.y; y++)
+		{
+			for (int x = 0; x < dims.x; x++)
+			{
+				uint32_t mip = data[y * dims.x + x];
+
+				if (mip < finest_mip) {
+					finest_mip = mip;
+				}
+
+				if (mip > coarsest_mip) {
+					coarsest_mip = mip;
+				}
+			}
+		}
+		m_CachedMipLevels.FinestMip = finest_mip;
+		m_CachedMipLevels.CoarsestMip = (coarsest_mip == m_MipLevels) ? coarsest_mip - 1 : coarsest_mip;
+
+
+		return m_CachedMipLevels;
+	}
+
+	D3D12Texture2D::MipLevels D3D12VirtualTexture2D::GetMipsUsed()
+	{
+		return m_CachedMipLevels;
 	}
 
 	/**
