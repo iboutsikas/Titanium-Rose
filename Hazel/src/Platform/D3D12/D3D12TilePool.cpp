@@ -4,7 +4,7 @@
 
 namespace Hazel
 {
-    void D3D12TilePool::MapTexture(D3D12ResourceUploadBatch& batch, Ref<D3D12Texture2D> texture, TComPtr<ID3D12CommandQueue> commandQueue)
+    void D3D12TilePool::MapTexture(D3D12ResourceBatch& batch, Ref<D3D12Texture2D> texture, TComPtr<ID3D12CommandQueue> commandQueue)
     {
         if (!texture->IsVirtual())
         {
@@ -406,7 +406,7 @@ namespace Hazel
         return ret;
     }
 
-    Ref<TilePage> D3D12TilePool::AddPage(D3D12ResourceUploadBatch& batch, uint32_t size)
+    Ref<TilePage> D3D12TilePool::AddPage(D3D12ResourceBatch& batch, uint32_t size)
     {
         Ref<TilePage> newPage = CreateRef<TilePage>();
 

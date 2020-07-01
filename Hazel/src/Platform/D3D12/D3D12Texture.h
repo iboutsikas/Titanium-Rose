@@ -7,7 +7,8 @@
 #include "Platform/D3D12/ComPtr.h"
 #include "Platform/D3D12/d3dx12.h"
 #include "Platform/D3D12/D3D12FeedbackMap.h"
-#include "Platform/D3D12/D3D12UploadBatch.h"
+#include "Platform/D3D12/D3D12ResourceBatch.h"
+#include "Platform/D3D12/D3D12DescriptorHeap.h"
 
 
 namespace Hazel {
@@ -35,10 +36,10 @@ namespace Hazel {
         uint32_t GetWidth() const { return m_Width; }
         uint32_t GetHeight() const { return m_Height; }
 
-        void SetData(D3D12ResourceUploadBatch& batch, void* data, uint32_t size);
+        void SetData(D3D12ResourceBatch& batch, void* data, uint32_t size);
 
-        void Transition(D3D12ResourceUploadBatch& batch, D3D12_RESOURCE_STATES from, D3D12_RESOURCE_STATES to);
-        void Transition(D3D12ResourceUploadBatch& batch, D3D12_RESOURCE_STATES to);
+        void Transition(D3D12ResourceBatch& batch, D3D12_RESOURCE_STATES from, D3D12_RESOURCE_STATES to);
+        void Transition(D3D12ResourceBatch& batch, D3D12_RESOURCE_STATES to);
         void Transition(ID3D12GraphicsCommandList* commandList, D3D12_RESOURCE_STATES from, D3D12_RESOURCE_STATES to);
         void Transition(ID3D12GraphicsCommandList* commandList, D3D12_RESOURCE_STATES to);
 
@@ -47,6 +48,9 @@ namespace Hazel {
         inline ID3D12Resource* GetResource() const { return m_Resource.Get(); }
         inline uint32_t GetMipLevels() const { return  m_MipLevels; }
         inline bool HasMips() const { return m_MipLevels > 1; }
+        inline HeapAllocationDescription GetDescriptorAllocation() { return m_DescriptorAllocation; }
+
+
         virtual bool IsVirtual() const = 0;
         virtual MipLevels ExtractMipsUsed() { return { 0, m_MipLevels - 1 }; }
         // If the texture is virtual you need to call ExtractMipsUsed at least
@@ -54,9 +58,9 @@ namespace Hazel {
         // stale
         virtual MipLevels GetMipsUsed() { return { 0, m_MipLevels - 1 }; }
 
-        static Ref<D3D12Texture2D>		CreateVirtualTexture(D3D12ResourceUploadBatch& batch, TextureCreationOptions& opts);
-        static Ref<D3D12Texture2D>		CreateCommittedTexture(D3D12ResourceUploadBatch& batch, TextureCreationOptions& opts);
-        static Ref<D3D12FeedbackMap>	CreateFeedbackMap(D3D12ResourceUploadBatch& batch, Ref<D3D12Texture2D> texture);
+        static Ref<D3D12Texture2D>		CreateVirtualTexture(D3D12ResourceBatch& batch, TextureCreationOptions& opts);
+        static Ref<D3D12Texture2D>		CreateCommittedTexture(D3D12ResourceBatch& batch, TextureCreationOptions& opts);
+        static Ref<D3D12FeedbackMap>	CreateFeedbackMap(D3D12ResourceBatch& batch, Ref<D3D12Texture2D> texture);
     protected:
 
         D3D12Texture2D(std::wstring id, uint32_t width, uint32_t height, uint32_t mips = 1);
@@ -69,9 +73,9 @@ namespace Hazel {
 
         TComPtr<ID3D12Resource> m_Resource;
         Ref<D3D12FeedbackMap> m_FeedbackMap;
-
-    private:
-
+        HeapAllocationDescription m_DescriptorAllocation;
+        
+        friend class D3D12DescriptorHeap;
     };
 
     class D3D12CommittedTexture2D : public D3D12Texture2D

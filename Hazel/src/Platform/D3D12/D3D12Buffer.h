@@ -5,7 +5,7 @@
 #include "Hazel/Renderer/Buffer.h"
 
 #include "Platform/D3D12/ComPtr.h"
-#include "Platform/D3D12/D3D12UploadBatch.h"
+#include "Platform/D3D12/D3D12ResourceBatch.h"
 
 namespace Hazel {
 	// Forward Declarations
@@ -14,7 +14,7 @@ namespace Hazel {
 	class D3D12VertexBuffer : public VertexBuffer
 	{
 	public:
-		D3D12VertexBuffer(D3D12ResourceUploadBatch& batch, float* vertices, uint32_t size);
+		D3D12VertexBuffer(D3D12ResourceBatch& batch, float* vertices, uint32_t size);
 		virtual ~D3D12VertexBuffer();
 
 		virtual void Bind() const override {};
@@ -35,7 +35,7 @@ namespace Hazel {
 	class D3D12IndexBuffer : public IndexBuffer
 	{
 	public:
-		D3D12IndexBuffer(D3D12ResourceUploadBatch& batch, uint32_t* indices, uint32_t count);
+		D3D12IndexBuffer(D3D12ResourceBatch& batch, uint32_t* indices, uint32_t count);
 		virtual ~D3D12IndexBuffer();
 
 		virtual void Bind() const override {};

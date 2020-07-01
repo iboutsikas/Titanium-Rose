@@ -9,7 +9,7 @@
 
 namespace Hazel {
 	
-	D3D12VertexBuffer::D3D12VertexBuffer(D3D12ResourceUploadBatch& batch, float* vertices, uint32_t size)
+	D3D12VertexBuffer::D3D12VertexBuffer(D3D12ResourceBatch& batch, float* vertices, uint32_t size)
 	{
 		m_Context = static_cast<D3D12Context*>(Application::Get().GetWindow().GetContext());
 		
@@ -44,7 +44,7 @@ namespace Hazel {
 		//m_UploadResource->Release();
 	}
 
-	D3D12IndexBuffer::D3D12IndexBuffer(D3D12ResourceUploadBatch& batch, uint32_t* indices, uint32_t count)
+	D3D12IndexBuffer::D3D12IndexBuffer(D3D12ResourceBatch& batch, uint32_t* indices, uint32_t count)
 		:m_Count(count)
 	{
 		m_Context = static_cast<D3D12Context*>(Application::Get().GetWindow().GetContext());

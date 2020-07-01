@@ -2,10 +2,10 @@
 
 #include "Platform/D3D12/d3dx12.h"
 #include "Platform/D3D12/D3D12Helpers.h"
-#include "Platform/D3D12/D3D12UploadBatch.h"
+#include "Platform/D3D12/D3D12ResourceBatch.h"
 
 namespace Hazel {
-	D3D12ResourceUploadBatch::D3D12ResourceUploadBatch(TComPtr<ID3D12Device2> device)
+	D3D12ResourceBatch::D3D12ResourceBatch(TComPtr<ID3D12Device2> device)
 		: m_Device(device),
 		m_CommandList(nullptr),
 		m_CommandAllocator(nullptr),
@@ -14,12 +14,12 @@ namespace Hazel {
 		
 	}
 
-	D3D12ResourceUploadBatch::~D3D12ResourceUploadBatch()
+	D3D12ResourceBatch::~D3D12ResourceBatch()
 	{
 		HZ_CORE_ASSERT(m_Finalized, "Resource batch was destructed without calling End()");
 	}
 
-	TComPtr<ID3D12GraphicsCommandList> D3D12ResourceUploadBatch::Begin(D3D12_COMMAND_LIST_TYPE type)
+	TComPtr<ID3D12GraphicsCommandList> D3D12ResourceBatch::Begin(D3D12_COMMAND_LIST_TYPE type)
 	{
 		switch (type)
 		{
@@ -56,7 +56,7 @@ namespace Hazel {
 		return m_CommandList;
 	}
 
-	void D3D12ResourceUploadBatch::Upload(ID3D12Resource* resource, uint32_t subresourceIndexStart, const D3D12_SUBRESOURCE_DATA* subResourceData, uint32_t numSubresources)
+	void D3D12ResourceBatch::Upload(ID3D12Resource* resource, uint32_t subresourceIndexStart, const D3D12_SUBRESOURCE_DATA* subResourceData, uint32_t numSubresources)
 	{
 		HZ_CORE_ASSERT(m_Finalized != true, "Batch has been finalized");
 
@@ -85,7 +85,7 @@ namespace Hazel {
 		m_TrackedObjects.push_back(tmpResource);
 	}
 
-	std::future<void> D3D12ResourceUploadBatch::End(ID3D12CommandQueue* commandQueue)
+	std::future<void> D3D12ResourceBatch::End(ID3D12CommandQueue* commandQueue)
 	{
 		HZ_CORE_ASSERT(m_Finalized != true, "Resource batch has been finalized");
 

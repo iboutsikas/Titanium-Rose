@@ -5,7 +5,7 @@
 #include "d3d12.h"
 #include "Platform/D3D12/ComPtr.h"
 #include "Platform/D3D12/D3D12Texture.h"
-#include "Platform/D3D12/D3D12UploadBatch.h"
+#include "Platform/D3D12/D3D12ResourceBatch.h"
 
 namespace Hazel 
 {
@@ -21,7 +21,7 @@ namespace Hazel
 	class D3D12TilePool
 	{
 	public:
-		void MapTexture(D3D12ResourceUploadBatch& batch, 
+		void MapTexture(D3D12ResourceBatch& batch, 
 			Ref<D3D12Texture2D> texture, 
 			TComPtr<ID3D12CommandQueue> commandQueue);
 	private:
@@ -40,7 +40,7 @@ namespace Hazel
 		/// <param name="batch">The resource batch that will be used to create this page</param>
 		/// <param name="size">The size of the page in bytes</param>
 		/// <returns>A reference to the newly added page</returns>
-		Ref<TilePage> AddPage(D3D12ResourceUploadBatch& batch, uint32_t size);
+		Ref<TilePage> AddPage(D3D12ResourceBatch& batch, uint32_t size);
 
 		//Ref<D3D12TilePool::TextureAllocationInfo> CreateInitialAllocation()
 

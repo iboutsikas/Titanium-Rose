@@ -5,11 +5,11 @@
 #include "Platform/D3D12/ComPtr.h"
 
 namespace Hazel {
-    class D3D12ResourceUploadBatch
+    class D3D12ResourceBatch
     {
     public:
-        D3D12ResourceUploadBatch(TComPtr<ID3D12Device2> device);
-        ~D3D12ResourceUploadBatch();
+        D3D12ResourceBatch(TComPtr<ID3D12Device2> device);
+        ~D3D12ResourceBatch();
 
         inline TComPtr<ID3D12GraphicsCommandList> GetCommandList() { return m_CommandList; }
         inline TComPtr<ID3D12Device2> GetDevice() { return m_Device; }

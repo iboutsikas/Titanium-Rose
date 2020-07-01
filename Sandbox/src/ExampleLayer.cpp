@@ -20,7 +20,7 @@
 #include "Platform/D3D12/d3dx12.h"
 #include "Platform/D3D12/D3D12Buffer.h"
 #include "Platform/D3D12/D3D12Shader.h"
-#include "Platform/D3D12/D3D12UploadBatch.h"
+#include "Platform/D3D12/D3D12ResourceBatch.h"
 
 #include"ModelLoader.h"
 
@@ -219,7 +219,7 @@ void ExampleLayer::OnUpdate(Hazel::Timestep ts)
 			HZ_PROFILE_SCOPE("Readback update");
 			
 			auto feedback = tex->GetFeedbackMap();
-			Hazel::D3D12ResourceUploadBatch batch(device);
+			Hazel::D3D12ResourceBatch batch(device);
 			auto cmd = batch.Begin();
 			feedback->Readback(device.Get(), cmd.Get());
 			batch.End(m_Context->DeviceResources->CommandQueue.Get()).wait();
@@ -235,7 +235,7 @@ void ExampleLayer::OnUpdate(Hazel::Timestep ts)
 
 #if USE_VIRTUAL_TEXTURE
 		{
-			Hazel::D3D12ResourceUploadBatch batch(device);
+			Hazel::D3D12ResourceBatch batch(device);
 			auto cmd = batch.Begin();
 			m_TilePool->MapTexture(batch, tex, m_Context->DeviceResources->CommandQueue);
 			batch.End(m_Context->DeviceResources->CommandQueue.Get()).wait();
@@ -261,12 +261,6 @@ void ExampleLayer::OnUpdate(Hazel::Timestep ts)
 
 	m_BaseColorPass->Process(m_Context, m_SceneGO.get(), m_CameraController.GetCamera());
 
-#if 1
-	if (render_normals) {
-		m_NormalsPass->PassData.LightPosition = m_PositionalLightGO->Transform.Position();
-		m_NormalsPass->Process(m_Context, m_MainObject.get(), m_CameraController.GetCamera());
-	}
-#endif
 	Hazel::Renderer::EndScene();
 	m_RenderedFrames++;
 }
@@ -372,7 +366,7 @@ void ExampleLayer::OnImGuiRender()
 
 		auto tex = m_MainObject->Material->AlbedoTexture;
 
-		auto [finest_mip, coarsest_mip ] = extractMipLevels(tex);
+		auto mipsUsed = tex->GetMipsUsed();
 		auto feedback = tex->GetFeedbackMap();
 		auto dims = feedback->GetDimensions();
 		
@@ -386,11 +380,11 @@ void ExampleLayer::OnImGuiRender()
 			{
 				uint32_t mip = mip_data[y * dims.x + x];
 				ImGui::PushID(y * dims.x + x);
-				if (mip == coarsest_mip) {
+				if (mip == mipsUsed.CoarsestMip) {
 					ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::ImColor(135, 252, 139));
 					ImGui::PushStyleColor(ImGuiCol_Text, (ImVec4)ImColor::ImColor(0, 0, 0));
 				}
-				else if (mip == finest_mip) {
+				else if (mip == mipsUsed.FinestMip) {
 					ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::ImColor(245, 77, 61));
 					ImGui::PushStyleColor(ImGuiCol_Text, (ImVec4)ImColor::ImColor(255, 255, 255));
 				}
@@ -401,7 +395,7 @@ void ExampleLayer::OnImGuiRender()
 				ImGui::Button(label.c_str(), ImVec2(40, 40));
 				ImGui::SameLine();
 
-				if (mip == coarsest_mip || mip == finest_mip) {
+				if (mip == mipsUsed.CoarsestMip || mip == mipsUsed.FinestMip) {
 					ImGui::PopStyleColor(2);
 				}
 				ImGui::PopID();
@@ -409,7 +403,7 @@ void ExampleLayer::OnImGuiRender()
 			ImGui::EndGroup();
 		}
 		ImGui::EndGroup();
-		ImGui::Text("Finest Mip: %d, Coarsest Mip: %d", finest_mip, coarsest_mip);
+		ImGui::Text("Finest Mip: %d, Coarsest Mip: %d", mipsUsed.FinestMip, mipsUsed.CoarsestMip);
 		ImGui::End();
 	}
 
@@ -425,7 +419,7 @@ void ExampleLayer::LoadAssets()
 {
 	// Geometry Buffers and Texture Resource
 	{
-		Hazel::D3D12ResourceUploadBatch batch(m_Context->DeviceResources->Device);
+		Hazel::D3D12ResourceBatch batch(m_Context->DeviceResources->Device);
 		auto cmdlist = batch.Begin();
 
 		m_Models[Models::CubeModel] = ModelLoader::LoadFromFile(std::string("assets/models/test_cube.glb"), batch);
@@ -469,6 +463,7 @@ void ExampleLayer::LoadAssets()
 		{
 			HZ_PROFILE_SCOPE("Earth Texture");
 			Hazel::D3D12Texture2D::TextureCreationOptions opts;
+			opts.Flags = D3D12_RESOURCE_FLAG_NONE;
 			opts.Path = L"assets/textures/earth.dds";
 			m_Textures[Textures::EarthTexture] = Hazel::D3D12Texture2D::CreateCommittedTexture(batch, opts);
 			m_Textures[Textures::EarthTexture]->Transition(batch, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -500,6 +495,7 @@ void ExampleLayer::LoadAssets()
 		{
 			HZ_PROFILE_SCOPE("Normal Texture");
 			Hazel::D3D12Texture2D::TextureCreationOptions opts;
+			opts.Flags = D3D12_RESOURCE_FLAG_NONE;
 			opts.Path = L"assets/textures/earth_normal.dds";
 			m_Textures[Textures::NormalTexture] = Hazel::D3D12Texture2D::CreateCommittedTexture(batch, opts);
 			m_Textures[Textures::NormalTexture]->Transition(batch, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -524,6 +520,7 @@ void ExampleLayer::LoadAssets()
 		{
 			HZ_PROFILE_SCOPE("Cube Texture");
 			Hazel::D3D12Texture2D::TextureCreationOptions opts;
+			opts.Flags = D3D12_RESOURCE_FLAG_NONE;
 			opts.Path = L"assets/textures/Cube_Texture.dds";
 
 			m_Textures[Textures::CubeTexture] = Hazel::D3D12Texture2D::CreateCommittedTexture(batch, opts);
@@ -533,6 +530,7 @@ void ExampleLayer::LoadAssets()
 		{
 			HZ_PROFILE_SCOPE("Triangle Texture");
 			Hazel::D3D12Texture2D::TextureCreationOptions opts;
+			opts.Flags = D3D12_RESOURCE_FLAG_NONE;
 			opts.Path = L"assets/textures/test_texture.dds";
 			m_Textures[Textures::TriangleTexture] = Hazel::D3D12Texture2D::CreateCommittedTexture(batch, opts);
 			m_Textures[Textures::TriangleTexture]->Transition(batch, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -541,6 +539,7 @@ void ExampleLayer::LoadAssets()
 		{
 			HZ_PROFILE_SCOPE("Mip Debug Texture");
 			Hazel::D3D12Texture2D::TextureCreationOptions opts;
+			opts.Flags = D3D12_RESOURCE_FLAG_NONE;
 			opts.Path = L"assets/textures/mips_debug.dds";
 			m_Textures[Textures::MipDebug] = Hazel::D3D12Texture2D::CreateCommittedTexture(batch, opts);
 			m_Textures[Textures::MipDebug]->Transition(batch, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);

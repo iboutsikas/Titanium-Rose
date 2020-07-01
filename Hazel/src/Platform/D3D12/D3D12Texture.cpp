@@ -18,7 +18,7 @@ namespace Hazel {
 	{
 	}
 	
-	void D3D12Texture2D::SetData(D3D12ResourceUploadBatch& batch, void* data, uint32_t size)
+	void D3D12Texture2D::SetData(D3D12ResourceBatch& batch, void* data, uint32_t size)
 	{
 		D3D12_SUBRESOURCE_DATA subresourceData = {};
 		subresourceData.pData = data;
@@ -28,7 +28,7 @@ namespace Hazel {
 		batch.Upload(m_Resource.Get(), 0, &subresourceData, 1);
 	}
 
-	void D3D12Texture2D::Transition(D3D12ResourceUploadBatch& batch, D3D12_RESOURCE_STATES from, D3D12_RESOURCE_STATES to)
+	void D3D12Texture2D::Transition(D3D12ResourceBatch& batch, D3D12_RESOURCE_STATES from, D3D12_RESOURCE_STATES to)
 	{
 		batch.GetCommandList()->ResourceBarrier(1,
 			&CD3DX12_RESOURCE_BARRIER::Transition(
@@ -40,7 +40,7 @@ namespace Hazel {
 		m_CurrentState = to;
 	}
 
-	void D3D12Texture2D::Transition(D3D12ResourceUploadBatch& batch, D3D12_RESOURCE_STATES to)
+	void D3D12Texture2D::Transition(D3D12ResourceBatch& batch, D3D12_RESOURCE_STATES to)
 	{
 		if (to == m_CurrentState)
 			return;
@@ -66,7 +66,7 @@ namespace Hazel {
 		this->Transition(commandList, m_CurrentState, to);
 	}
 	
-	Ref<D3D12Texture2D> D3D12Texture2D::CreateVirtualTexture(D3D12ResourceUploadBatch& batch, TextureCreationOptions& opts)
+	Ref<D3D12Texture2D> D3D12Texture2D::CreateVirtualTexture(D3D12ResourceBatch& batch, TextureCreationOptions& opts)
 	{
 		if (!opts.Path.empty() && opts.Name.empty())
 		{
@@ -128,7 +128,7 @@ namespace Hazel {
 		return ret;
 	}
 
-	Ref<D3D12Texture2D> D3D12Texture2D::CreateCommittedTexture(D3D12ResourceUploadBatch& batch, TextureCreationOptions& opts)
+	Ref<D3D12Texture2D> D3D12Texture2D::CreateCommittedTexture(D3D12ResourceBatch& batch, TextureCreationOptions& opts)
 	{
 		Ref<D3D12Texture2D> ret = nullptr;
 
@@ -196,7 +196,7 @@ namespace Hazel {
 		return ret;
 	}
 
-	Ref<D3D12FeedbackMap> D3D12Texture2D::CreateFeedbackMap(D3D12ResourceUploadBatch& batch, Ref<D3D12Texture2D> texture)
+	Ref<D3D12FeedbackMap> D3D12Texture2D::CreateFeedbackMap(D3D12ResourceBatch& batch, Ref<D3D12Texture2D> texture)
 	{
 		auto resource = texture->GetResource();
 		auto desc = resource->GetDesc();

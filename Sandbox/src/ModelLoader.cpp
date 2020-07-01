@@ -8,7 +8,7 @@
 #include "assimp/Vertex.h"
 #include "Vertex.h"
 
-void processNode(aiNode* node, const aiScene* scene, Hazel::Ref<Hazel::GameObject>& target, Hazel::D3D12ResourceUploadBatch& batch)
+void processNode(aiNode* node, const aiScene* scene, Hazel::Ref<Hazel::GameObject>& target, Hazel::D3D12ResourceBatch& batch)
 {
 	aiVector3D translation;
 	aiVector3D scale;
@@ -120,7 +120,7 @@ void processNode(aiNode* node, const aiScene* scene, Hazel::Ref<Hazel::GameObjec
 	}
 }
 
-Hazel::Ref<Hazel::GameObject> ModelLoader::LoadFromFile(std::string& filepath, Hazel::D3D12ResourceUploadBatch& batch, bool swapHandedness)
+Hazel::Ref<Hazel::GameObject> ModelLoader::LoadFromFile(std::string& filepath, Hazel::D3D12ResourceBatch& batch, bool swapHandedness)
 {
 	Hazel::Ref<Hazel::GameObject> rootGO = Hazel::CreateRef<Hazel::GameObject>();
 
