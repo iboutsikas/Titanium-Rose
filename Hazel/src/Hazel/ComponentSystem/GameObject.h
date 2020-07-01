@@ -2,6 +2,7 @@
 
 #include "Hazel/ComponentSystem/Transform.h"
 #include "Hazel/Core/Core.h"
+#include "Hazel/Renderer/Material.h"
 
 #include "Platform/D3D12/D3D12Buffer.h"
 #include "Platform/D3D12/D3D12Texture.h"
@@ -20,17 +21,9 @@ namespace Hazel {
 		Hazel::Ref<Hazel::D3D12IndexBuffer> indexBuffer;
 		glm::vec3 maxTangent;
 		glm::vec3 maxBitangent;
-#ifdef HZ_DEBUG
-		std::vector<Vertex> vertices;
-#endif
-	};
 
-	struct HMaterial {
-		float Glossines;
-		glm::vec4 Color;
-		uint32_t cbIndex;
-		Hazel::Ref<Hazel::D3D12Texture2D> DiffuseTexture;
-		Hazel::Ref<Hazel::D3D12Texture2D> NormalMap;
+		std::vector<Vertex> vertices;
+		std::vector<uint32_t> indices;
 	};
 
 	class GameObject

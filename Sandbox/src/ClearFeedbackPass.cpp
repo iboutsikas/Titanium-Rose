@@ -53,10 +53,11 @@ void ClearFeedbackPass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject* sce
 	for (size_t i = 0; i < PassInputCount; i++)
 	{
 		auto feedback = m_Inputs[i]->GetFeedbackMap();
-		auto resource = feedback->GetResource();
+		ID3D12Resource* resource = nullptr;  
 		glm::ivec3 dims = glm::ivec3(1, 1, 1);
-		if (resource != nullptr)
+		if (feedback != nullptr)
 		{
+			resource = feedback->GetResource();
 			auto desc = resource->GetDesc();
 			dims = feedback->GetDimensions();
 		}

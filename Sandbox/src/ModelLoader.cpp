@@ -8,7 +8,7 @@
 #include "assimp/Vertex.h"
 #include "Vertex.h"
 
-void processNode(aiNode* node, const aiScene* scene, Hazel::Ref<Hazel::GameObject>& target)
+void processNode(aiNode* node, const aiScene* scene, Hazel::Ref<Hazel::GameObject>& target, Hazel::D3D12ResourceUploadBatch& batch)
 {
 	aiVector3D translation;
 	aiVector3D scale;
@@ -87,10 +87,10 @@ void processNode(aiNode* node, const aiScene* scene, Hazel::Ref<Hazel::GameObjec
 #pragma endregion
 		}
 		
-		hmesh->vertexBuffer = Hazel::CreateRef<Hazel::D3D12VertexBuffer>((float*)vertices.data(), vertices.size() * sizeof(Vertex));
+		hmesh->vertexBuffer = Hazel::CreateRef<Hazel::D3D12VertexBuffer>(batch, (float*)vertices.data(), vertices.size() * sizeof(Vertex));
 		hmesh->vertexBuffer->GetResource()->SetName(L"Vertex buffer");
 		
-		hmesh->indexBuffer = Hazel::CreateRef<Hazel::D3D12IndexBuffer>(indices.data(), indices.size());
+		hmesh->indexBuffer = Hazel::CreateRef<Hazel::D3D12IndexBuffer>(batch, indices.data(), indices.size());
 		hmesh->indexBuffer->GetResource()->SetName(L"Index buffer");
 
 		hmesh->vertices = vertices;
@@ -116,11 +116,11 @@ void processNode(aiNode* node, const aiScene* scene, Hazel::Ref<Hazel::GameObjec
 		auto childGO = Hazel::CreateRef<Hazel::GameObject>();
 		target->AddChild(childGO);
 
-		processNode(child, scene, childGO);
+		processNode(child, scene, childGO, batch);
 	}
 }
 
-Hazel::Ref<Hazel::GameObject> ModelLoader::LoadFromFile(std::string& filepath, bool swapHandedness)
+Hazel::Ref<Hazel::GameObject> ModelLoader::LoadFromFile(std::string& filepath, Hazel::D3D12ResourceUploadBatch& batch, bool swapHandedness)
 {
 	Hazel::Ref<Hazel::GameObject> rootGO = Hazel::CreateRef<Hazel::GameObject>();
 
@@ -143,10 +143,10 @@ Hazel::Ref<Hazel::GameObject> ModelLoader::LoadFromFile(std::string& filepath, b
 	}
 	
 	if (scene->mRootNode->mNumMeshes == 0) {
-		processNode(scene->mRootNode->mChildren[0], scene, rootGO);
+		processNode(scene->mRootNode->mChildren[0], scene, rootGO, batch);
 	}
 	else {
-		processNode(scene->mRootNode, scene, rootGO);
+		processNode(scene->mRootNode, scene, rootGO, batch);
 	}
 
 

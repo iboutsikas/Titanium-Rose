@@ -30,16 +30,17 @@ MipMapPass::MipMapPass(Hazel::D3D12Context* ctx)
 void MipMapPass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject* sceneRoot, Hazel::PerspectiveCamera& camera)
 {
 	auto cmdList = ctx->DeviceResources->CommandList;
+	auto device = ctx->DeviceResources->Device;
 
 	PIXScopedEvent(cmdList.Get(), PIX_COLOR(1, 0, 1), "Mips Pass");
 
 	{
 		auto resource = m_Inputs[0];
-		auto srcDesc = resource->GetCommitedResource()->GetDesc();
+		auto srcDesc = resource->GetResource()->GetDesc();
 		uint32_t remainingMips = (srcDesc.MipLevels > PassData.SourceLevel) ?
 			srcDesc.MipLevels - PassData.SourceLevel - 1 :
 			srcDesc.MipLevels - 1;
-		resource->Transition(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		resource->Transition(cmdList.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
 		cmdList->SetComputeRootSignature(m_Shader->GetRootSignature());
 		cmdList->SetPipelineState(m_Shader->GetPipelineState());
@@ -52,22 +53,40 @@ void MipMapPass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject* sceneRoot,
 			ctx->GetSRVDescriptorSize()
 		);
 
+		//D3D12_SHADER_RESOURCE_VIEW_DESC srcViewDesc;
+		//srcViewDesc.Format = srcDesc.Format;
+		//srcViewDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		//srcViewDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		//srcViewDesc.Texture2D.MostDetailedMip = PassData.SourceLevel;
+		//srcViewDesc.Texture2D.MipLevels = -1;
+		//srcViewDesc.Texture2D.PlaneSlice = 0;
+
+
+		//device->CreateShaderResourceView(
+		//	resource->GetResource(),
+		//	&srcViewDesc,
+		//	handle
+		//);
+
+		//handle.Offset(1, m_Context->GetSRVDescriptorSize());
+
 		// Looped
+		uint32_t uavOffset = 1;
 		for (uint32_t srcMip = PassData.SourceLevel; srcMip < srcDesc.MipLevels - 1; )
 		{
-			uint64_t srcWidth = srcDesc.Width >> srcMip;
-			uint32_t srcHeight = srcDesc.Height >> srcMip;
-			uint32_t dstWidth = static_cast<uint32_t>(srcWidth >> 1);
-			uint32_t dstHeight = srcHeight >> 1;
+			uint64_t srcWidth	= srcDesc.Width >> srcMip;
+			uint32_t srcHeight	= srcDesc.Height >> srcMip;
+			uint32_t dstWidth	= static_cast<uint32_t>(srcWidth >> 1);
+			uint32_t dstHeight	= static_cast<uint32_t>(srcHeight >> 1);
 
-			uint32_t mipCount = std::min(MipsPerIteration, remainingMips);
+			uint32_t mipCount = min(MipsPerIteration, remainingMips);
 			mipCount = (srcMip + mipCount) >= srcDesc.MipLevels ? srcDesc.MipLevels - srcMip - 1 : mipCount;
 			dstWidth = std::max<DWORD>(1, dstWidth);
 			dstHeight = std::max<DWORD>(1, dstHeight);
 
 			PassData.SourceLevel = srcMip;
 			PassData.Levels = mipCount;
-			PassData.TexelSize = glm::vec4({srcWidth, srcHeight, 1.0f / (float) dstWidth, 1.0f / (float)dstHeight });
+			PassData.TexelSize = glm::vec4({srcWidth, srcHeight, 1.0f / (float)dstWidth, 1.0f / (float)dstHeight});
 
 			cmdList->SetComputeRoot32BitConstants(0, sizeof(PassData) / sizeof(uint32_t), &PassData, 0);
 			// First descriptor is the src texture. We are not touching that one
@@ -81,7 +100,7 @@ void MipMapPass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject* sceneRoot,
 				uavDesc.Texture2D.MipSlice = srcMip + mip + 1;
 
 				ctx->DeviceResources->Device->CreateUnorderedAccessView(
-					resource->GetCommitedResource(),
+					resource->GetResource(),
 					nullptr,
 					&uavDesc,
 					handle
@@ -94,31 +113,35 @@ void MipMapPass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject* sceneRoot,
 				for (uint32_t mip = mipCount; mip < MipsPerIteration; mip++)
 				{
 					D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+					uavDesc.Format = srcDesc.Format;
+					uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+					uavDesc.Texture2D.MipSlice = 0;
 					ctx->DeviceResources->Device->CreateUnorderedAccessView(
 						nullptr,
 						nullptr,
 						&uavDesc,
 						handle
 					);
-					handle.Offset(1, ctx->GetSRVDescriptorSize());
+				handle.Offset(1, ctx->GetSRVDescriptorSize());
 				}
 			}
 
 			cmdList->SetComputeRootDescriptorTable(1, m_SRVHeap->GetGPUDescriptorHandleForHeapStart());
 			auto uavHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(
 				m_SRVHeap->GetGPUDescriptorHandleForHeapStart(),
-				srcMip + 1,
+				uavOffset,
 				m_Context->GetSRVDescriptorSize()
 			);
 
 			cmdList->SetComputeRootDescriptorTable(2, uavHandle);
 
-			auto x_count = (dstWidth + 8 - 1) / 8;
-			auto y_count = (dstHeight + 8 - 1) / 8;
+			auto x_count = Hazel::D3D12::RoundToMultiple(dstWidth, 8);
+			auto y_count = Hazel::D3D12::RoundToMultiple(dstHeight, 8);
 
 			cmdList->Dispatch(x_count, y_count, 1);
-			cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::UAV(resource->GetCommitedResource()));
+			cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::UAV(resource->GetResource()));
 			srcMip += mipCount;
+			uavOffset += mipCount;
 		}
 		
 	}

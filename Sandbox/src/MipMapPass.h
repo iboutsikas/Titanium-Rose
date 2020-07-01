@@ -6,9 +6,10 @@ class MipMapPass: public Hazel::D3D12RenderPass<1, 1>
 {
 public:
 	struct alignas(16) HPassData {
+		glm::vec4	TexelSize;
 		uint32_t	SourceLevel;
 		uint32_t	Levels;
-		glm::vec4	TexelSize;
+		uint64_t    __padding;
 	};
 	
 	MipMapPass(Hazel::D3D12Context* ctx);

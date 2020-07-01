@@ -8,13 +8,13 @@
 
 #include "d3d12.h"
 #include "Platform/D3D12/d3dx12.h"
-#include "Platform/D3D12/D3D12Helpers.h"
+#include "Platform/D3D12/ComPtr.h"
 #include "Platform/D3D12/D3D12Buffer.h"
 #include "Platform/D3D12/D3D12Context.h"
+#include "Platform/D3D12/D3D12Helpers.h"
 #include "Platform/D3D12/D3D12Shader.h"
-#include "Platform/D3D12/ComPtr.h"
 #include "Platform/D3D12/D3D12Texture.h"
-
+#include "Platform/D3D12/D3D12TilePool.h"
 
 #include <glm/vec3.hpp>
 #include <glm/mat4x4.hpp>
@@ -54,6 +54,7 @@ private:
 	Hazel::PerspectiveCameraController m_CameraController;
 	//Hazel::OrthographicCameraController m_CameraController;
 	Hazel::D3D12Context* m_Context;
+	Hazel::Ref<Hazel::D3D12TilePool> m_TilePool;
 
 	enum Models {
 		CubeModel,
@@ -83,12 +84,14 @@ private:
 	// Textures
 	enum Textures {
 		DeferredTexture,
-		DiffuseTexture,
+		VirtualTexture,
+		EarthTexture,
 		NormalTexture,
 		FeedbackTexture,
 		CubeTexture,
 		TriangleTexture,
 		WhiteTexture,
+		MipDebug,
 		CountTexure
 	};
 	std::vector<Hazel::Ref<Hazel::D3D12Texture2D>> m_Textures;
@@ -103,6 +106,5 @@ private:
 
 	void LoadAssets();
 	void BuildPipeline();
-	void LoadTextures();
 };
 

@@ -78,7 +78,7 @@ void DeferredTexturePass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject* s
 		m_Context->GetRTVDescriptorSize()
 	);
 
-	auto desc = target->GetCommitedResource()->GetDesc();
+	auto desc = target->GetResource()->GetDesc();
 	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc;
 	rtvDesc.Format = desc.Format;
 	rtvDesc.Texture2D.MipSlice = PassData.FinestMip;
@@ -86,7 +86,7 @@ void DeferredTexturePass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject* s
 	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION::D3D12_RTV_DIMENSION_TEXTURE2D;
 
 	m_Context->DeviceResources->Device->CreateRenderTargetView(
-		target->GetCommitedResource(),
+		target->GetResource(),
 		&rtvDesc,
 		rtvHandle
 	);
@@ -116,7 +116,7 @@ void DeferredTexturePass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject* s
 	cmdList->SetGraphicsRootConstantBufferView(PassCBIndex, m_PassCB->Resource()->GetGPUVirtualAddress());
 	cmdList->SetGraphicsRootConstantBufferView(PerObjectCBIndex, m_PerObjectCB->Resource()->GetGPUVirtualAddress());
 	cmdList->SetGraphicsRootDescriptorTable(SRVIndex, m_SRVHeap->GetGPUDescriptorHandleForHeapStart());
-	target->Transition(D3D12_RESOURCE_STATE_RENDER_TARGET);
+	target->Transition(cmdList.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
 
 	auto rtv = m_RTVHeap->GetCPUDescriptorHandleForHeapStart();
 
@@ -134,7 +134,7 @@ void DeferredTexturePass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject* s
 	cmdList->DrawIndexedInstanced(mesh->indexBuffer->GetCount(), 1, 0, 0, 0);
 
 	// We transition back to shader resource
-	target->Transition(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	target->Transition(cmdList.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void DeferredTexturePass::SetOutput(uint32_t index, Hazel::Ref<Hazel::D3D12Texture2D> output)
@@ -148,7 +148,7 @@ void DeferredTexturePass::SetOutput(uint32_t index, Hazel::Ref<Hazel::D3D12Textu
 	);
 
 	m_Context->DeviceResources->Device->CreateRenderTargetView(
-		output->GetCommitedResource(),
+		output->GetResource(),
 		nullptr,
 		rtvHandle		
 	);

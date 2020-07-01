@@ -28,12 +28,13 @@
 
 #define TEXTURE_WIDTH 4096.0f
 #define TEXTURE_HEIGHT 2048.0f
+#define USE_VIRTUAL_TEXTURE 1
 
 static bool use_rendered_texture = true;
 static bool show_rendered_texture = false;
 static bool show_mip_tiles = false;
 static bool render_normals = false;
-//extern template class Hazel::D3D12UploadBuffer<PassData>;
+static bool visualize_tiles = false;
 
 static D3D12_INPUT_ELEMENT_DESC inputLayout[] = {
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(Vertex, Position), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
@@ -80,12 +81,12 @@ ExampleLayer::ExampleLayer()
 	m_RotateCube(false)
 {	
 	m_Context = static_cast<Hazel::D3D12Context*>(Hazel::Application::Get().GetWindow().GetContext());
+	m_TilePool = Hazel::CreateRef<Hazel::D3D12TilePool>();
 
 	m_Models.resize(Models::CountModel);
 	m_Textures.resize(Textures::CountTexure);
 
 	LoadAssets();
-	LoadTextures();
 	BuildPipeline();
 
 	// Scene Root
@@ -100,8 +101,12 @@ ExampleLayer::ExampleLayer()
 	m_MainObject->Mesh = m_Models[Models::SphereModel]->Mesh;
 	m_MainObject->Material = Hazel::CreateRef<Hazel::HMaterial>();
 	m_MainObject->Material->Glossines = 32.0f;
+#if USE_VIRTUAL_TEXTURE
+	m_MainObject->Material->AlbedoTexture = m_Textures[Textures::VirtualTexture];
+#else
 	m_MainObject->Material->DiffuseTexture = m_Textures[Textures::DeferredTexture];
-	m_MainObject->Material->NormalMap = m_Textures[Textures::NormalTexture];
+#endif
+	m_MainObject->Material->NormalTexture = m_Textures[Textures::NormalTexture];
 	m_MainObject->Material->Color = glm::vec4(1.0f);
 	m_SceneGO->AddChild(m_MainObject);
 	// Cube #2
@@ -111,7 +116,7 @@ ExampleLayer::ExampleLayer()
 	m_SecondaryObject->Mesh = m_Models[Models::TriangleModel]->Mesh;
 	m_SecondaryObject->Material = Hazel::CreateRef<Hazel::HMaterial>();
 	m_SecondaryObject->Material->Glossines = 2.0f;
-	m_SecondaryObject->Material->DiffuseTexture = m_Textures[Textures::TriangleTexture];
+	m_SecondaryObject->Material->AlbedoTexture = m_Textures[Textures::TriangleTexture];
 	m_SecondaryObject->Material->Color = glm::vec4(1.0f);
 	m_MainObject->AddChild(m_SecondaryObject);
 
@@ -122,27 +127,42 @@ ExampleLayer::ExampleLayer()
 	m_PositionalLightGO->Transform.SetPosition({ 1.0, 8.0, 8.0 });
 	m_PositionalLightGO->Material = Hazel::CreateRef<Hazel::HMaterial>();
 	m_PositionalLightGO->Material->Glossines = 2.0f;
-	m_PositionalLightGO->Material->DiffuseTexture = m_Textures[Textures::WhiteTexture];
+	m_PositionalLightGO->Material->AlbedoTexture = m_Textures[Textures::WhiteTexture];
 	m_PositionalLightGO->Material->Color = glm::vec4({ 1.0f, 1.0f, 1.0f, 1.0f });
 	m_PositionalLightGO->Transform.SetScale({ 0.3f,0.3, 0.3f });
 	m_SceneGO->AddChild(m_PositionalLightGO);
 
+#if USE_VIRTUAL_TEXTURE
+	m_DeferredTexturePass->SetOutput(0, m_Textures[Textures::VirtualTexture]);
+#else
 	m_DeferredTexturePass->SetOutput(0, m_Textures[Textures::DeferredTexture]);
-	m_DeferredTexturePass->SetInput(0, m_Textures[Textures::DiffuseTexture]);
+#endif
+	m_DeferredTexturePass->SetInput(0, m_Textures[Textures::EarthTexture]);
 	m_DeferredTexturePass->SetInput(1, m_Textures[Textures::NormalTexture]);
 
+#if USE_VIRTUAL_TEXTURE
+	m_BaseColorPass->SetInput(0, m_Textures[Textures::VirtualTexture]);
+#else
 	m_BaseColorPass->SetInput(0, m_Textures[Textures::DeferredTexture]);
-	m_BaseColorPass->SetInput(1, m_Textures[Textures::DiffuseTexture]);
+#endif
+	m_BaseColorPass->SetInput(1, m_Textures[Textures::EarthTexture]);
 	m_BaseColorPass->SetInput(2, m_Textures[Textures::CubeTexture]);
 	m_BaseColorPass->SetInput(3, m_Textures[Textures::WhiteTexture]);
 	m_BaseColorPass->SetInput(4, m_Textures[Textures::TriangleTexture]);
 	m_BaseColorPass->ClearColor = glm::vec4({ 0.0f, 0.0f, 0.0f, 1.0f });
 
-
+#if USE_VIRTUAL_TEXTURE
+	m_MipsPass->SetInput(0, m_Textures[Textures::VirtualTexture]);
+#else
 	m_MipsPass->SetInput(0, m_Textures[Textures::DeferredTexture]);
+#endif
 
+#if USE_VIRTUAL_TEXTURE
+	m_ClearUAVPass->SetInput(0, m_Textures[Textures::VirtualTexture]);
+#else
 	m_ClearUAVPass->SetInput(0, m_Textures[Textures::DeferredTexture]);
-	m_ClearUAVPass->SetInput(1, m_Textures[Textures::DiffuseTexture]);
+#endif
+	m_ClearUAVPass->SetInput(1, m_Textures[Textures::EarthTexture]);
 	m_ClearUAVPass->SetInput(2, m_Textures[Textures::CubeTexture]);
 	m_ClearUAVPass->SetInput(3, m_Textures[Textures::WhiteTexture]);
 	m_ClearUAVPass->SetInput(4, m_Textures[Textures::TriangleTexture]);
@@ -163,6 +183,7 @@ void ExampleLayer::OnUpdate(Hazel::Timestep ts)
 {
 	HZ_PROFILE_FUNCTION();
 	m_CameraController.OnUpdate(ts);
+	//HZ_CORE_INFO("New Frame");
 
 	{
 		HZ_PROFILE_SCOPE("Game Object update");
@@ -174,10 +195,14 @@ void ExampleLayer::OnUpdate(Hazel::Timestep ts)
 		}
 
 		if (use_rendered_texture) {
+#if USE_VIRTUAL_TEXTURE
+			m_MainObject->Material->AlbedoTexture = m_Textures[Textures::VirtualTexture];
+#else
 			m_MainObject->Material->DiffuseTexture = m_Textures[Textures::DeferredTexture];
+#endif
 		}
 		else {
-			m_MainObject->Material->DiffuseTexture = m_Textures[Textures::DiffuseTexture];
+			m_MainObject->Material->AlbedoTexture = m_Textures[Textures::EarthTexture];
 		}
 	}
 
@@ -187,19 +212,35 @@ void ExampleLayer::OnUpdate(Hazel::Timestep ts)
 #if 1
 	if (m_RenderedFrames >= m_UpdateRate) {
 		m_RenderedFrames = 0;
+		//HZ_CORE_INFO("New Deferred Frame");
 
+		auto tex = m_MainObject->Material->AlbedoTexture;
 		{
 			HZ_PROFILE_SCOPE("Readback update");
 			
-			auto tex = m_Textures[Textures::DeferredTexture];
 			auto feedback = tex->GetFeedbackMap();
 			Hazel::D3D12ResourceUploadBatch batch(device);
-			auto cmd = batch.Begin(D3D12_COMMAND_LIST_TYPE_COPY);
+			auto cmd = batch.Begin();
 			feedback->Readback(device.Get(), cmd.Get());
 			batch.End(m_Context->DeviceResources->CommandQueue.Get()).wait();
 		}
 
-		auto [fine, coarse] = extractMipLevels(m_Textures[Textures::DeferredTexture]);
+		auto mips = tex->ExtractMipsUsed();
+		uint32_t fine = mips.FinestMip;
+
+		if (fine >= tex->GetMipLevels())
+		{
+			fine = tex->GetMipLevels() - 1;
+		}
+
+#if USE_VIRTUAL_TEXTURE
+		{
+			Hazel::D3D12ResourceUploadBatch batch(device);
+			auto cmd = batch.Begin();
+			m_TilePool->MapTexture(batch, tex, m_Context->DeviceResources->CommandQueue);
+			batch.End(m_Context->DeviceResources->CommandQueue.Get()).wait();
+		}
+#endif
 
 		{
 			HZ_PROFILE_SCOPE("Deferred Texture");
@@ -237,6 +278,7 @@ void ExampleLayer::OnImGuiRender()
 	static int diffuse_dim[] = { 512, 512 };
 
 	ImGui::ShowMetricsWindow();
+#if 1
 	ImGui::Begin("Controls");
 	ImGui::ColorEdit4("Clear Color", &m_BaseColorPass->ClearColor.x);
 
@@ -287,8 +329,9 @@ void ExampleLayer::OnImGuiRender()
 	if (ImGui::CollapsingHeader("Rendered Texture")) {
 		ImGui::InputInt("Texture update rate (frames)", &m_UpdateRate);
 		ImGui::Checkbox("Use rendered texture", &use_rendered_texture);
-		ImGui::Checkbox("Show rendered textre", &show_rendered_texture);
+		//ImGui::Checkbox("Show rendered textre", &show_rendered_texture);
 		ImGui::Checkbox("Show mip tiles", &show_mip_tiles);
+		//ImGui::Checkbox("Show tile visualization", &visualize_tiles);
 	}
 
 
@@ -324,17 +367,12 @@ void ExampleLayer::OnImGuiRender()
 	}
 	ImGui::End();
 
-	if (show_rendered_texture) {
-		ImGui::Begin("Texture View", &show_rendered_texture);
-		ImGui::Image((ImTextureID)m_TextureGPUHandle.ptr, ImVec2(1024, 512));
-		ImGui::End();
-	}
-
 	if (show_mip_tiles) {
 		ImGui::Begin("Mip levels used", &show_mip_tiles);
 
-		auto [finest_mip, coarsest_mip ] = extractMipLevels(m_Textures[Textures::DeferredTexture]);
-		auto tex = m_Textures[Textures::DeferredTexture];
+		auto tex = m_MainObject->Material->AlbedoTexture;
+
+		auto [finest_mip, coarsest_mip ] = extractMipLevels(tex);
 		auto feedback = tex->GetFeedbackMap();
 		auto dims = feedback->GetDimensions();
 		
@@ -357,6 +395,8 @@ void ExampleLayer::OnImGuiRender()
 					ImGui::PushStyleColor(ImGuiCol_Text, (ImVec4)ImColor::ImColor(255, 255, 255));
 				}
 
+				auto index = y * dims.x + x;
+
 				auto label = std::to_string(mip);
 				ImGui::Button(label.c_str(), ImVec2(40, 40));
 				ImGui::SameLine();
@@ -373,21 +413,7 @@ void ExampleLayer::OnImGuiRender()
 		ImGui::End();
 	}
 
-	if (show_diffuse) {
-		CD3DX12_GPU_DESCRIPTOR_HANDLE handle(
-			m_Context->DeviceResources->SRVDescriptorHeap->GetGPUDescriptorHandleForHeapStart(),
-			2,
-			m_Context->GetSRVDescriptorSize()
-		);
-
-		ImGui::Begin("Diffuse Texture", &show_diffuse);
-		ImGui::Image(
-			(ImTextureID)handle.ptr,
-			/*ImVec2(m_DiffuseTexture->GetWidth(), m_DiffuseTexture->GetHeight())*/
-			ImVec2(diffuse_dim[0], diffuse_dim[1])
-		);
-		ImGui::End();
-	}
+#endif
 }
 
 void ExampleLayer::OnEvent(Hazel::Event& e)
@@ -395,91 +421,131 @@ void ExampleLayer::OnEvent(Hazel::Event& e)
 	m_CameraController.OnEvent(e);
 }
 
-void ExampleLayer::LoadTextures()
-{
-	// Create the deferred texture and its views
-	{
-		auto width = TEXTURE_WIDTH; // Hazel::Application::Get().GetWindow().GetWidth();
-		auto height = TEXTURE_HEIGHT; // Hazel::Application::Get().GetWindow().GetHeight();
-
-		m_Textures[Textures::DeferredTexture] = Hazel::CreateRef<Hazel::D3D12Texture2D>(width, height, 13);
-		auto tex = m_Textures[Textures::DeferredTexture];
-
-		CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(
-			m_Context->DeviceResources->SRVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
-			1,
-			m_Context->GetSRVDescriptorSize()
-		);
-		tex->GetCommitedResource()->SetName(L"Deferred Texture");
-
-		m_Context->DeviceResources->Device->CreateShaderResourceView(tex->GetCommitedResource(), nullptr, srvHandle);
-
-		m_TextureGPUHandle.InitOffsetted(
-			m_Context->DeviceResources->SRVDescriptorHeap->GetGPUDescriptorHandleForHeapStart(),
-			1,
-			m_Context->GetSRVDescriptorSize()
-		);
-
-		tex->CreateFeedbackResource(128, 128);
-	}
-
-	//Diffuse Texture
-	{
-		CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(
-			m_Context->DeviceResources->SRVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
-			2,
-			m_Context->GetSRVDescriptorSize()
-		);
-
-		m_Context->DeviceResources->Device->CreateShaderResourceView(m_Textures[Textures::DiffuseTexture]->GetCommitedResource(), nullptr, srvHandle);
-	}
-}
-
 void ExampleLayer::LoadAssets()
 {
 	// Geometry Buffers and Texture Resource
 	{
-		//m_Context->DeviceResources->CommandAllocator->Reset();
-		//m_Context->DeviceResources->CommandList->Reset(
-		//	m_Context->DeviceResources->CommandAllocator.Get(),
-		//	nullptr
-		//);
-
-
-		m_Models[Models::CubeModel] = ModelLoader::LoadFromFile(std::string("assets/models/test_cube.glb"));
-		m_Models[Models::SphereModel] = ModelLoader::LoadFromFile(std::string("assets/models/test_sphere.glb"));
-		m_Models[Models::TriangleModel] = ModelLoader::LoadFromFile(std::string("assets/models/test_triangle.glb"));
-		
 		Hazel::D3D12ResourceUploadBatch batch(m_Context->DeviceResources->Device);
 		auto cmdlist = batch.Begin();
+
+		m_Models[Models::CubeModel] = ModelLoader::LoadFromFile(std::string("assets/models/test_cube.glb"), batch);
+		m_Models[Models::SphereModel] = ModelLoader::LoadFromFile(std::string("assets/models/test_sphere.glb"), batch);
+		m_Models[Models::TriangleModel] = ModelLoader::LoadFromFile(std::string("assets/models/test_triangle.glb"), batch);
 		
-		m_Textures[Textures::DiffuseTexture] = Hazel::CreateRef<Hazel::D3D12Texture2D>("assets/textures/earth.dds", cmdlist.Get());
-		m_Textures[Textures::DiffuseTexture]->CreateFeedbackResource(128, 64);
-		m_Textures[Textures::DiffuseTexture]->Transition(cmdlist.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-		/*std::wstring name = L"Diffuse";
-		m_DiffuseTexture->DebugNameResource(name);*/
+		{
+			HZ_PROFILE_SCOPE("Deferred Texture");
+			Hazel::D3D12Texture2D::TextureCreationOptions opts;
+			opts.Name = L"Deferred Texture";
+			opts.Width = TEXTURE_WIDTH;
+			opts.Height = TEXTURE_HEIGHT;
+			opts.MipLevels = 13;
+			opts.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET
+				| D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS
+				| D3D12_RESOURCE_FLAG_ALLOW_SIMULTANEOUS_ACCESS;
 
-		m_Textures[Textures::NormalTexture] = Hazel::CreateRef<Hazel::D3D12Texture2D>("assets/textures/earth_normal.dds", cmdlist.Get());
-		m_Textures[Textures::NormalTexture]->Transition(cmdlist.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-		/*name = L"Normal Map";
-		m_NormalTexture->DebugNameResource(name);*/
+			m_Textures[Textures::DeferredTexture] = Hazel::D3D12Texture2D::CreateCommittedTexture(batch, opts);
+			auto tex = m_Textures[Textures::DeferredTexture];
+			auto fb = Hazel::D3D12Texture2D::CreateFeedbackMap(batch, tex);
+			tex->SetFeedbackMap(fb);
 
-		m_Textures[Textures::WhiteTexture] = Hazel::CreateRef<Hazel::D3D12Texture2D>(1, 1);
-		uint8_t white[] = { 255, 255, 255, 255 };
-		m_Textures[Textures::WhiteTexture]->Transition(cmdlist.Get(), D3D12_RESOURCE_STATE_COPY_DEST);
-		m_Textures[Textures::WhiteTexture]->SetData(cmdlist.Get(), white, sizeof(white));
-		m_Textures[Textures::WhiteTexture]->Transition(cmdlist.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-		std::wstring name2 = L"White Texture";
-		m_Textures[Textures::WhiteTexture]->DebugNameResource(name2);
+			// We need the following handles so ImGui can show this texture
+			CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(
+				m_Context->DeviceResources->SRVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
+				1,
+				m_Context->GetSRVDescriptorSize()
+			);
 
-		m_Textures[Textures::CubeTexture] = Hazel::CreateRef<Hazel::D3D12Texture2D>("assets/textures/Cube_Texture.dds", cmdlist.Get());
-		m_Textures[Textures::CubeTexture]->Transition(cmdlist.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-		/*name = L"Cube Texture";
-		m_CubeTexture->DebugNameResource(name);*/
+			m_Context->DeviceResources
+				->Device
+				->CreateShaderResourceView(tex->GetResource(), nullptr, srvHandle);
 
-		m_Textures[Textures::TriangleTexture] = Hazel::CreateRef<Hazel::D3D12Texture2D>("assets/textures/test_texture.dds", cmdlist.Get());
-		m_Textures[Textures::TriangleTexture]->Transition(cmdlist.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+			m_TextureGPUHandle.InitOffsetted(
+				m_Context->DeviceResources->SRVDescriptorHeap->GetGPUDescriptorHandleForHeapStart(),
+				1,
+				m_Context->GetSRVDescriptorSize()
+			);
+		}
+		
+		{
+			HZ_PROFILE_SCOPE("Earth Texture");
+			Hazel::D3D12Texture2D::TextureCreationOptions opts;
+			opts.Path = L"assets/textures/earth.dds";
+			m_Textures[Textures::EarthTexture] = Hazel::D3D12Texture2D::CreateCommittedTexture(batch, opts);
+			m_Textures[Textures::EarthTexture]->Transition(batch, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+			
+			// We need this handle so ImGui can display this
+			CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(
+				m_Context->DeviceResources->SRVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
+				2,
+				m_Context->GetSRVDescriptorSize()
+			);
 
+			m_Context->DeviceResources->Device->CreateShaderResourceView(m_Textures[Textures::EarthTexture]->GetResource(), nullptr, srvHandle);
+		}
+
+		{
+			HZ_PROFILE_SCOPE("Virtual Texture");
+			Hazel::D3D12Texture2D::TextureCreationOptions opts;
+			opts.Name = L"Earth Virtual Texture";
+			opts.Width = TEXTURE_WIDTH;
+			opts.Height = TEXTURE_HEIGHT;
+			opts.MipLevels = 13;
+			opts.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET
+				| D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+			auto tex = m_Textures[Textures::VirtualTexture] = Hazel::D3D12Texture2D::CreateVirtualTexture(batch, opts);
+			auto fb = Hazel::D3D12Texture2D::CreateFeedbackMap(batch, tex);
+			tex->SetFeedbackMap(fb);
+		}
+		
+		{
+			HZ_PROFILE_SCOPE("Normal Texture");
+			Hazel::D3D12Texture2D::TextureCreationOptions opts;
+			opts.Path = L"assets/textures/earth_normal.dds";
+			m_Textures[Textures::NormalTexture] = Hazel::D3D12Texture2D::CreateCommittedTexture(batch, opts);
+			m_Textures[Textures::NormalTexture]->Transition(batch, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		}
+
+		{
+			HZ_PROFILE_SCOPE("White Texture");
+			Hazel::D3D12Texture2D::TextureCreationOptions opts;
+			opts.Name = L"White Texture";
+			opts.Width = 1;
+			opts.Height = 1;
+			opts.MipLevels = 1;
+			opts.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+			uint8_t white[] = { 255, 255, 255, 255 };
+			m_Textures[Textures::WhiteTexture] = Hazel::D3D12Texture2D::CreateCommittedTexture(batch, opts);
+			m_Textures[Textures::WhiteTexture]->Transition(batch, D3D12_RESOURCE_STATE_COPY_DEST);
+			m_Textures[Textures::WhiteTexture]->SetData(batch, white, sizeof(white));
+			m_Textures[Textures::WhiteTexture]->Transition(batch, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		}
+
+		{
+			HZ_PROFILE_SCOPE("Cube Texture");
+			Hazel::D3D12Texture2D::TextureCreationOptions opts;
+			opts.Path = L"assets/textures/Cube_Texture.dds";
+
+			m_Textures[Textures::CubeTexture] = Hazel::D3D12Texture2D::CreateCommittedTexture(batch, opts);
+			m_Textures[Textures::CubeTexture]->Transition(batch, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		}
+
+		{
+			HZ_PROFILE_SCOPE("Triangle Texture");
+			Hazel::D3D12Texture2D::TextureCreationOptions opts;
+			opts.Path = L"assets/textures/test_texture.dds";
+			m_Textures[Textures::TriangleTexture] = Hazel::D3D12Texture2D::CreateCommittedTexture(batch, opts);
+			m_Textures[Textures::TriangleTexture]->Transition(batch, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		}
+
+		{
+			HZ_PROFILE_SCOPE("Mip Debug Texture");
+			Hazel::D3D12Texture2D::TextureCreationOptions opts;
+			opts.Path = L"assets/textures/mips_debug.dds";
+			m_Textures[Textures::MipDebug] = Hazel::D3D12Texture2D::CreateCommittedTexture(batch, opts);
+			m_Textures[Textures::MipDebug]->Transition(batch, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		}
+		
 		auto f = batch.End(m_Context->DeviceResources->CommandQueue.Get());
 		f.wait();
 	}

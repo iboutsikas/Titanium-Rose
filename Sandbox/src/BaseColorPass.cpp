@@ -84,20 +84,26 @@ void BaseColorPass::BuildConstantsBuffer(Hazel::GameObject* goptr)
 		od.LocalToWorld = goptr->Transform.LocalToWorldMatrix();
 		od.MaterialColor = goptr->Material->Color;
 		od.TextureDims = glm::vec4(
-			goptr->Material->DiffuseTexture->GetWidth(),
-			goptr->Material->DiffuseTexture->GetHeight(),
-			1.0f / goptr->Material->DiffuseTexture->GetWidth(),
-			1.0f / goptr->Material->DiffuseTexture->GetHeight()
+			goptr->Material->AlbedoTexture->GetWidth(),
+			goptr->Material->AlbedoTexture->GetHeight(),
+			1.0f / goptr->Material->AlbedoTexture->GetWidth(),
+			1.0f / goptr->Material->AlbedoTexture->GetHeight()
 		);
 		
-		auto dims = goptr->Material->DiffuseTexture->GetFeedbackMap()->GetDimensions();
+		auto feedback = goptr->Material->AlbedoTexture->GetFeedbackMap();
+		glm::ivec3 dims(1, 1, 1);
+
+		if (feedback != nullptr) {
+			dims = feedback->GetDimensions();
+		}
+		
 		od.FeedbackDims.x = dims.x;
 		od.FeedbackDims.y = dims.y;
 
-
+		od.TextureIndex = 3;
 		for (size_t i = 0; i < PassInputCount; i++)
 		{
-			if (m_Inputs[i] == goptr->Material->DiffuseTexture) {
+			if (m_Inputs[i] == goptr->Material->AlbedoTexture) {
 				od.TextureIndex = i;
 				break;
 			}
@@ -132,14 +138,15 @@ void BaseColorPass::RenderItems(Hazel::TComPtr<ID3D12GraphicsCommandList> cmdLis
 		cpuHandle.Offset(BaseColorPass::PassInputCount + podata->TextureIndex, m_Context->GetSRVDescriptorSize());
 		gpuHandle.Offset(BaseColorPass::PassInputCount + podata->TextureIndex, m_Context->GetSRVDescriptorSize());
 
-		auto feedback = goptr->Material->DiffuseTexture->GetFeedbackMap();
-		auto fbResource = feedback->GetResource();
+		auto feedback = goptr->Material->AlbedoTexture->GetFeedbackMap();
+		ID3D12Resource* fbResource = nullptr; 
 		D3D12_UNORDERED_ACCESS_VIEW_DESC fbUAVDesc = {};
 		fbUAVDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
 		fbUAVDesc.Format = DXGI_FORMAT_R32_UINT;
 		fbUAVDesc.Buffer.NumElements = 1;
 #if 1
-		if (fbResource != nullptr) {
+		if (feedback != nullptr) {
+			fbResource = feedback->GetResource();
 			auto fbDesc = fbResource->GetDesc();
 
 			fbUAVDesc.Format = fbDesc.Format;
