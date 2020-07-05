@@ -17,10 +17,7 @@ namespace Hazel
 
         m_IncrementSize = device->GetDescriptorHandleIncrementSize(m_Description.Type);
 
-        for (size_t i = 0; i < m_Description.NumDescriptors; i++)
-        {
-            m_FreeDescriptors.insert(i);
-        }
+        m_FreeDescriptors.emplace_front(0, m_Description.NumDescriptors);
     }
 
     D3D12DescriptorHeap::D3D12DescriptorHeap(ID3D12Device* device, const D3D12_DESCRIPTOR_HEAP_DESC* pDesc) noexcept(false)
@@ -39,35 +36,88 @@ namespace Hazel
         Create(device, &desc);
     }
 
-
-    bool D3D12DescriptorHeap::Allocate(Ref<D3D12Texture2D>& texture)
+    HeapAllocationDescription D3D12DescriptorHeap::Allocate(size_t numDescriptors)
     {
+        HeapAllocationDescription allocation;
+
         if (m_FreeDescriptors.empty()) {
-            return false;
+            return allocation;
         }
 
-        uint32_t offset = GetAvailableDescriptor();
+        size_t offset = GetAvailableDescirptorRange(numDescriptors);
 
-        texture->m_DescriptorAllocation.OffsetInHeap = offset;
-        texture->m_DescriptorAllocation.CPUHandle = GetCPUHandle(offset);
-        texture->m_DescriptorAllocation.GPUHandle = GetGPUHandle(offset);
+        if (offset != D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN)
+        {
+            allocation.Allocated = true;
+            allocation.OffsetInHeap = offset;
+            allocation.Range = numDescriptors;
+            allocation.CPUHandle = GetCPUHandle(offset);
+            if ((m_Description.Flags & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE))
+            {
+                allocation.GPUHandle = GetGPUHandle(offset);
+            }
+        }
 
-        return true;
+        return allocation;
     }
 
-    bool D3D12DescriptorHeap::Allocate(HeapAllocationDescription& allocation)
+    void D3D12DescriptorHeap::Release(HeapAllocationDescription& allocation)
     {
-        if (m_FreeDescriptors.empty()) {
-            return false;
+        // NOTE: We could combine this loop to the one below
+        for (auto& range : m_FreeDescriptors)
+        {
+            // We can add the allocation to the begining of this range
+            if (allocation.OffsetInHeap + allocation.Range == range.Start)
+            {
+                range.Start = allocation.OffsetInHeap;
+                range.Count += allocation.Range;
+                goto ret;
+            }
+            // We can add the allocation to the end of this range
+            else if ((range.Start + range.Count) == allocation.OffsetInHeap)
+            {
+                range.Count += allocation.Range;
+                goto ret;
+            }
         }
+        
+        // At this point the for loop has finished so we need to add a new range
+        for (auto it = m_FreeDescriptors.begin(); it != m_FreeDescriptors.end(); ++it)
+        {
+            auto next = std::next(it);
 
-        uint32_t offset = GetAvailableDescriptor();
-
-        allocation.OffsetInHeap = offset;
-        allocation.CPUHandle = GetCPUHandle(offset);
-        allocation.GPUHandle = GetGPUHandle(offset);
-
-        return true;
+            // That means we only have a single free section. We need to either add
+            // the whole allocation before or after the current one
+            if (next == m_FreeDescriptors.end())
+            {
+                if (allocation.OffsetInHeap + allocation.Range < it->Start)
+                {
+                    m_FreeDescriptors.emplace_front(allocation.OffsetInHeap, allocation.Range);
+                }
+                else if (allocation.OffsetInHeap > it->Start + it->Count)
+                {
+                    m_FreeDescriptors.emplace_back(allocation.OffsetInHeap, allocation.Range);
+                }
+                else
+                {
+                    goto invalid_path;
+                }
+                goto ret;
+            }
+            
+            if((allocation.OffsetInHeap > it->Start + it->Count)            // The allocation release must start AFTER it
+            && (allocation.OffsetInHeap + allocation.Range < next->Start)   // The allocation must be BEFORE next
+            && (next->Start - (it->Start + it->Count) >= allocation.Range))
+            {
+                m_FreeDescriptors.emplace(next, allocation.OffsetInHeap, allocation.Range);
+                goto ret;
+            }
+        }
+invalid_path:
+        HZ_CORE_ASSERT(false, "This execution path should not be reachable");
+ret:
+        allocation.Allocated = false;
+        allocation.CPUHandle.ptr = allocation.GPUHandle.ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
     }
 
     D3D12_CPU_DESCRIPTOR_HANDLE D3D12DescriptorHeap::GetFirstCPUHandle() const noexcept
@@ -101,7 +151,7 @@ namespace Hazel
     {
         HZ_CORE_ASSERT(m_Heap != nullptr, "Heap is uninitialized");
         HZ_CORE_ASSERT(
-            !(m_Description.Flags & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE),
+            (m_Description.Flags & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE),
             "Heap is not shader visible"
         );
         HZ_CORE_ASSERT(index < m_Description.NumDescriptors, "Index is out of the available descriptors");
@@ -138,24 +188,45 @@ namespace Hazel
             {
                 m_GPUHandle = m_Heap->GetGPUDescriptorHandleForHeapStart();
             }
-            for (size_t i = 0; i < m_Description.NumDescriptors; i++)
-            {
-                m_FreeDescriptors.insert(i);
-            }
+
+            m_FreeDescriptors.emplace_front(0, m_Description.NumDescriptors);
         }
     }
-    uint32_t D3D12DescriptorHeap::GetAvailableDescriptor()
+
+    size_t D3D12DescriptorHeap::GetAvailableDescirptorRange(size_t numDescriptors)
     {
-        HZ_CORE_ASSERT(m_FreeDescriptors.size() != 0, "We run out of descriptors in this heap");
-        auto iter = this->m_FreeDescriptors.begin();
-        auto tileNumber = *iter;
-        this->m_FreeDescriptors.erase(iter);
-        return tileNumber;
-    }
-    void D3D12DescriptorHeap::ReleaseDescriptor(size_t index)
-    {
-        HZ_CORE_ASSERT(index < m_Description.NumDescriptors, "Index is out of bounds");
-        m_FreeDescriptors.insert(index);
+        if (numDescriptors > m_Description.NumDescriptors)
+        {
+            HZ_CORE_ERROR("Tried to allocate {0} descriptors, but the heap has {1} total", numDescriptors, m_Description.NumDescriptors);
+            return D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
+        }
+
+        auto r = m_FreeDescriptors.end();
+        size_t offset = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
+        for (auto range = m_FreeDescriptors.begin(); range != m_FreeDescriptors.end(); ++range) {
+            if (range->Count < numDescriptors) {
+                continue;
+            }
+        
+            offset = range->Start;
+            range->Start += (numDescriptors);
+            range->Count -= (numDescriptors);
+            r = range;
+            break;
+        }
+
+        // We couldn't find a range to allocate
+        if (r == m_FreeDescriptors.end())
+        {
+            return D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
+        }
+
+        if (r->Count == 0)
+        {
+            m_FreeDescriptors.erase(r);
+        }
+
+        return offset;
     }
 }
 

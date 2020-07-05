@@ -46,8 +46,21 @@ void BaseColorPass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject* sceneRo
 	cbOffset = 0;
 	BuildConstantsBuffer(sceneRoot);
 
+
+
 	auto cmdList = m_Context->DeviceResources->CommandList;
 	PIXScopedEvent(cmdList.Get(), PIX_COLOR(1, 0, 1), "Base Color Pass");
+
+	auto backBuffer = m_Context->GetCurrentBackBuffer();
+
+	CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+		backBuffer.Get(),
+		D3D12_RESOURCE_STATE_PRESENT,
+		D3D12_RESOURCE_STATE_RENDER_TARGET,
+		D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
+		D3D12_RESOURCE_BARRIER_FLAG_NONE);
+
+	cmdList->ResourceBarrier(1, &barrier);
 
 	cmdList->SetPipelineState(m_Shader->GetPipelineState());
 	cmdList->SetGraphicsRootSignature(m_Shader->GetRootSignature());

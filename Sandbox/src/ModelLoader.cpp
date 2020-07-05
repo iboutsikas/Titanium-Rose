@@ -8,25 +8,32 @@
 #include "assimp/Vertex.h"
 #include "Vertex.h"
 
-void processNode(aiNode* node, const aiScene* scene, Hazel::Ref<Hazel::GameObject>& target, Hazel::D3D12ResourceBatch& batch)
+#include "Platform/D3D12/D3D12Texture.h"
+
+TextureLibrary* ModelLoader::TextureLibrary = nullptr;
+
+void processNode(aiNode* node, const aiScene* scene, 
+	Hazel::Ref<Hazel::GameObject>& target, 
+	Hazel::D3D12ResourceBatch& batch,
+	std::vector<Hazel::Ref<Hazel::HMaterial>>& materials)
 {
 	aiVector3D translation;
 	aiVector3D scale;
 	aiQuaternion rotation;
-	translation.Length();
 	node->mTransformation.Decompose(scale, rotation, translation);
 
-	target->Name = std::string(scene->mRootNode->mName.C_Str());
+	target->Name = std::string(node->mName.C_Str());
 	target->Transform.SetPosition(translation.x, translation.y, translation.z);
 	target->Transform.SetScale(scale.x, scale.y, scale.z);
 	target->Transform.SetRotation(glm::quat(rotation.w, rotation.x, rotation.y, rotation.z));
 
 	// Load Mesh(es) for target
 
-	if (node->mNumMeshes >= 1) {
+	if (node->mNumMeshes > 0) {
 		// We only support 1 mesh per node/go right now
 		aiMesh* aimesh = scene->mMeshes[node->mMeshes[0]];
-		auto len = aimesh->mMaxBitangent.Length();
+		target->Material = materials[aimesh->mMaterialIndex];
+
 		Hazel::Ref<Hazel::HMesh> hmesh = Hazel::CreateRef<Hazel::HMesh>();
 
 		std::vector<Vertex> vertices;
@@ -97,16 +104,6 @@ void processNode(aiNode* node, const aiScene* scene, Hazel::Ref<Hazel::GameObjec
 		hmesh->indices = indices;
 
 		target->Mesh = hmesh;
-
-		if (aimesh->HasTangentsAndBitangents()) {
-			target->Mesh->maxTangent.x = aimesh->mMaxTangent.x;
-			target->Mesh->maxTangent.y = aimesh->mMaxTangent.y;
-			target->Mesh->maxTangent.z = aimesh->mMaxTangent.z;
-
-			target->Mesh->maxBitangent.x = aimesh->mMaxBitangent.x;
-			target->Mesh->maxBitangent.y = aimesh->mMaxBitangent.y;
-			target->Mesh->maxBitangent.z = aimesh->mMaxBitangent.z;
-		}
 	}
 
 	// Recursive call for children of target
@@ -116,7 +113,7 @@ void processNode(aiNode* node, const aiScene* scene, Hazel::Ref<Hazel::GameObjec
 		auto childGO = Hazel::CreateRef<Hazel::GameObject>();
 		target->AddChild(childGO);
 
-		processNode(child, scene, childGO, batch);
+		processNode(child, scene, childGO, batch, materials);
 	}
 }
 
@@ -126,14 +123,18 @@ Hazel::Ref<Hazel::GameObject> ModelLoader::LoadFromFile(std::string& filepath, H
 
 	Assimp::Importer importer;
 
-	uint32_t importFlags = 0;
+	uint32_t importFlags = 
+		aiProcess_CalcTangentSpace | 
+		aiProcess_GenUVCoords |
+		aiProcess_GenNormals |
+		aiProcess_TransformUVCoords |
+		aiProcess_PreTransformVertices |
+		aiProcess_ValidateDataStructure;
 
 	if (swapHandedness) {
 		importFlags |= aiProcess_ConvertToLeftHanded;
 	}
-	//importFlags |= aiProcess_JoinIdenticalVertices;
-	importFlags |= aiProcess_CalcTangentSpace;
-
+ 
 	const aiScene* scene = importer.ReadFile(filepath, importFlags);
 	
 	if (scene == nullptr) {
@@ -141,13 +142,132 @@ Hazel::Ref<Hazel::GameObject> ModelLoader::LoadFromFile(std::string& filepath, H
 		HZ_ASSERT(false, "Model loading failed");
 		return nullptr;
 	}
+	std::vector<Hazel::Ref<Hazel::HMaterial>> materials;
+	materials.resize(scene->mNumMaterials);
+	// load Materials
+	for (size_t i = 0; i < scene->mNumMaterials; i++)
+	{
+		materials[i] = Hazel::CreateRef<Hazel::HMaterial>();
+		
+		aiString name;
+		scene->mMaterials[i]->Get(AI_MATKEY_NAME, name);
+		HZ_INFO("Material: {}", name.C_Str());
+		
+		materials[i]->Name = std::string(name.C_Str());
+
+		aiString texturefile;
+		// Albedo
+		Hazel::Ref<Hazel::D3D12Texture2D> albedoTexture;
+		if (scene->mMaterials[i]->GetTextureCount(aiTextureType_DIFFUSE) > 0)
+		{
+			scene->mMaterials[i]->GetTexture(aiTextureType_DIFFUSE, 0, &texturefile);
+			std::string filename(texturefile.C_Str());
+			std::string filepath = "assets/textures/" + filename;
+
+			HZ_INFO("\tUsing diffuse texture: {}", filename);
+			std::wstring widepath(filepath.begin(), filepath.end());
+			if (TextureLibrary->Exists(widepath))
+			{
+				albedoTexture = TextureLibrary->GetTexture(widepath);
+			}
+			else
+			{
+				// Load the texture, get it into the Library
+				Hazel::D3D12Texture2D::TextureCreationOptions opts;
+				opts.Flags = D3D12_RESOURCE_FLAG_NONE;
+				opts.Path = widepath;
+				albedoTexture = Hazel::D3D12Texture2D::CreateCommittedTexture(batch, opts);
+				TextureLibrary->AddTexture(albedoTexture);
+			}
+			materials[i]->HasAlbedoTexture = true;
+		}
+		else
+		{
+			// Set this to some dummy texture
+			HZ_WARN("\tNot using diffuse texture");
+			albedoTexture = TextureLibrary->GetTexture(std::wstring(L"White Texture"));
+			materials[i]->HasAlbedoTexture = false;
+		}
+		// Set the texture for the material
+		materials[i]->AlbedoTexture = albedoTexture;
+
+		// Normals
+		Hazel::Ref<Hazel::D3D12Texture2D> normalsTexture = nullptr;
+		if (scene->mMaterials[i]->GetTextureCount(aiTextureType_NORMALS) > 0)
+		{
+			scene->mMaterials[i]->GetTexture(aiTextureType_NORMALS, 0, &texturefile);
+			std::string filename(texturefile.C_Str());
+			std::string filepath = "assets/textures/" + filename;
+
+			HZ_INFO("\tUsing diffuse texture: {}", filename);
+			std::wstring widepath(filepath.begin(), filepath.end());
+			if (TextureLibrary->Exists(widepath))
+			{
+				normalsTexture = TextureLibrary->GetTexture(widepath);
+			}
+			else
+			{
+				Hazel::D3D12Texture2D::TextureCreationOptions opts;
+				opts.Flags = D3D12_RESOURCE_FLAG_NONE;
+				opts.Path = widepath;
+				normalsTexture = Hazel::D3D12Texture2D::CreateCommittedTexture(batch, opts);
+				TextureLibrary->AddTexture(normalsTexture);
+			}
+			materials[i]->HasNormalTexture = true;
+		}
+		else
+		{
+			HZ_WARN("\tNot using normal map");
+			normalsTexture = TextureLibrary->GetTexture(std::wstring(L"Dummy Normal Texture"));
+			materials[i]->HasNormalTexture = false;
+		}
+		materials[i]->NormalTexture = normalsTexture;
+
+		// Specular 
+		Hazel::Ref<Hazel::D3D12Texture2D> specularTexture = nullptr;
+		if (scene->mMaterials[i]->GetTextureCount(aiTextureType_SPECULAR) > 0)
+		{
+			scene->mMaterials[i]->GetTexture(aiTextureType_SPECULAR, 0, &texturefile);
+			std::string filename(texturefile.C_Str());
+			std::string filepath = "assets/textures/" + filename;
+			HZ_INFO("\tUsing specular texture: {}", filename);
+
+			std::wstring widepath(filepath.begin(), filepath.end());
+			if (TextureLibrary->Exists(widepath))
+			{
+				specularTexture = TextureLibrary->GetTexture(widepath);
+			}
+			else
+			{
+				Hazel::D3D12Texture2D::TextureCreationOptions opts;
+				opts.Flags = D3D12_RESOURCE_FLAG_NONE;
+				opts.Path = widepath;
+				specularTexture = Hazel::D3D12Texture2D::CreateCommittedTexture(batch, opts);
+				TextureLibrary->AddTexture(specularTexture);
+			}
+			materials[i]->HasSpecularTexture = true;
+		}
+		else
+		{
+			HZ_WARN("\tNot using specular map");
+			specularTexture = TextureLibrary->GetTexture(std::wstring(L"Dummy Specular Texture"));
+			materials[i]->HasSpecularTexture = false;
+			materials[i]->Specular = 0.0f;
+		}
+		materials[i]->SpecularTexture = specularTexture;
+
+		// Alpha
+		if (scene->mMaterials[i]->GetTextureCount(aiTextureType_OPACITY) > 0)
+		{
+			HZ_INFO("\tMaterial has transparency");
+			materials[i]->IsTransparent = true;
+		}
+	}
+
 	
-	if (scene->mRootNode->mNumMeshes == 0) {
-		processNode(scene->mRootNode->mChildren[0], scene, rootGO, batch);
-	}
-	else {
-		processNode(scene->mRootNode, scene, rootGO, batch);
-	}
+
+	processNode(scene->mRootNode, scene, rootGO, batch, materials);
+
 
 
 	return rootGO;

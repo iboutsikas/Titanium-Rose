@@ -1,14 +1,16 @@
 workspace "Hazel"
-	architecture "x86_64"
-	startproject "Sandbox"
+	architecture "x64"
+	targetdir "build"
 
+	
 	configurations
 	{
 		"Debug",
-		"DebugNoDXL",
 		"Release",
 		"Dist"
 	}
+	
+	startproject "Sandbox"
 	
 	flags
 	{
@@ -19,22 +21,21 @@ outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
 
 -- Include directories relative to root folder (solution directory)
 IncludeDir = {}
-IncludeDir["GLFW"] = "Hazel/vendor/GLFW/include"
+IncludeDir["GLFW"] 		= "Hazel/vendor/GLFW/include"
+IncludeDir["ImGui"] 	= "Hazel/vendor/imgui"
+IncludeDir["glm"] 		= "Hazel/vendor/glm"
+IncludeDir["assimp"] 	= "Hazel/vendor/assimp"
+IncludeDir["winpix"] 	= "Hazel/vendor/winpixeventruntime/Include"
+IncludeDir["spdlog"]	= "Hazel/vendor/spdlog/include"
+IncludeDir["assimp"]	= "Hazel/vendor/assimp/include"
 -- IncludeDir["Glad"] = "Hazel/vendor/Glad/include"
-IncludeDir["ImGui"] = "Hazel/vendor/imgui"
-IncludeDir["glm"] = "Hazel/vendor/glm"
-IncludeDir["stb_image"] = "Hazel/vendor/stb_image"
-IncludeDir["tinygltf"] = "Hazel/vendor/tinygltf"
-IncludeDir["tinyobjloader"] = "Hazel/vendor/tinyobjloader"
-IncludeDir["assimp"] = "Hazel/vendor/assimp"
-IncludeDir["winpix"] = "Hazel/vendor/winpixeventruntime/Include"
 
-group "Dependencies"
-	include "Hazel/vendor/GLFW"
-	-- include "Hazel/vendor/Glad"
-	include "Hazel/vendor/imgui"
 
-group ""
+include "Hazel/vendor/GLFW"
+-- include "Hazel/vendor/Glad"
+include "Hazel/vendor/imgui"
+
+-- group ""
 
 project "Hazel"
 	location "Hazel"
@@ -53,10 +54,8 @@ project "Hazel"
 	{
 		"%{prj.name}/src/**.h",
 		"%{prj.name}/src/**.cpp",
-		"%{prj.name}/vendor/stb_image/**.h",
-		"%{prj.name}/vendor/stb_image/**.cpp",
-		"%{prj.name}/vendor/glm/glm/**.hpp",
-		"%{prj.name}/vendor/glm/glm/**.inl"
+		-- "%{prj.name}/vendor/glm/glm/**.hpp",
+		-- "%{prj.name}/vendor/glm/glm/**.inl"
 	}
 
 	defines
@@ -69,12 +68,14 @@ project "Hazel"
 	includedirs
 	{
 		"%{prj.name}/src",
-		"%{prj.name}/vendor/spdlog/include",
+		"%{prj.name}/vendor",
 		"%{IncludeDir.GLFW}",
 		-- "%{IncludeDir.Glad}",
 		"%{IncludeDir.ImGui}",
 		"%{IncludeDir.glm}",
-		"%{IncludeDir.stb_image}",
+		"%{IncludeDir.spdlog}",
+		"%{IncludeDir.assimp}",
+
 	}
 
 	links 
@@ -88,14 +89,6 @@ project "Hazel"
 		"d3d12",
 		"dxgi"
 	}
-
-	filter { "system:windows", "configurations:Debug"}
-		libdirs { "Hazel/vendor/assimp/lib/debug" }
-		links {	"IrrXMLd", "assimpd", "zlibstaticd" }
-
-	filter { "system:windows", "configurations:Release"}
-		libdirs { "Hazel/vendor/assimp/lib/release" }
-		links {	"IrrXML", "assimp", "zlibstatic" }
 
 	filter "system:windows"
 		systemversion "latest"
@@ -114,11 +107,6 @@ project "Hazel"
 		runtime "Debug"
 		symbols "on"
 	
-	filter "configurations:DebugNoDXL"
-		defines { "HZ_NO_D3D12_DEBUG_LAYER", "HZ_DEBUG" }
-		runtime "Debug"
-		symbols "on"
-
 	filter "configurations:Release"
 		defines "HZ_RELEASE"
 		runtime "Release"
@@ -147,10 +135,11 @@ project "Sandbox"
 
 	includedirs
 	{
-		"Hazel/vendor/spdlog/include",
+		"%{prj.name}/src",
 		"Hazel/src",
 		"Hazel/vendor",
 		"%{IncludeDir.glm}",
+		"%{IncludeDir.spdlog}",
 		"%{IncludeDir.assimp}"
 	}
 
@@ -165,14 +154,6 @@ project "Sandbox"
 		"Hazel"
 	}
 
-	filter { "system:windows", "configurations:Debug"}
-		libdirs { "Hazel/vendor/assimp/lib/debug" }
-		links {	"assimp-vc142-mtd" }
-
-	filter { "system:windows", "configurations:Release"}
-		libdirs { "Hazel/vendor/assimp/lib/release" }
-		links {	"assimp-vc142-mt" }
-
 	filter "system:windows"
 		systemversion "latest"
 		-- libdirs { "Hazel/vendor/winpixeventruntime/bin/x64" }
@@ -181,20 +162,31 @@ project "Sandbox"
 			"%{IncludeDir.winpix}"
 		}
 
+		postbuildcommands {
+			'{COPY} "../Hazel/vendor/winpixeventruntime/bin/x64/WinPixEventRuntime.dll" "%{cfg.targetdir}"'
+		}
+
 	filter "configurations:Debug"
 		defines "HZ_DEBUG"
 		runtime "Debug"
 		symbols "on"
-		
-	filter "configurations:DebugNoDXL"
-		defines { "HZ_NO_D3D12_DEBUG_LAYER", "HZ_DEBUG" }
-		runtime "Debug"
-		symbols "on"
 
+		links { "Hazel/vendor/assimp/bin/Debug/assimpd.lib" }
+
+		postbuildcommands {
+			'{COPY} "../Hazel/vendor/assimp/bin/Debug/assimpd.dll" "%{cfg.targetdir}"'
+		}
+		
 	filter "configurations:Release"
 		defines "HZ_RELEASE"
 		runtime "Release"
 		optimize "on"
+
+		links { "Hazel/vendor/assimp/bin/Release/assimp.lib" }
+
+		postbuildcommands {
+			'{COPY} "../Hazel/vendor/assimp/bin/Release/assimp.dll" "%{cfg.targetdir}"'
+		}
 
 	filter "configurations:Dist"
 		defines "HZ_DIST"

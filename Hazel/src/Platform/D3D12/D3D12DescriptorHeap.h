@@ -1,9 +1,11 @@
 #pragma once
 
 #include <set>
+#include <list>
 #include "d3d12.h"
 
 #include "Platform/D3D12/ComPtr.h"
+#include "Platform/D3D12/D3D12Helpers.h"
 
 namespace Hazel {
 
@@ -12,6 +14,12 @@ namespace Hazel {
     struct HeapAllocationDescription
     {
     public:
+        HeapAllocationDescription()
+            : Allocated(false), OffsetInHeap(0), Range(0),
+            CPUHandle({ D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN }),
+            GPUHandle({ D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN })
+        {}
+        bool   Allocated;
         size_t OffsetInHeap;
         size_t Range;
         D3D12_CPU_DESCRIPTOR_HANDLE CPUHandle;
@@ -41,8 +49,9 @@ namespace Hazel {
         D3D12DescriptorHeap(const D3D12DescriptorHeap&) = delete;
         D3D12DescriptorHeap& operator=(const D3D12DescriptorHeap&) = delete;
 
-        bool Allocate(Ref<D3D12Texture2D>& texture);
-        bool Allocate(HeapAllocationDescription& allocation);
+        HeapAllocationDescription Allocate(size_t numDescriptors);
+
+        void Release(HeapAllocationDescription& allocation);
 
         size_t GetCount() const noexcept { return m_Description.NumDescriptors; }
         unsigned int GetFlags() const noexcept { return m_Description.Flags; }
@@ -56,10 +65,20 @@ namespace Hazel {
         D3D12_GPU_DESCRIPTOR_HANDLE GetGPUHandle(size_t index) const;
 
     private:
+
+        struct AvailableDescriptorRange
+        {
+            AvailableDescriptorRange(size_t start, size_t count)
+                : Start(start), Count(count)
+            {}
+            size_t Start;
+            size_t Count;
+        };
+
         void Create(ID3D12Device* pDevice, const D3D12_DESCRIPTOR_HEAP_DESC* pDesc);
 
-        uint32_t GetAvailableDescriptor();
-        void     ReleaseDescriptor(size_t index);
+        size_t GetAvailableDescirptorRange(size_t numDescriptors);
+        
 
         TComPtr<ID3D12DescriptorHeap> m_Heap;
 
@@ -67,7 +86,7 @@ namespace Hazel {
         D3D12_GPU_DESCRIPTOR_HANDLE m_GPUHandle;
         D3D12_DESCRIPTOR_HEAP_DESC  m_Description;
         uint32_t                    m_IncrementSize;
-        std::set<size_t>            m_FreeDescriptors;
+        std::list<AvailableDescriptorRange> m_FreeDescriptors;
     };
 
 }

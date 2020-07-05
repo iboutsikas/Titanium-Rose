@@ -8,7 +8,8 @@ namespace Hazel {
     class D3D12ResourceBatch
     {
     public:
-        D3D12ResourceBatch(TComPtr<ID3D12Device2> device);
+        explicit D3D12ResourceBatch(TComPtr<ID3D12Device2> device) noexcept(false);
+
         ~D3D12ResourceBatch();
 
         inline TComPtr<ID3D12GraphicsCommandList> GetCommandList() { return m_CommandList; }
@@ -17,6 +18,8 @@ namespace Hazel {
         void Upload(_In_ ID3D12Resource* resource, uint32_t subresourceIndexStart,
             _In_reads_(numSubresources) const D3D12_SUBRESOURCE_DATA* subRes,
             uint32_t numSubresources);
+
+        void TrackResource(_In_ ID3D12Resource* resource);
 
         std::future<void> End(ID3D12CommandQueue* commandQueue);
 

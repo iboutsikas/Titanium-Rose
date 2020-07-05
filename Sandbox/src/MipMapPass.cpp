@@ -29,10 +29,12 @@ MipMapPass::MipMapPass(Hazel::D3D12Context* ctx)
 
 void MipMapPass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject* sceneRoot, Hazel::PerspectiveCamera& camera)
 {
-	auto cmdList = ctx->DeviceResources->CommandList;
+	//auto cmdList = ctx->DeviceResources->CommandList;
 	auto device = ctx->DeviceResources->Device;
+	Hazel::D3D12ResourceBatch batch(device.Get());
 
-	PIXScopedEvent(cmdList.Get(), PIX_COLOR(1, 0, 1), "Mips Pass");
+	auto cmdList = batch.Begin();
+	PIXBeginEvent(cmdList.Get(), PIX_COLOR(1, 0, 1), "Mips Pass");
 
 	{
 		auto resource = m_Inputs[0];
@@ -145,4 +147,7 @@ void MipMapPass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject* sceneRoot,
 		}
 		
 	}
+
+	PIXEndEvent();
+	batch.End(ctx->DeviceResources->CommandQueue.Get());
 }

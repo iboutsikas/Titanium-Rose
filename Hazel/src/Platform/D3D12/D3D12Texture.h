@@ -48,8 +48,7 @@ namespace Hazel {
         inline ID3D12Resource* GetResource() const { return m_Resource.Get(); }
         inline uint32_t GetMipLevels() const { return  m_MipLevels; }
         inline bool HasMips() const { return m_MipLevels > 1; }
-        inline HeapAllocationDescription GetDescriptorAllocation() { return m_DescriptorAllocation; }
-
+        inline std::wstring GetIdentifier() const { return m_Identifier; }
 
         virtual bool IsVirtual() const = 0;
         virtual MipLevels ExtractMipsUsed() { return { 0, m_MipLevels - 1 }; }
@@ -61,6 +60,8 @@ namespace Hazel {
         static Ref<D3D12Texture2D>		CreateVirtualTexture(D3D12ResourceBatch& batch, TextureCreationOptions& opts);
         static Ref<D3D12Texture2D>		CreateCommittedTexture(D3D12ResourceBatch& batch, TextureCreationOptions& opts);
         static Ref<D3D12FeedbackMap>	CreateFeedbackMap(D3D12ResourceBatch& batch, Ref<D3D12Texture2D> texture);
+
+        HeapAllocationDescription DescriptorAllocation;
     protected:
 
         D3D12Texture2D(std::wstring id, uint32_t width, uint32_t height, uint32_t mips = 1);
@@ -73,9 +74,6 @@ namespace Hazel {
 
         TComPtr<ID3D12Resource> m_Resource;
         Ref<D3D12FeedbackMap> m_FeedbackMap;
-        HeapAllocationDescription m_DescriptorAllocation;
-        
-        friend class D3D12DescriptorHeap;
     };
 
     class D3D12CommittedTexture2D : public D3D12Texture2D

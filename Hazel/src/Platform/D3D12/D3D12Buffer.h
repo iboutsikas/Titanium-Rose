@@ -27,7 +27,6 @@ namespace Hazel {
 		inline D3D12_VERTEX_BUFFER_VIEW GetView() const { return m_View; }
 	private:
 		BufferLayout m_Layout;
-		D3D12Context* m_Context;
 		TComPtr<ID3D12Resource> m_CommittedResource;
 		D3D12_VERTEX_BUFFER_VIEW m_View;
 	};
@@ -46,7 +45,6 @@ namespace Hazel {
 		inline D3D12_INDEX_BUFFER_VIEW GetView() const { return m_View; }
 	private:
 		uint32_t m_Count;
-		D3D12Context* m_Context;
 		TComPtr<ID3D12Resource> m_CommittedResource;
 		D3D12_INDEX_BUFFER_VIEW m_View;
 	};
@@ -55,7 +53,30 @@ namespace Hazel {
 	class D3D12UploadBuffer
 	{
 	public:
+
 		D3D12UploadBuffer(uint32_t elementCount, bool isConstantBuffer)
+			: m_IsConstantBuffer(isConstantBuffer)
+		{
+			m_ElementByteSize = sizeof(T);
+			auto ctx = dynamic_cast<D3D12Context*>(Application::Get().GetWindow().GetContext());
+
+			if (m_IsConstantBuffer) {
+				m_ElementByteSize = D3D12::CalculateConstantBufferSize(m_ElementByteSize);
+			}
+
+			D3D12::ThrowIfFailed(ctx->DeviceResources->Device->CreateCommittedResource(
+				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+				D3D12_HEAP_FLAG_NONE,
+				&CD3DX12_RESOURCE_DESC::Buffer(m_ElementByteSize * elementCount),
+				D3D12_RESOURCE_STATE_GENERIC_READ,
+				nullptr,
+				IID_PPV_ARGS(&m_UploadBuffer)
+			));
+
+			D3D12::ThrowIfFailed(m_UploadBuffer->Map(0, nullptr, reinterpret_cast<void**>(&m_MappedData)));
+		}
+
+		D3D12UploadBuffer(D3D12ResourceBatch& batch, uint32_t elementCount, bool isConstantBuffer)
 			: m_IsConstantBuffer(isConstantBuffer)
 		{
 			m_ElementByteSize = sizeof(T);
@@ -64,11 +85,7 @@ namespace Hazel {
 				m_ElementByteSize = D3D12::CalculateConstantBufferSize(m_ElementByteSize);
 			}
 
-			m_Context = static_cast<D3D12Context*>(Application::Get().GetWindow().GetContext());
-
-			auto device = m_Context->DeviceResources->Device;
-
-			D3D12::ThrowIfFailed(device->CreateCommittedResource(
+			D3D12::ThrowIfFailed(batch.GetDevice()->CreateCommittedResource(
 				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 				D3D12_HEAP_FLAG_NONE,
 				&CD3DX12_RESOURCE_DESC::Buffer(m_ElementByteSize * elementCount),
@@ -110,7 +127,6 @@ namespace Hazel {
 	private:
 		TComPtr<ID3D12Resource> m_UploadBuffer;
 		uint8_t* m_MappedData = nullptr;
-		D3D12Context* m_Context;
 
 		uint32_t m_ElementByteSize = 0;
 		bool m_IsConstantBuffer = false;

@@ -36,6 +36,7 @@ namespace Hazel{
 		inline bool HaveSamplerFeedback() const { return m_SamplerFeedbackSupported; }
 		D3D12_VIEWPORT m_Viewport;
 		D3D12_RECT	m_ScissorRect;
+		TComPtr<ID3D12Resource> GetCurrentBackBuffer() { return DeviceResources->BackBuffers[m_CurrentBackbufferIndex]; }
 
 	private:
 		Window* m_Window;

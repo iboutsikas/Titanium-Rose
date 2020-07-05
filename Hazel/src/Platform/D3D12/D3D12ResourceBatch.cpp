@@ -14,6 +14,7 @@ namespace Hazel {
 		
 	}
 
+
 	D3D12ResourceBatch::~D3D12ResourceBatch()
 	{
 		HZ_CORE_ASSERT(m_Finalized, "Resource batch was destructed without calling End()");
@@ -83,6 +84,11 @@ namespace Hazel {
 		);
 
 		m_TrackedObjects.push_back(tmpResource);
+	}
+
+	void D3D12ResourceBatch::TrackResource(ID3D12Resource* resource)
+	{
+		m_TrackedObjects.emplace_back(resource);
 	}
 
 	std::future<void> D3D12ResourceBatch::End(ID3D12CommandQueue* commandQueue)

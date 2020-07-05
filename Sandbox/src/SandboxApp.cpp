@@ -3,13 +3,16 @@
 
 #include "Sandbox2D.h"
 #include "ExampleLayer.h"
+#include "BenchmarkLayer.h"
 
 class Sandbox : public Hazel::Application
 {
 public:
 	Sandbox()
 	{
-		PushLayer(new ExampleLayer());
+		//PushLayer(new ExampleLayer());
+
+		PushLayer(new BenchmarkLayer());
 	}
 
 	~Sandbox()

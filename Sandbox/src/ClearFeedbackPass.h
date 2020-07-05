@@ -2,7 +2,7 @@
 #include "Platform/D3D12/D3D12RenderPass.h"
 #include "Platform/D3D12/D3D12Buffer.h"
 
-class ClearFeedbackPass: Hazel::D3D12RenderPass<5, 1>
+class ClearFeedbackPass: Hazel::D3D12RenderPass<3, 1>
 {
 public:
 	ClearFeedbackPass(Hazel::D3D12Context* ctx);

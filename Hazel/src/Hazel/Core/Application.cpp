@@ -78,16 +78,8 @@ namespace Hazel {
 
 	void Application::Run()
 	{
-		HZ_PROFILE_FUNCTION();
-
 		while (m_Running)
 		{
-			HZ_PROFILE_SCOPE("RunLoop");
-
-			float time = (float)glfwGetTime();
-			Timestep timestep = time - m_LastFrameTime;
-			m_LastFrameTime = time;
-
 			if (!m_Minimized)
 			{
 				ShaderLibrary::GlobalLibrary()->Update();
@@ -97,7 +89,7 @@ namespace Hazel {
 					HZ_PROFILE_SCOPE("LayerStack OnUpdate");
 
 					for (Layer* layer : m_LayerStack)
-						layer->OnUpdate(timestep);
+						layer->OnUpdate(m_TimeStep);
 				}
 #if USE_IMGUI
 				m_ImGuiLayer->Begin();
@@ -108,10 +100,14 @@ namespace Hazel {
 						layer->OnImGuiRender();
 				}
 				m_ImGuiLayer->End();
-#endif
+#endif	
+				RenderCommand::EndFrame();
 			}
-			RenderCommand::EndFrame();
 			m_Window->OnUpdate();
+
+			float time = (float)glfwGetTime();
+			m_TimeStep = time - m_LastFrameTime;
+			m_LastFrameTime = time;
 		}
 	}
 

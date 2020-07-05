@@ -11,9 +11,7 @@ namespace Hazel {
 	
 	D3D12VertexBuffer::D3D12VertexBuffer(D3D12ResourceBatch& batch, float* vertices, uint32_t size)
 	{
-		m_Context = static_cast<D3D12Context*>(Application::Get().GetWindow().GetContext());
-		
-		auto device = m_Context->DeviceResources->Device;
+		auto device = batch.GetDevice();
 
 		D3D12::ThrowIfFailed(device->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
@@ -47,10 +45,8 @@ namespace Hazel {
 	D3D12IndexBuffer::D3D12IndexBuffer(D3D12ResourceBatch& batch, uint32_t* indices, uint32_t count)
 		:m_Count(count)
 	{
-		m_Context = static_cast<D3D12Context*>(Application::Get().GetWindow().GetContext());
-
-		auto device = m_Context->DeviceResources->Device;
-		auto commandList = m_Context->DeviceResources->CommandList;
+		auto device = batch.GetDevice();
+		auto commandList = batch.GetCommandList();
 		auto size = sizeof(uint32_t) * count;
 
 		D3D12::ThrowIfFailed(device->CreateCommittedResource(

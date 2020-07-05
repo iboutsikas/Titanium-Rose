@@ -86,6 +86,8 @@ ExampleLayer::ExampleLayer()
 	m_Models.resize(Models::CountModel);
 	m_Textures.resize(Textures::CountTexure);
 
+	ModelLoader::TextureLibrary = &m_TextureLibrary;
+
 	LoadAssets();
 	BuildPipeline();
 
@@ -94,39 +96,41 @@ ExampleLayer::ExampleLayer()
 	m_SceneGO->Transform.SetPosition(glm::vec3({ 0.0f, 0.0f, 0.0f }));
 	m_SceneGO->Name = "Scene Root";
 	// Cube #1
-	m_MainObject = Hazel::CreateRef<Hazel::GameObject>();
-	m_MainObject->Transform.SetPosition(glm::vec3(0.0f, 0.0f, 0.0f));
-	m_MainObject->Transform.SetScale(glm::vec3(1.0f, 1.0f, 1.0f));
-	m_MainObject->Name = "Main Object";
-	m_MainObject->Mesh = m_Models[Models::SphereModel]->Mesh;
-	m_MainObject->Material = Hazel::CreateRef<Hazel::HMaterial>();
-	m_MainObject->Material->Glossines = 32.0f;
+	//m_MainObject = Hazel::CreateRef<Hazel::GameObject>();
+	//m_MainObject->Transform.SetPosition(glm::vec3(0.0f, 0.0f, 0.0f));
+	//m_MainObject->Transform.SetScale(glm::vec3(1.0f, 1.0f, 1.0f));
+	//m_MainObject->Name = "Main Object";
+	//m_MainObject->Mesh = m_Models[Models::SphereModel]->Mesh;
+	//m_MainObject->Material = m_Models[Models::SphereModel]->Material;
+	////m_MainObject->Material->Glossines = 32.0f;
+	m_MainObject = m_Models[Models::SphereModel];
 #if USE_VIRTUAL_TEXTURE
-	m_MainObject->Material->AlbedoTexture = m_Textures[Textures::VirtualTexture];
+	//m_MainObject->Material->AlbedoTexture = m_Textures[Textures::VirtualTexture];
 #else
 	m_MainObject->Material->DiffuseTexture = m_Textures[Textures::DeferredTexture];
 #endif
-	m_MainObject->Material->NormalTexture = m_Textures[Textures::NormalTexture];
-	m_MainObject->Material->Color = glm::vec4(1.0f);
+	//m_MainObject->Material->NormalTexture = m_Textures[Textures::NormalTexture];
+	//m_MainObject->Material->Color = glm::vec4(1.0f);
 	m_SceneGO->AddChild(m_MainObject);
 	// Cube #2
+#if 0
 	m_SecondaryObject = Hazel::CreateRef<Hazel::GameObject>();
 	m_SecondaryObject->Name = "Cube#2";
 	m_SecondaryObject->Transform.SetPosition(glm::vec3(0.0f, 1.0f, 0.0f));
 	m_SecondaryObject->Mesh = m_Models[Models::TriangleModel]->Mesh;
 	m_SecondaryObject->Material = Hazel::CreateRef<Hazel::HMaterial>();
 	m_SecondaryObject->Material->Glossines = 2.0f;
-	m_SecondaryObject->Material->AlbedoTexture = m_Textures[Textures::TriangleTexture];
+	//m_SecondaryObject->Material->AlbedoTexture = m_Textures[Textures::TriangleTexture];
 	m_SecondaryObject->Material->Color = glm::vec4(1.0f);
 	m_MainObject->AddChild(m_SecondaryObject);
-
+#endif
 	// "Light" Sphere
 	m_PositionalLightGO = Hazel::CreateRef<Hazel::GameObject>();
 	m_PositionalLightGO->Name = "Light Sphere";
 	m_PositionalLightGO->Mesh = m_Models[Models::SphereModel]->Mesh;
 	m_PositionalLightGO->Transform.SetPosition({ 1.0, 8.0, 8.0 });
 	m_PositionalLightGO->Material = Hazel::CreateRef<Hazel::HMaterial>();
-	m_PositionalLightGO->Material->Glossines = 2.0f;
+	m_PositionalLightGO->Material->Specular = 2.0f;
 	m_PositionalLightGO->Material->AlbedoTexture = m_Textures[Textures::WhiteTexture];
 	m_PositionalLightGO->Material->Color = glm::vec4({ 1.0f, 1.0f, 1.0f, 1.0f });
 	m_PositionalLightGO->Transform.SetScale({ 0.3f,0.3, 0.3f });
@@ -146,9 +150,9 @@ ExampleLayer::ExampleLayer()
 	m_BaseColorPass->SetInput(0, m_Textures[Textures::DeferredTexture]);
 #endif
 	m_BaseColorPass->SetInput(1, m_Textures[Textures::EarthTexture]);
-	m_BaseColorPass->SetInput(2, m_Textures[Textures::CubeTexture]);
-	m_BaseColorPass->SetInput(3, m_Textures[Textures::WhiteTexture]);
-	m_BaseColorPass->SetInput(4, m_Textures[Textures::TriangleTexture]);
+	//m_BaseColorPass->SetInput(2, m_Textures[Textures::CubeTexture]);
+	m_BaseColorPass->SetInput(2, m_Textures[Textures::WhiteTexture]);
+	//m_BaseColorPass->SetInput(3, m_Textures[Textures::TriangleTexture]);
 	m_BaseColorPass->ClearColor = glm::vec4({ 0.0f, 0.0f, 0.0f, 1.0f });
 
 #if USE_VIRTUAL_TEXTURE
@@ -163,9 +167,9 @@ ExampleLayer::ExampleLayer()
 	m_ClearUAVPass->SetInput(0, m_Textures[Textures::DeferredTexture]);
 #endif
 	m_ClearUAVPass->SetInput(1, m_Textures[Textures::EarthTexture]);
-	m_ClearUAVPass->SetInput(2, m_Textures[Textures::CubeTexture]);
-	m_ClearUAVPass->SetInput(3, m_Textures[Textures::WhiteTexture]);
-	m_ClearUAVPass->SetInput(4, m_Textures[Textures::TriangleTexture]);
+	//m_ClearUAVPass->SetInput(2, m_Textures[Textures::CubeTexture]);
+	m_ClearUAVPass->SetInput(2, m_Textures[Textures::WhiteTexture]);
+	//m_ClearUAVPass->SetInput(4, m_Textures[Textures::TriangleTexture]);
 
 
 	Hazel::Application::Get().GetWindow().SetVSync(false);
@@ -184,7 +188,6 @@ void ExampleLayer::OnUpdate(Hazel::Timestep ts)
 	HZ_PROFILE_FUNCTION();
 	m_CameraController.OnUpdate(ts);
 	//HZ_CORE_INFO("New Frame");
-
 	{
 		HZ_PROFILE_SCOPE("Game Object update");
 		float angle = ts * 30.0f;
@@ -194,16 +197,16 @@ void ExampleLayer::OnUpdate(Hazel::Timestep ts)
 			m_MainObject->Transform.RotateAround(rotationAxis, angle);
 		}
 
-		if (use_rendered_texture) {
-#if USE_VIRTUAL_TEXTURE
-			m_MainObject->Material->AlbedoTexture = m_Textures[Textures::VirtualTexture];
-#else
-			m_MainObject->Material->DiffuseTexture = m_Textures[Textures::DeferredTexture];
-#endif
-		}
-		else {
-			m_MainObject->Material->AlbedoTexture = m_Textures[Textures::EarthTexture];
-		}
+//		if (use_rendered_texture) {
+//#if USE_VIRTUAL_TEXTURE
+//			m_MainObject->Material->AlbedoTexture = m_Textures[Textures::VirtualTexture];
+//#else
+//			m_MainObject->Material->DiffuseTexture = m_Textures[Textures::DeferredTexture];
+//#endif
+//		}
+//		else {
+//			m_MainObject->Material->AlbedoTexture = m_Textures[Textures::EarthTexture];
+//		}
 	}
 
 	auto cmdList = m_Context->DeviceResources->CommandList;
@@ -214,7 +217,7 @@ void ExampleLayer::OnUpdate(Hazel::Timestep ts)
 		m_RenderedFrames = 0;
 		//HZ_CORE_INFO("New Deferred Frame");
 
-		auto tex = m_MainObject->Material->AlbedoTexture;
+		auto tex = m_MainObject->children[0]->Material->AlbedoTexture;
 		{
 			HZ_PROFILE_SCOPE("Readback update");
 			
@@ -249,7 +252,7 @@ void ExampleLayer::OnUpdate(Hazel::Timestep ts)
 			m_DeferredTexturePass->PassData.DirectionalLight = m_PositionalLightGO->Material->Color;
 			m_DeferredTexturePass->PassData.DirectionalLightPosition = m_PositionalLightGO->Transform.Position();
 			m_DeferredTexturePass->PassData.FinestMip = fine;
-			m_DeferredTexturePass->Process(m_Context, m_MainObject.get(), m_CameraController.GetCamera());
+			m_DeferredTexturePass->Process(m_Context, m_MainObject->children[0].get(), m_CameraController.GetCamera());
 		}
 
 		m_MipsPass->PassData.SourceLevel = fine;
@@ -423,7 +426,7 @@ void ExampleLayer::LoadAssets()
 		auto cmdlist = batch.Begin();
 
 		m_Models[Models::CubeModel] = ModelLoader::LoadFromFile(std::string("assets/models/test_cube.glb"), batch);
-		m_Models[Models::SphereModel] = ModelLoader::LoadFromFile(std::string("assets/models/test_sphere.glb"), batch);
+		m_Models[Models::SphereModel] = ModelLoader::LoadFromFile(std::string("assets/models/earth.fbx"), batch);
 		m_Models[Models::TriangleModel] = ModelLoader::LoadFromFile(std::string("assets/models/test_triangle.glb"), batch);
 		
 		{
@@ -517,34 +520,6 @@ void ExampleLayer::LoadAssets()
 			m_Textures[Textures::WhiteTexture]->Transition(batch, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		}
 
-		{
-			HZ_PROFILE_SCOPE("Cube Texture");
-			Hazel::D3D12Texture2D::TextureCreationOptions opts;
-			opts.Flags = D3D12_RESOURCE_FLAG_NONE;
-			opts.Path = L"assets/textures/Cube_Texture.dds";
-
-			m_Textures[Textures::CubeTexture] = Hazel::D3D12Texture2D::CreateCommittedTexture(batch, opts);
-			m_Textures[Textures::CubeTexture]->Transition(batch, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-		}
-
-		{
-			HZ_PROFILE_SCOPE("Triangle Texture");
-			Hazel::D3D12Texture2D::TextureCreationOptions opts;
-			opts.Flags = D3D12_RESOURCE_FLAG_NONE;
-			opts.Path = L"assets/textures/test_texture.dds";
-			m_Textures[Textures::TriangleTexture] = Hazel::D3D12Texture2D::CreateCommittedTexture(batch, opts);
-			m_Textures[Textures::TriangleTexture]->Transition(batch, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-		}
-
-		{
-			HZ_PROFILE_SCOPE("Mip Debug Texture");
-			Hazel::D3D12Texture2D::TextureCreationOptions opts;
-			opts.Flags = D3D12_RESOURCE_FLAG_NONE;
-			opts.Path = L"assets/textures/mips_debug.dds";
-			m_Textures[Textures::MipDebug] = Hazel::D3D12Texture2D::CreateCommittedTexture(batch, opts);
-			m_Textures[Textures::MipDebug]->Transition(batch, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-		}
-		
 		auto f = batch.End(m_Context->DeviceResources->CommandQueue.Get());
 		f.wait();
 	}

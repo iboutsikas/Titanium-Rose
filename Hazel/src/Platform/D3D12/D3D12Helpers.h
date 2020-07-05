@@ -6,6 +6,8 @@
 #include <string>
 #include <d3d12.h>
 
+#define D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN   ((D3D12_GPU_VIRTUAL_ADDRESS)-1)
+
 #include "Hazel/Core/Log.h"
 namespace Hazel::D3D12 {
 

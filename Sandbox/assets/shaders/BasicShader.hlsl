@@ -55,15 +55,17 @@ PSInput VS_Main(VSInput input)
 [RootSignature(MyRS1)]
 float4 PS_Main(PSInput input) : SV_TARGET
 {
-    float mipLevel = g_DiffuseTextures[oTextureIndex].CalculateLevelOfDetail(g_sampler, input.uv);
+    float idealMipLevel = g_DiffuseTextures[oTextureIndex].CalculateLevelOfDetail(g_sampler, input.uv);
     
+    
+
     uint feedbackX = (uint)((float)oFeedbackDims.x * input.uv.x) ;
     uint feedbackY = (uint)((float)oFeedbackDims.y * input.uv.y);
 
     RWBuffer<uint> feedbackBuffer = g_FeedbackBuffers[oTextureIndex];
 
     uint index = feedbackY * oFeedbackDims.x + feedbackX;
-    InterlockedMin(feedbackBuffer[index], mipLevel);
+    InterlockedMin(feedbackBuffer[index], idealMipLevel);
 
     return g_DiffuseTextures[oTextureIndex].Sample(g_sampler, input.uv) * oMaterialColor;
 }

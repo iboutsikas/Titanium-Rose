@@ -94,15 +94,15 @@ float4 PS_Main(PSInput input) : SV_TARGET
     
     // This is here to prevent the glitches on the back of the model. Since
     // the backfaces are no longer culled.
-    float shadowFactor = step(0, dot(geometricNormal, fragmentToLight));
-    // float shadowFactor = 1.0;
+    // float shadowFactor = step(0, dot(geometricNormal, fragmentToLight));
+    float shadowFactor = 1.0;
 
     // Ambient Light
-    float3 ambient = gAmbientLight * gAmbientIntensity;
+    float3 ambient = gAmbientLight * gAmbientIntensity * albedo;
 
     // Direct Diffuse Light
     float brightness = max(dot(normal, fragmentToLight), 0);
-    float3 directDiffuseLight = gDirectionalLight * brightness * shadowFactor;
+    float3 directDiffuseLight = gDirectionalLight * brightness * albedo;
 
     // Direct Specular Light
     /* ===============================================
@@ -124,7 +124,7 @@ float4 PS_Main(PSInput input) : SV_TARGET
     float3 lightReflect = normalize(reflect(-fragmentToLight, normal));
     float specularFalloff = max(dot(lightReflect, fragmentToEye), 0.0);
     specularFalloff = pow(specularFalloff, oGlossiness);
-    float3 directSpecular = 2.0 * gDirectionalLight * specularFalloff * shadowFactor;
+    float3 directSpecular = gDirectionalLight * specularFalloff * shadowFactor;
 
     // if (texColor.r != 0.0 || texColor.b != 0.0 || texColor.g != 0.0) {
     //     texColor = directDiffuseLight;
@@ -132,7 +132,8 @@ float4 PS_Main(PSInput input) : SV_TARGET
 
     // Composite
     float3 diffuseLight = ambient + directDiffuseLight + directSpecular;
-    float4 finalSurfaceColor = float4((diffuseLight * albedo.xyz) , albedo.a);
+    float4 finalSurfaceColor = float4(diffuseLight , 1.0);
 
     return finalSurfaceColor;
+
 }

@@ -4,7 +4,7 @@
 void ImGui::TransformControl(Hazel::HTransform* transform)
 {
 	auto pos = transform->Position();
-	ImGui::InputFloat3("Position", &pos.x);
+	ImGui::DragFloat3("Position", &pos.x);
 	transform->SetPosition(pos);
 
 	auto scale = transform->Scale();
@@ -16,7 +16,7 @@ void ImGui::TransformControl(Hazel::HTransform* transform)
 
 void ImGui::MaterialControl(Hazel::HMaterial* material)
 {
-	ImGui::InputFloat("Glossiness", &material->Glossines);
+	ImGui::InputFloat("Specular", &material->Specular);
 	ImGui::ColorEdit4("Material Color", &material->Color.x);
 }
 

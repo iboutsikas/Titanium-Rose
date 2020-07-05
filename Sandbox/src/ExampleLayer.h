@@ -25,6 +25,7 @@
 #include "NormalsDebugPass.h"
 #include "MipMapPass.h"
 #include "ClearFeedbackPass.h"
+#include "TextureLibrary.h"
 
 
 enum ExampleShaders : size_t {
@@ -88,10 +89,7 @@ private:
 		EarthTexture,
 		NormalTexture,
 		FeedbackTexture,
-		CubeTexture,
-		TriangleTexture,
 		WhiteTexture,
-		MipDebug,
 		CountTexure
 	};
 	std::vector<Hazel::Ref<Hazel::D3D12Texture2D>> m_Textures;
@@ -103,6 +101,8 @@ private:
 	Hazel::Ref<NormalsDebugPass> m_NormalsPass;
 	Hazel::Ref<MipMapPass>	m_MipsPass;
 	Hazel::Ref<ClearFeedbackPass>	m_ClearUAVPass;
+
+	TextureLibrary m_TextureLibrary;
 
 	void LoadAssets();
 	void BuildPipeline();

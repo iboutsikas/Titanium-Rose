@@ -5,6 +5,7 @@
 
 
 #include "Platform/D3D12/D3D12Helpers.h"
+#include "Platform/D3D12/D3D12ResourceBatch.h"
 
 // TODO: Maybe get these from an .hlsli file like normal people
 static constexpr uint32_t PassCBIndex = 0;
@@ -48,9 +49,12 @@ DeferredTexturePass::DeferredTexturePass(Hazel::D3D12Context* ctx, Hazel::D3D12S
 
 void DeferredTexturePass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject* sceneRoot, Hazel::PerspectiveCamera& camera)
 {
-	auto cmdList = ctx->DeviceResources->CommandList;
+	Hazel::D3D12ResourceBatch batch(ctx->DeviceResources->Device.Get());
 
-	PIXScopedEvent(cmdList.Get(), PIX_COLOR(1, 0, 1), "Deferred Pass");
+	auto cmdList = batch.Begin();
+	//auto cmdList = ctx->DeviceResources->CommandList;
+
+	PIXBeginEvent(cmdList.Get(), PIX_COLOR(1, 0, 1), "Deferred Pass");
 
 	PassData.ViewProjection = camera.GetViewProjectionMatrix();
 	PassData.CameraPosition = camera.GetPosition();
@@ -60,7 +64,7 @@ void DeferredTexturePass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject* s
 
 	// TODO: Maybe do not hardcode this here? Maybe we want to be able to handle children somehow ?
 	HPerObjectData PerObjectData;
-	PerObjectData.Glossiness = sceneRoot->Material->Glossines;
+	PerObjectData.Glossiness = sceneRoot->Material->Specular;
 	PerObjectData.ModelMatrix = sceneRoot->Transform.LocalToWorldMatrix();
 	/*auto scale = glm::transpose(glm::inverse(sceneRoot->Transform.ScaleMatrix()));
 	auto rot = sceneRoot->Transform.RotationMatrix();
@@ -83,7 +87,7 @@ void DeferredTexturePass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject* s
 	rtvDesc.Format = desc.Format;
 	rtvDesc.Texture2D.MipSlice = PassData.FinestMip;
 	rtvDesc.Texture2D.PlaneSlice = 0;
-	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION::D3D12_RTV_DIMENSION_TEXTURE2D;
+	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
 	m_Context->DeviceResources->Device->CreateRenderTargetView(
 		target->GetResource(),
@@ -123,18 +127,19 @@ void DeferredTexturePass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject* s
 
 	float clearColor[] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
-	cmdList->OMSetRenderTargets(1, &rtv, true, nullptr);
+	cmdList->OMSetRenderTargets(1, &rtv, TRUE, nullptr);
 
-	m_Context
-		->DeviceResources
-		->CommandList
-		->ClearRenderTargetView(rtv, clearColor, 0, nullptr);
+	cmdList->ClearRenderTargetView(rtv, clearColor, 0, nullptr);
 
 
 	cmdList->DrawIndexedInstanced(mesh->indexBuffer->GetCount(), 1, 0, 0, 0);
 
 	// We transition back to shader resource
 	target->Transition(cmdList.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+	PIXEndEvent();
+	auto f = batch.End(ctx->DeviceResources->CommandQueue.Get());
+	//f.wait();
 }
 
 void DeferredTexturePass::SetOutput(uint32_t index, Hazel::Ref<Hazel::D3D12Texture2D> output)

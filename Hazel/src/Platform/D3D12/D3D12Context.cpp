@@ -358,18 +358,20 @@ namespace Hazel {
 			commandAllocator.Get(),
 			nullptr)
 		);
+
+		DeviceResources->CommandList->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &DepthStencilView());
 				
 
-		auto backBuffer = DeviceResources->BackBuffers[m_CurrentBackbufferIndex];
+		//auto backBuffer = DeviceResources->BackBuffers[m_CurrentBackbufferIndex];
 
-		CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
-			backBuffer.Get(),
-			D3D12_RESOURCE_STATE_PRESENT,
-			D3D12_RESOURCE_STATE_RENDER_TARGET,
-			D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
-			D3D12_RESOURCE_BARRIER_FLAG_NONE);
+		//CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+		//	backBuffer.Get(),
+		//	D3D12_RESOURCE_STATE_PRESENT,
+		//	D3D12_RESOURCE_STATE_RENDER_TARGET,
+		//	D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
+		//	D3D12_RESOURCE_BARRIER_FLAG_NONE);
 
-		DeviceResources->CommandList->ResourceBarrier(1, &barrier);
+		//DeviceResources->CommandList->ResourceBarrier(1, &barrier);
 	}
 
 	D3D12_CPU_DESCRIPTOR_HANDLE D3D12Context::CurrentBackBufferView() const
