@@ -176,10 +176,6 @@ namespace Hazel {
 
 		PerformInitializationTransitions();
 
-		D3D12_FEATURE_DATA_D3D12_OPTIONS7 options = {};
-		D3D12::ThrowIfFailed(DeviceResources->Device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS7, &options, sizeof(options)));
-		m_SamplerFeedbackSupported = (D3D12_SAMPLER_FEEDBACK_TIER_NOT_SUPPORTED != options.SamplerFeedbackTier);
-
 		DXGI_ADAPTER_DESC3 desc;
 		theAdapter->GetDesc3(&desc);
 
