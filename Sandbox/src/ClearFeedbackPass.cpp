@@ -1,5 +1,6 @@
 #include "ClearFeedbackPass.h"
 #include "Platform/D3D12/D3D12Helpers.h"
+#include "Platform/D3D12/D3D12Renderer.h"
 
 static constexpr char* ClearPath = "assets/shaders/ClearUAVShader.hlsl";
 static constexpr uint32_t PerObjectCBIndex = 0;
@@ -9,14 +10,14 @@ ClearFeedbackPass::ClearFeedbackPass(Hazel::D3D12Context* ctx)
 	: D3D12RenderPass(ctx)
 {
 	Hazel::D3D12Shader::PipelineStateStream stream;
-	if (Hazel::ShaderLibrary::GlobalLibrary()->Exists(ClearPath))
+	if (Hazel::D3D12Renderer::ShaderLibrary->Exists(ClearPath))
 	{
-		m_Shader = Hazel::ShaderLibrary::GlobalLibrary()->GetAs<Hazel::D3D12Shader>(ClearPath);
+		m_Shader = Hazel::D3D12Renderer::ShaderLibrary->GetAs<Hazel::D3D12Shader>(ClearPath);
 	}
 	else
 	{
 		m_Shader = Hazel::CreateRef<Hazel::D3D12Shader>(ClearPath, stream, Hazel::ShaderType::Compute);
-		Hazel::ShaderLibrary::GlobalLibrary()->Add(m_Shader);
+		Hazel::D3D12Renderer::ShaderLibrary->Add(m_Shader);
 	}
 
 	m_SRVHeap = ctx->DeviceResources->CreateDescriptorHeap(

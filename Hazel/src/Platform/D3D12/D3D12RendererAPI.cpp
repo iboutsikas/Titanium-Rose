@@ -10,61 +10,26 @@ namespace Hazel {
 
 	void D3D12RendererAPI::Init()
 	{
-		Context = static_cast<D3D12Context*>(
-			Application::Get()
-			.GetWindow()
-			.GetContext()
-		);
+
 	}
 
 	void D3D12RendererAPI::SetViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height)
 	{
-		Context->m_Viewport.TopLeftX = x;
-		Context->m_Viewport.TopLeftY = y;
-		Context->m_Viewport.Width = width;
-		Context->m_Viewport.Height = height;
-		Context->m_Viewport.MinDepth = 0.0f;
-		Context->m_Viewport.MaxDepth = 1.0f;
-
-		Context->m_ScissorRect.left = x;
-		Context->m_ScissorRect.top = y;
-		Context->m_ScissorRect.right = width;
-		Context->m_ScissorRect.bottom = height;
-
-		Context->Flush();
-		auto r = Context->DeviceResources.get();
-		Context->CleanupRenderTargetViews();
-		Context->ResizeSwapChain();
-		Context->CreateRenderTargetViews();
-		Context->CreateDepthStencil();
-
-		// Transition the DepthStencilBuffer
-		auto dsBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
-			r->DepthStencilBuffer.Get(),
-			D3D12_RESOURCE_STATE_COMMON,
-			D3D12_RESOURCE_STATE_DEPTH_WRITE
-		);
-
-		r->CommandList->ResourceBarrier(1, &dsBarrier);
-
-		// Execute all the resize magic
-		D3D12::ThrowIfFailed(r->CommandList->Close());
-
-		ID3D12CommandList* const commandLists[] = {
-			r->CommandList.Get()
-		};
-		r->CommandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
-
-
+		HZ_CORE_ASSERT(false, "This shouldn't be called");
 	}
 
 	void D3D12RendererAPI::SetClearColor(const glm::vec4& color)
 	{
+#if 0
 		m_ClearColor = color;
+#endif
+		HZ_CORE_ASSERT(false, "This shouldn't be called");
+
 	}
 
 	void D3D12RendererAPI::Clear()
 	{
+#if 0
 		D3D12_CPU_DESCRIPTOR_HANDLE rtv = Context->CurrentBackBufferView();
 
 		Context
@@ -80,6 +45,9 @@ namespace Hazel {
 				D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 
 				1.0f, 0, 0, nullptr
 			);
+#endif
+		HZ_CORE_ASSERT(false, "This shouldn't be called");
+
 	}
 
 	void D3D12RendererAPI::DrawIndexed(const Ref<VertexArray>& vertexArray)
@@ -88,13 +56,21 @@ namespace Hazel {
 
 	void D3D12RendererAPI::BeginFrame()
 	{
+#if 0
 		Context->NewFrame();
+#endif
+		HZ_CORE_ASSERT(false, "This shouldn't be called");
+
 	}
 
 	void D3D12RendererAPI::EndFrame()
 	{
+#if 0
 		HZ_PROFILE_FUNCTION();
 		Context->SwapBuffers();
+#endif
+		HZ_CORE_ASSERT(false, "This shouldn't be called");
+
 	}
 }
 

@@ -81,7 +81,6 @@ namespace Hazel {
 		TComPtr<ID3D12RootSignature> m_RootSignature;
 		TComPtr<ID3D12PipelineState> m_PipelineState;
 		PipelineStateStream m_PipelineDesc;
-		D3D12Context* m_Context;
 		Ref<CompilationSate> m_CompilationState;
 
 		std::string m_Name;

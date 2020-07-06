@@ -6,11 +6,12 @@
 #include "assimp/vector3.h"
 #include "assimp/quaternion.h"
 #include "assimp/Vertex.h"
-#include "Vertex.h"
+
+#include "Hazel/Renderer/Vertex.h"
 
 #include "Platform/D3D12/D3D12Texture.h"
 
-TextureLibrary* ModelLoader::TextureLibrary = nullptr;
+Hazel::TextureLibrary* ModelLoader::TextureLibrary = nullptr;
 
 void processNode(aiNode* node, const aiScene* scene, 
 	Hazel::Ref<Hazel::GameObject>& target, 
@@ -36,14 +37,14 @@ void processNode(aiNode* node, const aiScene* scene,
 
 		Hazel::Ref<Hazel::HMesh> hmesh = Hazel::CreateRef<Hazel::HMesh>();
 
-		std::vector<Vertex> vertices;
+		std::vector<Hazel::Vertex> vertices;
 		std::vector<uint32_t> indices;
 		// Textures ?!
 
 		for (size_t i = 0; i < aimesh->mNumVertices; i++)
 		{
 #pragma region Vertices
-			Vertex the_vertex;
+			Hazel::Vertex the_vertex;
 
 			auto& vert = aimesh->mVertices[i];
 			auto vx = vert.x;
@@ -94,7 +95,7 @@ void processNode(aiNode* node, const aiScene* scene,
 #pragma endregion
 		}
 		
-		hmesh->vertexBuffer = Hazel::CreateRef<Hazel::D3D12VertexBuffer>(batch, (float*)vertices.data(), vertices.size() * sizeof(Vertex));
+		hmesh->vertexBuffer = Hazel::CreateRef<Hazel::D3D12VertexBuffer>(batch, (float*)vertices.data(), vertices.size() * sizeof(Hazel::Vertex));
 		hmesh->vertexBuffer->GetResource()->SetName(L"Vertex buffer");
 		
 		hmesh->indexBuffer = Hazel::CreateRef<Hazel::D3D12IndexBuffer>(batch, indices.data(), indices.size());

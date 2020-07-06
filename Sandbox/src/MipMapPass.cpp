@@ -1,4 +1,6 @@
 #include "MipMapPass.h"
+#include "Platform/D3D12/D3D12Renderer.h"
+
 static constexpr char* MipGenShaderPath = "assets/shaders/MipGenShader.hlsl";
 static constexpr uint32_t MipsPerIteration = 4;
 
@@ -7,14 +9,14 @@ MipMapPass::MipMapPass(Hazel::D3D12Context* ctx)
 	: D3D12RenderPass(ctx)
 {
 	Hazel::D3D12Shader::PipelineStateStream stream;
-	if (Hazel::ShaderLibrary::GlobalLibrary()->Exists(MipGenShaderPath))
+	if (Hazel::D3D12Renderer::ShaderLibrary->Exists(MipGenShaderPath))
 	{
-		m_Shader = Hazel::ShaderLibrary::GlobalLibrary()->GetAs<Hazel::D3D12Shader>(MipGenShaderPath);
+		m_Shader = Hazel::D3D12Renderer::ShaderLibrary->GetAs<Hazel::D3D12Shader>(MipGenShaderPath);
 	}
 	else
 	{
 		m_Shader = Hazel::CreateRef<Hazel::D3D12Shader>(MipGenShaderPath, stream, Hazel::ShaderType::Compute);
-		Hazel::ShaderLibrary::GlobalLibrary()->Add(m_Shader);
+		Hazel::D3D12Renderer::ShaderLibrary->Add(m_Shader);
 	}
 
 	m_SRVHeap = ctx->DeviceResources->CreateDescriptorHeap(

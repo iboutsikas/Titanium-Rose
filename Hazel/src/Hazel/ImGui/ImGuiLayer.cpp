@@ -4,7 +4,7 @@
 #include "Hazel/Renderer/Renderer.h"
 
 #include "Platform/D3D12/ImGui/D3D12ImGuiLayer.h"
-
+#include "Platform/D3D12/D3D12Renderer.h"
 namespace Hazel {
 
 	ImGuiLayer::ImGuiLayer()
@@ -19,8 +19,7 @@ namespace Hazel {
 		case RendererAPI::API::None:    HZ_CORE_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;
 		case RendererAPI::API::OpenGL:  HZ_CORE_ASSERT(false, "RendererAPI::OpenGL is currently not supported!"); return nullptr;
 		case RendererAPI::API::D3D12: {
-			auto ctx = Application::Get().GetWindow().GetContext();
-			return new D3D12ImGuiLayer(static_cast<D3D12Context*>(ctx));
+			return new D3D12ImGuiLayer(D3D12Renderer::Context);
 		}
 		}
 

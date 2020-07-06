@@ -10,7 +10,8 @@
 #include "Platform/D3D12/D3D12Context.h"
 #include "Platform/D3D12/D3D12DescriptorHeap.h"
 
-#include "TextureLibrary.h"
+#include "Platform/D3D12/D3D12Renderer.h"
+
 #define GLM_ENABLE_EXPERIMENTAL
 #include "glm/gtx/compatibility.hpp"
 
@@ -61,8 +62,6 @@ struct PatrolComponent
 class BenchmarkLayer : public Hazel::Layer
 {
 public:
-	static constexpr size_t MaxLights = 2;
-
     BenchmarkLayer();
     virtual ~BenchmarkLayer() = default;
 
@@ -74,49 +73,15 @@ public:
 	void OnEvent(Hazel::Event& e) override;
 private:
 
-	// We need to use uint32_t instead of bools here, cuz of little endianess
-	// and packing
-	struct alignas(16) HPerObjectData {
-		glm::mat4 LocalToWorld;
-		glm::mat4 WorldToLocal;
-		glm::vec4 Color;
-		float Specular;
-		uint32_t HasAlbedo;
-		uint32_t HasNormal;
-		uint32_t HasSpecular;		
-	};
-
-	struct alignas(16) HPassData {
-		glm::mat4 ViewProjection;
-		glm::vec3 AmbientLight;
-		float AmbientIntensity;
-		glm::vec3 EyePosition;
-		float _padding;
-		struct {
-			glm::vec3 Position;
-			uint32_t Range;
-			glm::vec3 Color;
-			float Intensity;
-		} Lights[MaxLights];
-	};
-
 	Hazel::Scene m_Scene;
 
 	glm::vec4 m_ClearColor;
-	glm::vec3 m_AmbientColor;
-	float m_AmbientIntensity;
 
 	Hazel::PerspectiveCameraController m_CameraController;
-
-	Hazel::D3D12Context* m_Context;
-	Hazel::Ref<Hazel::D3D12DescriptorHeap> m_ResourceHeap;
-	Hazel::Ref<Hazel::D3D12DescriptorHeap> m_RenderTargetHeap;
-	Hazel::Ref<Hazel::GameObject> m_Model;
 
 	std::vector<Waypoint> m_Path;
 	std::vector<PatrolComponent> m_PatrolComponents;
 
-	TextureLibrary m_TextureLibrary;
 	float m_LastFrameTime;
 };
 

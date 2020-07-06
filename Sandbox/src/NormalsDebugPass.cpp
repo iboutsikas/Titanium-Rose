@@ -1,5 +1,7 @@
 #include "NormalsDebugPass.h"
-#include "Vertex.h"
+#include "Hazel/Renderer/Vertex.h"
+
+#include "Platform/D3D12/D3D12Renderer.h"
 
 static constexpr uint32_t PassCBIndex = 0;
 static constexpr uint32_t PerObjectCBIndex = 1;
@@ -10,7 +12,7 @@ NormalsDebugPass::NormalsDebugPass(Hazel::D3D12Context* ctx, Hazel::D3D12Shader:
 	Hazel::ShaderType shaderTypes = Hazel::ShaderType::Vertex | Hazel::ShaderType::Fragment | Hazel::ShaderType::Geometry;
 	m_Shader = Hazel::CreateRef<Hazel::D3D12Shader>("assets/shaders/NormalsDebugShader.hlsl", pipelineStream, shaderTypes);
 
-	Hazel::ShaderLibrary::GlobalLibrary()->Add(m_Shader);
+	Hazel::D3D12Renderer::ShaderLibrary->Add(m_Shader);
 
 	m_SRVHeap = ctx->DeviceResources->CreateDescriptorHeap(
 		ctx->DeviceResources->Device.Get(),
@@ -61,7 +63,7 @@ void NormalsDebugPass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject* scen
 
 	auto mesh = sceneRoot->Mesh;
 	D3D12_VERTEX_BUFFER_VIEW vb = mesh->vertexBuffer->GetView();
-	vb.StrideInBytes = sizeof(Vertex);
+	vb.StrideInBytes = sizeof(Hazel::Vertex);
 
 	D3D12_INDEX_BUFFER_VIEW ib = mesh->indexBuffer->GetView();
 	cmdList->IASetVertexBuffers(0, 1, &vb);

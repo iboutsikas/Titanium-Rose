@@ -1,10 +1,11 @@
 #include "hzpch.h"
 #include "DeferedTexturePass.h"
-#include "Vertex.h"
+#include "Hazel/Renderer/Vertex.h"
 
 
 
 #include "Platform/D3D12/D3D12Helpers.h"
+#include "Platform/D3D12/D3D12Renderer.h"
 #include "Platform/D3D12/D3D12ResourceBatch.h"
 
 // TODO: Maybe get these from an .hlsli file like normal people
@@ -16,14 +17,14 @@ static constexpr char* TextureShaderPath = "assets/shaders/TextureShader.hlsl";
 DeferredTexturePass::DeferredTexturePass(Hazel::D3D12Context* ctx, Hazel::D3D12Shader::PipelineStateStream& pipelineStream)
 	: D3D12RenderPass(ctx)
 {
-	if (Hazel::ShaderLibrary::GlobalLibrary()->Exists(TextureShaderPath))
+	if (Hazel::D3D12Renderer::ShaderLibrary->Exists(TextureShaderPath))
 	{
-		m_Shader = Hazel::ShaderLibrary::GlobalLibrary()->GetAs<Hazel::D3D12Shader>(TextureShaderPath);
+		m_Shader = Hazel::D3D12Renderer::ShaderLibrary->GetAs<Hazel::D3D12Shader>(TextureShaderPath);
 	}
 	else
 	{
 		m_Shader = Hazel::CreateRef<Hazel::D3D12Shader>(TextureShaderPath, pipelineStream);
-		Hazel::ShaderLibrary::GlobalLibrary()->Add(m_Shader);
+		Hazel::D3D12Renderer::ShaderLibrary->Add(m_Shader);
 	}
 
 	m_RTVHeap = ctx->DeviceResources->CreateDescriptorHeap(
@@ -111,7 +112,7 @@ void DeferredTexturePass::Process(Hazel::D3D12Context* ctx, Hazel::GameObject* s
 
 	auto mesh = sceneRoot->Mesh;
 	D3D12_VERTEX_BUFFER_VIEW vb = mesh->vertexBuffer->GetView();
-	vb.StrideInBytes = sizeof(Vertex);
+	vb.StrideInBytes = sizeof(Hazel::Vertex);
 
 	D3D12_INDEX_BUFFER_VIEW ib = mesh->indexBuffer->GetView();
 

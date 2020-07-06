@@ -1,15 +1,15 @@
 #pragma once
+
 #include "d3d12.h"
 
-#include "Hazel/Core/Application.h"
 #include "Hazel/Renderer/Buffer.h"
 
 #include "Platform/D3D12/ComPtr.h"
 #include "Platform/D3D12/D3D12ResourceBatch.h"
 
+
 namespace Hazel {
-	// Forward Declarations
-	class D3D12Context;
+	class D3D12ResourceBatch;
 
 	class D3D12VertexBuffer : public VertexBuffer
 	{
@@ -48,7 +48,7 @@ namespace Hazel {
 		TComPtr<ID3D12Resource> m_CommittedResource;
 		D3D12_INDEX_BUFFER_VIEW m_View;
 	};
-	
+#if 1
 	template<typename T>
 	class D3D12UploadBuffer
 	{
@@ -58,13 +58,12 @@ namespace Hazel {
 			: m_IsConstantBuffer(isConstantBuffer)
 		{
 			m_ElementByteSize = sizeof(T);
-			auto ctx = dynamic_cast<D3D12Context*>(Application::Get().GetWindow().GetContext());
 
 			if (m_IsConstantBuffer) {
 				m_ElementByteSize = D3D12::CalculateConstantBufferSize(m_ElementByteSize);
 			}
 
-			D3D12::ThrowIfFailed(ctx->DeviceResources->Device->CreateCommittedResource(
+			D3D12::ThrowIfFailed(D3D12Renderer::Context->DeviceResources->Device->CreateCommittedResource(
 				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 				D3D12_HEAP_FLAG_NONE,
 				&CD3DX12_RESOURCE_DESC::Buffer(m_ElementByteSize * elementCount),
@@ -131,5 +130,6 @@ namespace Hazel {
 		uint32_t m_ElementByteSize = 0;
 		bool m_IsConstantBuffer = false;
 	};
-
+#endif
 }
+

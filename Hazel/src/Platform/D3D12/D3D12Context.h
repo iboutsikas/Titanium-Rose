@@ -9,14 +9,14 @@
 
 #include <vector>
 namespace Hazel{
-	class D3D12Context : public GraphicsContext
+	class D3D12Context
 	{
 	public:
-		D3D12Context(Window* window);
+		D3D12Context();
 
-		virtual void Init() override;
-		virtual void SwapBuffers() override;
-		virtual void SetVSync(bool enable) override;
+		void Init(Window* window);
+		void SwapBuffers();
+		void SetVSync(bool enable);
 		
 		void CreateRenderTargetViews();
 		void CleanupRenderTargetViews();

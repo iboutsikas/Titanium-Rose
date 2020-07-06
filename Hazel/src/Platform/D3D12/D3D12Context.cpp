@@ -57,19 +57,22 @@ bool CheckTearingSupport()
 
 namespace Hazel {
 
-	D3D12Context::D3D12Context(Window* window)
-		: m_Window(window), m_NativeHandle(nullptr), m_ScissorRect({0, 0, LONG_MAX, LONG_MAX})
+	D3D12Context::D3D12Context()
+		: m_Window(), m_NativeHandle(nullptr), m_ScissorRect({0, 0, LONG_MAX, LONG_MAX})
 	{
+		
+	}
+
+	void D3D12Context::Init(Window* window)
+	{
+		HZ_PROFILE_FUNCTION();
+		m_Window = window;
 		HZ_CORE_ASSERT(window, "Window handle is null!");
 		m_NativeHandle = glfwGetWin32Window(static_cast<GLFWwindow*>(m_Window->GetNativeWindow()));
 		HZ_CORE_ASSERT(m_NativeHandle, "D3D12Context m_NativeHandle is null!");
 		DeviceResources = CreateScope<D3D12DeviceResources>(NUM_FRAMES);
-	}
 
-	void D3D12Context::Init()
-	{
-		HZ_PROFILE_FUNCTION();
-				
+
 		auto width = m_Window->GetWidth();
 		auto height = m_Window->GetHeight();
 		m_TearingSupported = CheckTearingSupport();
@@ -360,18 +363,6 @@ namespace Hazel {
 		);
 
 		DeviceResources->CommandList->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &DepthStencilView());
-				
-
-		//auto backBuffer = DeviceResources->BackBuffers[m_CurrentBackbufferIndex];
-
-		//CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
-		//	backBuffer.Get(),
-		//	D3D12_RESOURCE_STATE_PRESENT,
-		//	D3D12_RESOURCE_STATE_RENDER_TARGET,
-		//	D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
-		//	D3D12_RESOURCE_BARRIER_FLAG_NONE);
-
-		//DeviceResources->CommandList->ResourceBarrier(1, &barrier);
 	}
 
 	D3D12_CPU_DESCRIPTOR_HANDLE D3D12Context::CurrentBackBufferView() const

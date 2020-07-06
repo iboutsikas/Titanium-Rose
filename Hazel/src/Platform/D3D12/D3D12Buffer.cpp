@@ -2,8 +2,10 @@
 #include "Hazel/Core/Application.h"
 
 #include "Platform/D3D12/D3D12Buffer.h"
-#include "Platform/D3D12/D3D12Helpers.h"
 #include "Platform/D3D12/D3D12Context.h"
+#include "Platform/D3D12/D3D12Helpers.h"
+#include "Platform/D3D12/D3D12ResourceBatch.h"
+
 #include <d3d12.h>
 #include "Platform/D3D12/d3dx12.h"
 
@@ -38,8 +40,6 @@ namespace Hazel {
 	
 	D3D12VertexBuffer::~D3D12VertexBuffer()
 	{
-		//m_CommittedResource->Release();
-		//m_UploadResource->Release();
 	}
 
 	D3D12IndexBuffer::D3D12IndexBuffer(D3D12ResourceBatch& batch, uint32_t* indices, uint32_t count)
@@ -75,7 +75,5 @@ namespace Hazel {
 
 	D3D12IndexBuffer::~D3D12IndexBuffer()
 	{
-		//m_CommittedResource->Release();
-		//m_UploadResource->Release();
 	}
 }

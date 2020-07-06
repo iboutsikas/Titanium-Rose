@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Hazel/ComponentSystem/GameObject.h"
+#include "Hazel/Renderer/PerspectiveCamera.h"
 
 namespace Hazel
 {
@@ -16,6 +17,9 @@ namespace Hazel
     public:
         std::vector<Ref<GameObject>> Entities;
         std::vector<Light> Lights;
+        PerspectiveCamera* Camera;
+        glm::vec3 AmbientLight;
+        float AmbientIntensity;
     };
 }
 

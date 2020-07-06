@@ -11,16 +11,18 @@
 #include "glm/vec3.hpp"
 #include "glm/glm.hpp"
 
+#include "Hazel/ComponentSystem/GameObject.h"
 #include "Hazel/Core/Application.h"
 #include "Hazel/Renderer/Buffer.h"
 
-#include "Hazel/ComponentSystem/GameObject.h"
+
 
 #include <d3d12.h>
 #include "Platform/D3D12/d3dx12.h"
 #include "Platform/D3D12/D3D12Buffer.h"
 #include "Platform/D3D12/D3D12Shader.h"
 #include "Platform/D3D12/D3D12ResourceBatch.h"
+#include "Platform/D3D12/D3D12Renderer.h"
 
 #include"ModelLoader.h"
 
@@ -37,10 +39,10 @@ static bool render_normals = false;
 static bool visualize_tiles = false;
 
 static D3D12_INPUT_ELEMENT_DESC inputLayout[] = {
-		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(Vertex, Position), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(Vertex, Normal), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "TANGENT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, offsetof(Vertex, Tangent), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "UV", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(Vertex, UV), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(Hazel::Vertex, Position), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(Hazel::Vertex, Normal), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "TANGENT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, offsetof(Hazel::Vertex, Tangent), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "UV", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(Hazel::Vertex, UV), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 };
 
 static std::pair<uint32_t, uint32_t> extractMipLevels(Hazel::Ref<Hazel::D3D12Texture2D> texture)
@@ -80,13 +82,13 @@ ExampleLayer::ExampleLayer()
 	m_AmbientIntensity(0.1f),
 	m_RotateCube(false)
 {	
-	m_Context = static_cast<Hazel::D3D12Context*>(Hazel::Application::Get().GetWindow().GetContext());
+	m_Context = Hazel::D3D12Renderer::Context;
 	m_TilePool = Hazel::CreateRef<Hazel::D3D12TilePool>();
 
 	m_Models.resize(Models::CountModel);
 	m_Textures.resize(Textures::CountTexure);
 
-	ModelLoader::TextureLibrary = &m_TextureLibrary;
+	ModelLoader::TextureLibrary = Hazel::D3D12Renderer::TextureLibrary;
 
 	LoadAssets();
 	BuildPipeline();
@@ -170,9 +172,6 @@ ExampleLayer::ExampleLayer()
 	//m_ClearUAVPass->SetInput(2, m_Textures[Textures::CubeTexture]);
 	m_ClearUAVPass->SetInput(2, m_Textures[Textures::WhiteTexture]);
 	//m_ClearUAVPass->SetInput(4, m_Textures[Textures::TriangleTexture]);
-
-
-	Hazel::Application::Get().GetWindow().SetVSync(false);
 }
 
 void ExampleLayer::OnAttach()
@@ -346,8 +345,8 @@ void ExampleLayer::OnImGuiRender()
 	ImGui::End();
 
 	ImGui::Begin("Shader Control Center");
-	static auto shaderLib = Hazel::ShaderLibrary::GlobalLibrary();
-	for (const auto& [key, shader] : *shaderLib)
+	
+	for (const auto& [key, shader] : *Hazel::D3D12Renderer::ShaderLibrary)
 	{
 		ImGui::PushID(shader->GetName().c_str());
 		ImGui::Text(shader->GetName().c_str());

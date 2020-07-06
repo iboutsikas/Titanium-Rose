@@ -66,12 +66,7 @@ namespace Hazel {
 			++s_GLFWWindowCount;
 		}
 
-		m_Context = GraphicsContext::Create(this);
-		m_Context->Init();
-
 		glfwSetWindowUserPointer(m_Window, &m_Data);
-		SetVSync(true);
-
 		
 		if (glfwRawMouseMotionSupported()) 
 		{
@@ -193,18 +188,4 @@ namespace Hazel {
 
 		glfwPollEvents();
 	}
-
-	void WindowsWindow::SetVSync(bool enabled)
-	{
-		HZ_PROFILE_FUNCTION();
-
-		m_Context->SetVSync(enabled);
-		m_Data.VSync = enabled;
-	}
-
-	bool WindowsWindow::IsVSync() const
-	{
-		return m_Data.VSync;
-	}
-
 }

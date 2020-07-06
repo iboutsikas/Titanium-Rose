@@ -1,10 +1,10 @@
 #pragma once
 
 #include "Hazel.h"
+#include "Hazel/ComponentSystem/GameObject.h"
 #include "Hazel/Renderer/Buffer.h"
 #include "Hazel/Renderer/PerspectiveCameraController.h"
-
-#include "Hazel/ComponentSystem/GameObject.h"
+#include "Hazel/Renderer/TextureLibrary.h"
 
 #include "d3d12.h"
 #include "Platform/D3D12/d3dx12.h"
@@ -19,13 +19,12 @@
 #include <glm/vec3.hpp>
 #include <glm/mat4x4.hpp>
 
-#include "Vertex.h"
+#include "Hazel/Renderer/Vertex.h"
 #include "DeferedTexturePass.h"
 #include "BaseColorPass.h"
 #include "NormalsDebugPass.h"
 #include "MipMapPass.h"
 #include "ClearFeedbackPass.h"
-#include "TextureLibrary.h"
 
 
 enum ExampleShaders : size_t {
@@ -101,8 +100,6 @@ private:
 	Hazel::Ref<NormalsDebugPass> m_NormalsPass;
 	Hazel::Ref<MipMapPass>	m_MipsPass;
 	Hazel::Ref<ClearFeedbackPass>	m_ClearUAVPass;
-
-	TextureLibrary m_TextureLibrary;
 
 	void LoadAssets();
 	void BuildPipeline();

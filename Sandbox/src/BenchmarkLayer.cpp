@@ -4,29 +4,22 @@
 
 #include "Platform/D3D12/D3D12Context.h"
 #include "Platform/D3D12/D3D12DescriptorHeap.h"
+#include "Platform/D3D12/D3D12Renderer.h"
 #include "Platform/D3D12/D3D12ResourceBatch.h"
 #include "Platform/D3D12/D3D12Shader.h"
 
 #include "ModelLoader.h"
-#include "Vertex.h"
+#include "Hazel/Renderer/Vertex.h"
 
 #include "ImGui/imgui.h"
 #include "ImGui/ImGuiHelpers.h"
 #include "winpixeventruntime/pix3.h"
 
-#define MAX_RESOURCES       100
-#define MAX_RENDERTARGETS   30
-
 static uint32_t STATIC_RESOURCES = 0;
 static constexpr uint32_t MaxItemsPerSubmission = 25;
 static constexpr char* ShaderPath = "assets/shaders/PbrShader.hlsl";
 
-static D3D12_INPUT_ELEMENT_DESC inputLayout[] = {
-        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(Vertex, Position), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(Vertex, Normal), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        { "TANGENT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, offsetof(Vertex, Tangent), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        { "UV", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(Vertex, UV), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-};
+
 
 
 void Submit(Hazel::Ref<Hazel::GameObject>& go,
@@ -54,12 +47,11 @@ void Submit(Hazel::Ref<Hazel::GameObject>& go,
 BenchmarkLayer::BenchmarkLayer()
     : Layer("BenchmarkLayer"), 
     m_ClearColor({0.1f, 0.1f, 0.1f, 1.0f }),
-    m_AmbientColor({ 1.0f, 1.0f, 1.0f }),
-    m_AmbientIntensity(0.1f),
     m_CameraController(glm::vec3(0.0f, 15.0f, 0.0f), 28.0f, (1280.0f / 720.0f), 0.1f, 1000.0f)
 {
-    m_Context = static_cast<Hazel::D3D12Context*>(Hazel::Application::Get().GetWindow().GetContext());
-    Hazel::Application::Get().GetWindow().SetVSync(false);
+    using namespace Hazel;
+    // TODO: Do this through the renderer
+    D3D12Renderer::SetVCsync(false);
 
     m_Path.resize(4);
     m_Path[0] = { { -122.0f, 15.0f,  42.0f }, &m_Path[1] };
@@ -67,24 +59,9 @@ BenchmarkLayer::BenchmarkLayer()
     m_Path[2] = { {  122.0f, 15.0f, -42.0f }, &m_Path[3] };
     m_Path[3] = { { -122.0f, 15.0f, -42.0f }, &m_Path[0] };
 
-    ModelLoader::TextureLibrary = &m_TextureLibrary;
+    ModelLoader::TextureLibrary = Hazel::D3D12Renderer::TextureLibrary;
 
-    m_ResourceHeap = Hazel::CreateRef<Hazel::D3D12DescriptorHeap>(
-        m_Context->DeviceResources->Device.Get(),
-        D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-        D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE,
-        MAX_RESOURCES
-    );
-
-    m_RenderTargetHeap = Hazel::CreateRef<Hazel::D3D12DescriptorHeap>(
-        m_Context->DeviceResources->Device.Get(),
-        D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
-        D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
-        MAX_RENDERTARGETS
-    );
-
-
-    Hazel::D3D12ResourceBatch batch(m_Context->DeviceResources->Device.Get());
+    Hazel::D3D12ResourceBatch batch(D3D12Renderer::Context->DeviceResources->Device.Get());
     batch.Begin();
 
     {
@@ -100,7 +77,7 @@ BenchmarkLayer::BenchmarkLayer()
         t->Transition(batch, D3D12_RESOURCE_STATE_COPY_DEST);
         t->SetData(batch, white, sizeof(white));
         t->Transition(batch, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-        m_TextureLibrary.AddTexture(t);
+        D3D12Renderer::TextureLibrary->AddTexture(t);
     }
 
     {
@@ -116,7 +93,7 @@ BenchmarkLayer::BenchmarkLayer()
         t->Transition(batch, D3D12_RESOURCE_STATE_COPY_DEST);
         t->SetData(batch, white, sizeof(white));
         t->Transition(batch, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-        m_TextureLibrary.AddTexture(t);
+        D3D12Renderer::TextureLibrary->AddTexture(t);
     }
 
     {
@@ -132,15 +109,18 @@ BenchmarkLayer::BenchmarkLayer()
         t->Transition(batch, D3D12_RESOURCE_STATE_COPY_DEST);
         t->SetData(batch, white, sizeof(white));
         t->Transition(batch, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-        m_TextureLibrary.AddTexture(t);
+        D3D12Renderer::TextureLibrary->AddTexture(t);
     }
 
     auto model = ModelLoader::LoadFromFile(std::string("assets/models/sponza.obj"), batch);
 
     m_Scene.Entities.push_back(model);
-    m_Scene.Lights.resize(MaxLights);
-    m_PatrolComponents.resize(MaxLights);
+    m_Scene.Lights.resize(2);
+    m_Scene.Camera = &m_CameraController.GetCamera();
+    m_Scene.AmbientLight = { 1.0f, 1.0f, 1.0f };
+    m_Scene.AmbientIntensity = 0.1f;
 
+    m_PatrolComponents.resize(2);
     for (auto& light : m_Scene.Lights)
     {
         light.GameObject = ModelLoader::LoadFromFile(std::string("assets/models/test_sphere.glb"), batch);
@@ -167,41 +147,14 @@ BenchmarkLayer::BenchmarkLayer()
         }
 
     }
-
-    for (auto& a : m_TextureLibrary)
+#if 1
+    for (auto& a : *D3D12Renderer::TextureLibrary)
     {
-        a.second->DescriptorAllocation = m_ResourceHeap->Allocate(1);
-        HZ_ASSERT(a.second->DescriptorAllocation.Allocated, "Could not allocate space on the resource heap");
-        ++STATIC_RESOURCES;
-        m_Context->DeviceResources->Device->CreateShaderResourceView(
-            a.second->GetResource(),
-            nullptr,
-            a.second->DescriptorAllocation.CPUHandle
-        );
+        D3D12Renderer::AddStaticResource(a.second);
         a.second->Transition(batch, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     }
-    batch.End(m_Context->DeviceResources->CommandQueue.Get()).wait();
-
-    {
-        D3D12_RT_FORMAT_ARRAY rtvFormats = {};
-        rtvFormats.NumRenderTargets = 1;
-        rtvFormats.RTFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-
-        CD3DX12_RASTERIZER_DESC rasterizer(D3D12_DEFAULT);
-        rasterizer.FrontCounterClockwise = TRUE;
-        rasterizer.CullMode = D3D12_CULL_MODE_BACK;
-
-        Hazel::D3D12Shader::PipelineStateStream pipelineStateStream;
-
-        pipelineStateStream.InputLayout = { inputLayout, _countof(inputLayout) };
-        pipelineStateStream.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-        pipelineStateStream.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
-        pipelineStateStream.RTVFormats = rtvFormats;
-        pipelineStateStream.Rasterizer = CD3DX12_PIPELINE_STATE_STREAM_RASTERIZER(rasterizer);
-        auto shader = Hazel::CreateRef<Hazel::D3D12Shader>(ShaderPath, pipelineStateStream);
-        Hazel::ShaderLibrary::GlobalLibrary()->Add(shader);
-    }
-    HZ_INFO("Layer loaded");
+#endif
+    batch.End(D3D12Renderer::Context->DeviceResources->CommandQueue.Get()).wait();
 }
 
 void BenchmarkLayer::OnAttach()
@@ -214,6 +167,8 @@ void BenchmarkLayer::OnDetach()
 
 void BenchmarkLayer::OnUpdate(Hazel::Timestep ts)
 {
+    using namespace Hazel;
+
     m_LastFrameTime = ts.GetMilliseconds();
     // Update camera
     m_CameraController.OnUpdate(ts);
@@ -222,56 +177,26 @@ void BenchmarkLayer::OnUpdate(Hazel::Timestep ts)
         c.OnUpdate(ts);
     }
 
-    {
-        Hazel::D3D12ResourceBatch batch(m_Context->DeviceResources->Device);
-        auto cmdList = batch.Begin();
+    D3D12Renderer::PrepareBackBuffer(m_ClearColor);
 
-        auto backBuffer = m_Context->GetCurrentBackBuffer();
-        
-        CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
-            backBuffer.Get(),
-            D3D12_RESOURCE_STATE_PRESENT,
-            D3D12_RESOURCE_STATE_RENDER_TARGET,
-            D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
-            D3D12_RESOURCE_BARRIER_FLAG_NONE);
 
-        cmdList->ResourceBarrier(1, &barrier);
-
-        cmdList->ClearRenderTargetView(m_Context->CurrentBackBufferView(), &m_ClearColor.x, 0, nullptr);
-        cmdList->ClearDepthStencilView(m_Context->DepthStencilView(),
-            D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
-            1.0f, 0, 0, nullptr
-        );
-
-        batch.End(m_Context->DeviceResources->CommandQueue.Get()).wait();
-    }
-
-#if 1
-
-    // "Submit phase"
-    
-    static std::vector<Hazel::Ref<Hazel::GameObject>> opaqueObjects;
-    static std::vector<Hazel::Ref<Hazel::GameObject>> transparentObjects;
-    static std::vector<std::future<void>> renderTasks;
-    
-    opaqueObjects.clear();
-    transparentObjects.clear();
-    renderTasks.clear();
-    
+    // "Submit phase"    
     for (auto& obj : m_Scene.Entities)
     {
-        Submit(obj, opaqueObjects, transparentObjects);
+        D3D12Renderer::Submit(obj);
     }
 
     for (auto& light : m_Scene.Lights)
     {
-        Submit(light.GameObject, opaqueObjects, transparentObjects);
+        D3D12Renderer::Submit(light.GameObject);
     }
 
+    D3D12Renderer::RenderSubmitted(m_Scene);
+#if 0
 
     uint32_t counter = 0;
 
-    auto shader = Hazel::ShaderLibrary::GlobalLibrary()->GetAs<Hazel::D3D12Shader>("PbrShader");
+    auto shader = D3D12Renderer::ShaderLibrary->GetAs<Hazel::D3D12Shader>("PbrShader");
     HPassData passData;
     passData.ViewProjection = m_CameraController.GetCamera().GetViewProjectionMatrix();
     for (size_t i = 0; i < m_Scene.Lights.size(); i++)
@@ -295,7 +220,7 @@ void BenchmarkLayer::OnUpdate(Hazel::Timestep ts)
             PerObjectCB         : 3
             PassCB              : 4
         */
-        Hazel::D3D12ResourceBatch batch(m_Context->DeviceResources->Device.Get());
+        Hazel::D3D12ResourceBatch batch(D3D12Renderer::Context->DeviceResources->Device.Get());
         auto cmdList = batch.Begin();
         //PIXBeginEvent(cmdList.Get(), PIX_COLOR(1, 0, 1), "Base Color Pass");
 
@@ -306,15 +231,15 @@ void BenchmarkLayer::OnUpdate(Hazel::Timestep ts)
         cmdList->SetPipelineState(shader->GetPipelineState());
         cmdList->SetGraphicsRootSignature(shader->GetRootSignature());
         cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        cmdList->RSSetViewports(1, &m_Context->m_Viewport);
-        cmdList->RSSetScissorRects(1, &m_Context->m_ScissorRect);
+        cmdList->RSSetViewports(1, &D3D12Renderer::Context->m_Viewport);
+        cmdList->RSSetScissorRects(1, &D3D12Renderer::Context->m_ScissorRect);
         ID3D12DescriptorHeap* const heaps[] = {
             m_ResourceHeap->GetHeap()
         };
         cmdList->SetDescriptorHeaps(_countof(heaps), heaps);
 
-        auto rtv = m_Context->CurrentBackBufferView();
-        cmdList->OMSetRenderTargets(1, &rtv, true, &m_Context->DepthStencilView());
+        auto rtv = D3D12Renderer::Context->CurrentBackBufferView();
+        cmdList->OMSetRenderTargets(1, &rtv, true, &D3D12Renderer::Context->DepthStencilView());
 
         // WE CANNOT CLEAR THE VIEW HERE. THIS NEEDS TO BE DONE BEFOREHAND
 
@@ -338,6 +263,7 @@ void BenchmarkLayer::OnUpdate(Hazel::Timestep ts)
             if (go->Mesh == nullptr) {
                 continue;
             }
+
             HPerObjectData objectData;
             objectData.LocalToWorld = go->Transform.LocalToWorldMatrix();
             objectData.WorldToLocal = glm::transpose(go->Transform.WorldToLocalMatrix());
@@ -371,7 +297,7 @@ void BenchmarkLayer::OnUpdate(Hazel::Timestep ts)
         //PIXEndEvent();
         batch.TrackResource(perObjectBuffer.Resource());
         batch.TrackResource(passBuffer.Resource());
-        renderTasks.push_back(batch.End(m_Context->DeviceResources->CommandQueue.Get()));
+        renderTasks.push_back(batch.End(D3D12Renderer::Context->DeviceResources->CommandQueue.Get()));
     }
 
     for (auto& task : renderTasks)
@@ -385,11 +311,12 @@ void BenchmarkLayer::OnUpdate(Hazel::Timestep ts)
 
 void BenchmarkLayer::OnImGuiRender()
 {
+    using namespace Hazel;
 #if 1
 
     ImGui::Begin("Diagnostics");
     ImGui::Text("Frame Time: %.2f ms (%.2f fps)", m_LastFrameTime, 1000.0f / m_LastFrameTime);
-    ImGui::Text("Loaded Textures: %d", m_TextureLibrary.TextureCount());
+    ImGui::Text("Loaded Textures: %d", D3D12Renderer::TextureLibrary->TextureCount());
     ImGui::End();
 
     ImGui::Begin("Controls");
@@ -397,8 +324,8 @@ void BenchmarkLayer::OnImGuiRender()
     ImGui::End();
 
     ImGui::Begin("Shader Control Center");
-    static auto shaderLib = Hazel::ShaderLibrary::GlobalLibrary();
-    for (const auto& [key, shader] : *shaderLib)
+    
+    for (const auto& [key, shader] : *D3D12Renderer::ShaderLibrary)
     {
         ImGui::PushID(shader->GetName().c_str());
         ImGui::Text(shader->GetName().c_str());
@@ -420,8 +347,8 @@ void BenchmarkLayer::OnImGuiRender()
 
     ImGui::Begin("Lights");
     ImGui::Text("Ambient Light");
-    ImGui::ColorEdit3("Color", &m_AmbientColor.x);
-    ImGui::DragFloat("Intensity", &m_AmbientIntensity, 0.01f, 0.0f, 1.0f, "%.2f");
+    ImGui::ColorEdit3("Color", &m_Scene.AmbientLight.x);
+    ImGui::DragFloat("Intensity", &m_Scene.AmbientIntensity, 0.01f, 0.0f, 1.0f, "%.2f");
 
 
     for (size_t i = 0; i < m_Scene.Lights.size(); i++)

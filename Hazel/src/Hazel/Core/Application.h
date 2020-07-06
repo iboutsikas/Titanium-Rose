@@ -8,8 +8,6 @@
 #include "Hazel/Events/Event.h"
 #include "Hazel/Events/ApplicationEvent.h"
 
-#include "Hazel/Renderer/RendererAPI.h"
-
 #include "Hazel/ImGui/ImGuiLayer.h"
 
 int main(int argc, char** argv);
@@ -19,10 +17,14 @@ namespace Hazel {
 	class Application
 	{
 	public:
-		Application(RendererAPI::API api = RendererAPI::API::D3D12);
+		Application();
 		virtual ~Application();
 
+		void Init();
+
 		void OnEvent(Event& e);
+		virtual void OnInit() = 0;
+
 
 		void PushLayer(Layer* layer);
 		void PushOverlay(Layer* layer);

@@ -1,6 +1,7 @@
 #include "hzpch.h"
 #include "Hazel/Core/Application.h"
 
+#include "Platform/D3D12/D3D12Renderer.h"
 #include "Platform/D3D12/D3D12Shader.h"
 #include "d3dcompiler.h"
 #include <sstream>
@@ -11,8 +12,6 @@ namespace Hazel {
 		:m_Path(filepath), m_PipelineDesc(pipelineStream), m_ShaderTypes(shaderTypes)
 	{
 		HZ_PROFILE_FUNCTION();
-
-		m_Context = static_cast<D3D12Context*>(Application::Get().GetWindow().GetContext());
 
 		bool compilationResult = Recompile(&m_PipelineDesc);
 		HZ_CORE_ASSERT(compilationResult, "Shader compilation failed");
@@ -222,7 +221,7 @@ namespace Hazel {
 			return hr;
 		}
 			
-		hr = m_Context->DeviceResources->Device->CreateRootSignature(
+		hr = D3D12Renderer::Context->DeviceResources->Device->CreateRootSignature(
 				0,
 				rootSignatureBlob->GetBufferPointer(),
 				rootSignatureBlob->GetBufferSize(),
@@ -268,7 +267,7 @@ namespace Hazel {
 			sizeof(PipelineStateStream), pipelineStream
 		};
 
-		auto hr = m_Context->DeviceResources->Device->CreatePipelineState(
+		auto hr = D3D12Renderer::Context->DeviceResources->Device->CreatePipelineState(
 			&pipelineStateStreamDesc,
 			IID_PPV_ARGS(&state->pipelineState));
 

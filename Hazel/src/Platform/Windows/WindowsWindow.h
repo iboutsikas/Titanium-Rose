@@ -19,10 +19,7 @@ namespace Hazel {
 		inline unsigned int GetHeight() const override { return m_Data.Height; }
 
 		// Window attributes
-		inline void SetEventCallback(const EventCallbackFn& callback) override { m_Data.EventCallback = callback; }
-		virtual GraphicsContext* GetContext() const override { return m_Context.get(); }
-		void SetVSync(bool enabled) override;
-		bool IsVSync() const override;
+		inline virtual void SetEventCallback(const EventCallbackFn& callback) override { m_Data.EventCallback = callback; }
 
 		inline virtual void* GetNativeWindow() const { return m_Window; }
 	private:
@@ -30,7 +27,6 @@ namespace Hazel {
 		virtual void Shutdown();
 	private:
 		GLFWwindow* m_Window;
-		Scope<GraphicsContext> m_Context;
 
 		struct WindowData
 		{

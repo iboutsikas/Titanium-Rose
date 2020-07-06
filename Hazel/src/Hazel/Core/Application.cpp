@@ -2,11 +2,11 @@
 #include "Hazel/Core/Application.h"
 
 #include "Hazel/Core/Log.h"
-
-#include "Hazel/Renderer/Renderer.h"
-#include "Hazel/Renderer/Shader.h"
-
 #include "Hazel/Core/Input.h"
+#include "Hazel/Renderer/RendererAPI.h"
+
+#include "Platform/D3D12/D3D12Renderer.h"
+
 
 #include <glfw/glfw3.h>
 
@@ -17,31 +17,36 @@ namespace Hazel {
 
 	Application* Application::s_Instance = nullptr;
 
-	Application::Application(RendererAPI::API api)
+	Application::Application()
 	{
 		HZ_PROFILE_FUNCTION();
 
 		HZ_CORE_ASSERT(!s_Instance, "Application already exists!");
 		s_Instance = this;
 
-		RendererAPI::SetAPI(api);
-		ShaderLibrary::InitalizeGlobalLibrary(3);
-
 		m_Window = Window::Create();
 		m_Window->SetEventCallback(HZ_BIND_EVENT_FN(Application::OnEvent));
 
-		Renderer::Init();
-#if USE_IMGUI
-		m_ImGuiLayer = ImGuiLayer::Create();
-		PushOverlay(m_ImGuiLayer);
-#endif
+		// TODO: Depracate this. We are no longer using it
+		RendererAPI::SetAPI(RendererAPI::API::D3D12);
 	}
 
 	Application::~Application()
 	{
 		HZ_PROFILE_FUNCTION();
 
-		Renderer::Shutdown();
+
+		D3D12Renderer::Shutdown();
+	}
+
+	void Application::Init()
+	{
+		D3D12Renderer::Init();
+#if USE_IMGUI
+		m_ImGuiLayer = ImGuiLayer::Create();
+		PushOverlay(m_ImGuiLayer);
+#endif
+
 	}
 
 	void Application::PushLayer(Layer* layer)
@@ -82,9 +87,7 @@ namespace Hazel {
 		{
 			if (!m_Minimized)
 			{
-				ShaderLibrary::GlobalLibrary()->Update();
-
-				RenderCommand::BeginFrame();
+				D3D12Renderer::NewFrame();
 				{
 					HZ_PROFILE_SCOPE("LayerStack OnUpdate");
 
@@ -101,7 +104,7 @@ namespace Hazel {
 				}
 				m_ImGuiLayer->End();
 #endif	
-				RenderCommand::EndFrame();
+				D3D12Renderer::Present();
 			}
 			m_Window->OnUpdate();
 
@@ -128,7 +131,7 @@ namespace Hazel {
 		}
 
 		m_Minimized = false;
-		Renderer::OnWindowResize(e.GetWidth(), e.GetHeight());
+		D3D12Renderer::ResizeViewport(0, 0, e.GetWidth(), e.GetHeight());
 
 		return false;
 	}
