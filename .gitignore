@@ -2,6 +2,7 @@
 **/bin/
 !vendor/bin/premake/
 !Hazel/vendor/assimp/bin
+!Hazel/vendor/winpixeventruntime/bin
 bin-int/
 
 # Hazel files
