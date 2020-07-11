@@ -77,6 +77,7 @@ void Hazel::D3D12ForwardRenderer::ImplRenderSubmitted()
             objectData.HasSpecular = go->Material->HasSpecularTexture;
             objectData.Specular = go->Material->Specular;
             objectData.Color = go->Material->Color;
+            objectData.EmissiveColor = go->Material->EmissiveColor;
 
             perObjectBuffer.CopyData(i, objectData);
 

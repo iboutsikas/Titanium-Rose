@@ -162,7 +162,7 @@ Hazel::Ref<Hazel::GameObject> ModelLoader::LoadFromFile(std::string& filepath, H
 		aiMaterial->Get(AI_MATKEY_COLOR_DIFFUSE, diffuseColor);
 		if (aiMaterial->Get(AI_MATKEY_COLOR_EMISSIVE, emissiveColor) == AI_SUCCESS)
 		{
-
+			materials[i]->EmissiveColor = glm::vec4(emissiveColor.r, emissiveColor.g, emissiveColor.b, 1.0f);
 		}
 
 		float shininess;

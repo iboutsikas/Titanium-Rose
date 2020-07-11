@@ -364,6 +364,7 @@ void BenchmarkLayer::OnImGuiRender()
         ImGui::PushID(i);
         ImGui::Text("Point Light #%d", i+1);
         ImGui::TransformControl(&light->GameObject->Transform);
+        light->GameObject->Material->EmissiveColor = light->GameObject->Material->Color;
         ImGui::MaterialControl(light->GameObject->Material.get());
         ImGui::DragInt("Range", &light->Range, 1, 0, 1500);
         ImGui::DragFloat("Intensity", &light->Intensity, 0.1f, 0.0f, 10.0f, "%0.2f");

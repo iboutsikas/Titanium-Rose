@@ -21,10 +21,11 @@ cbuffer cbPerObject : register(b0) {
     matrix LocalToWorld     : packoffset(c0);
     matrix WorldToLocal     : packoffset(c4);
     float4 MaterialColor    : packoffset(c8);
-    float MaterialSpecular  : packoffset(c9.x);
-    bool HasAlbedo          : packoffset(c9.y);
-    bool HasNormal          : packoffset(c9.z);
-    bool HasSpecular        : packoffset(c9.w);
+    float4 EmissiveColor    : packoffset(c9);
+    float MaterialSpecular  : packoffset(c10.x);
+    bool HasAlbedo          : packoffset(c10.y);
+    bool HasNormal          : packoffset(c10.z);
+    bool HasSpecular        : packoffset(c10.w);
 };
 
 cbuffer cbPass : register(b1) {
@@ -142,5 +143,5 @@ float4 PS_Main(PSInput input) : SV_TARGET
     finalSurfaceColor += specularContribution;
     finalSurfaceColor *= albedo.rgb;
 
-    return float4(finalSurfaceColor, albedo.a) + MaterialColor;
+    return float4(finalSurfaceColor, albedo.a) + EmissiveColor;
 }

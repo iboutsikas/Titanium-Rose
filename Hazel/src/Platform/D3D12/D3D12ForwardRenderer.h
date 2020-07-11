@@ -31,6 +31,7 @@ namespace Hazel
 			glm::mat4 LocalToWorld;
 			glm::mat4 WorldToLocal;
 			glm::vec4 Color;
+			glm::vec4 EmissiveColor;
 			float Specular;
 			uint32_t HasAlbedo;
 			uint32_t HasNormal;
