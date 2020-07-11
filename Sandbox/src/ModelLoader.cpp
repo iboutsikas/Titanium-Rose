@@ -149,12 +149,29 @@ Hazel::Ref<Hazel::GameObject> ModelLoader::LoadFromFile(std::string& filepath, H
 	for (size_t i = 0; i < scene->mNumMaterials; i++)
 	{
 		materials[i] = Hazel::CreateRef<Hazel::HMaterial>();
-		
+		aiMaterial* aiMaterial = scene->mMaterials[i];
+
 		aiString name;
-		scene->mMaterials[i]->Get(AI_MATKEY_NAME, name);
+		aiMaterial->Get(AI_MATKEY_NAME, name);
 		HZ_INFO("Material: {}", name.C_Str());
-		
+
 		materials[i]->Name = std::string(name.C_Str());
+
+		aiColor3D diffuseColor;
+		aiColor3D emissiveColor;
+		aiMaterial->Get(AI_MATKEY_COLOR_DIFFUSE, diffuseColor);
+		if (aiMaterial->Get(AI_MATKEY_COLOR_EMISSIVE, emissiveColor) == AI_SUCCESS)
+		{
+
+		}
+
+		float shininess;
+		aiMaterial->Get(AI_MATKEY_SHININESS, shininess);
+
+		float metalness;
+		aiMaterial->Get(AI_MATKEY_REFLECTIVITY, metalness);
+
+		float roughness = 1.0f - glm::sqrt(shininess / 100.0f);
 
 		aiString texturefile;
 		// Albedo
@@ -181,13 +198,14 @@ Hazel::Ref<Hazel::GameObject> ModelLoader::LoadFromFile(std::string& filepath, H
 				TextureLibrary->AddTexture(albedoTexture);
 			}
 			materials[i]->HasAlbedoTexture = true;
+			materials[i]->Color = glm::vec4(0.0f, 0.0f, 0.0f, 0.0f);
 		}
 		else
 		{
 			// Set this to some dummy texture
 			HZ_WARN("\tNot using diffuse texture");
-			albedoTexture = TextureLibrary->GetTexture(std::wstring(L"White Texture"));
 			materials[i]->HasAlbedoTexture = false;
+			materials[i]->Color = glm::vec4(diffuseColor.r, diffuseColor.g, diffuseColor.b, 1.0f);
 		}
 		// Set the texture for the material
 		materials[i]->AlbedoTexture = albedoTexture;
@@ -219,12 +237,12 @@ Hazel::Ref<Hazel::GameObject> ModelLoader::LoadFromFile(std::string& filepath, H
 		else
 		{
 			HZ_WARN("\tNot using normal map");
-			normalsTexture = TextureLibrary->GetTexture(std::wstring(L"Dummy Normal Texture"));
 			materials[i]->HasNormalTexture = false;
 		}
 		materials[i]->NormalTexture = normalsTexture;
 
 		// Specular 
+		materials[i]->Specular = shininess;
 		Hazel::Ref<Hazel::D3D12Texture2D> specularTexture = nullptr;
 		if (scene->mMaterials[i]->GetTextureCount(aiTextureType_SPECULAR) > 0)
 		{
@@ -251,9 +269,7 @@ Hazel::Ref<Hazel::GameObject> ModelLoader::LoadFromFile(std::string& filepath, H
 		else
 		{
 			HZ_WARN("\tNot using specular map");
-			specularTexture = TextureLibrary->GetTexture(std::wstring(L"Dummy Specular Texture"));
 			materials[i]->HasSpecularTexture = false;
-			materials[i]->Specular = 0.0f;
 		}
 		materials[i]->SpecularTexture = specularTexture;
 

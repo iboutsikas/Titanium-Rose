@@ -9,7 +9,7 @@ namespace Hazel
 		static constexpr uint8_t MaxSupportedLights = 2;
 
     protected:
-        virtual void ImplRenderSubmitted(Scene& scene) override;
+        virtual void ImplRenderSubmitted() override;
 		virtual void ImplOnInit() override;
         virtual RendererType ImplGetRendererType() override { return RendererType_Forward; }
 
@@ -21,6 +21,7 @@ namespace Hazel
             ShaderIndices_Albedo,
             ShaderIndices_Normal,
             ShaderIndices_Specular,
+			ShaderIndices_Lights,
             ShaderIndices_PerObject,
             ShaderIndices_Pass,
             ShaderIndices_Count
@@ -41,13 +42,7 @@ namespace Hazel
 			glm::vec3 AmbientLight;
 			float AmbientIntensity;
 			glm::vec3 EyePosition;
-			float _padding;
-			struct {
-				glm::vec3 Position;
-				uint32_t Range;
-				glm::vec3 Color;
-				float Intensity;
-			} Lights[MaxSupportedLights];
+			uint32_t NumLights;
 		};
         
     };

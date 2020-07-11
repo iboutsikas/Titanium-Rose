@@ -180,6 +180,8 @@ void BenchmarkLayer::OnUpdate(Hazel::Timestep ts)
     D3D12Renderer::PrepareBackBuffer(m_ClearColor);
 
 
+    D3D12Renderer::BeginScene(m_Scene);
+
     // "Submit phase"    
     for (auto& obj : m_Scene.Entities)
     {
@@ -190,8 +192,11 @@ void BenchmarkLayer::OnUpdate(Hazel::Timestep ts)
     {
         D3D12Renderer::Submit(light.GameObject);
     }
+    
+    D3D12Renderer::RenderSubmitted();
+    
+    D3D12Renderer::EndScene();
 
-    D3D12Renderer::RenderSubmitted(m_Scene);
 #if 0
 
     uint32_t counter = 0;

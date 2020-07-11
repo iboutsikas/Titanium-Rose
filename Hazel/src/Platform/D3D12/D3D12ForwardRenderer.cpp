@@ -11,7 +11,7 @@
 
 #define SHADER_NAME "PbrShader"
 
-void Hazel::D3D12ForwardRenderer::ImplRenderSubmitted(Scene& scene)
+void Hazel::D3D12ForwardRenderer::ImplRenderSubmitted()
 {
 #if 1
     static std::vector<std::future<void>> renderTasks;
@@ -20,19 +20,11 @@ void Hazel::D3D12ForwardRenderer::ImplRenderSubmitted(Scene& scene)
     auto shader = ShaderLibrary->GetAs<D3D12Shader>(SHADER_NAME);
 
     HPassData passData;
-    passData.ViewProjection = scene.Camera->GetViewProjectionMatrix();
-
-    for (size_t i = 0; i < MaxSupportedLights; i++)
-    {
-        passData.Lights[i].Position = scene.Lights[i].GameObject->Transform.Position();
-        passData.Lights[i].Range = scene.Lights[i].Range;
-        passData.Lights[i].Color = scene.Lights[i].GameObject->Material->Color;
-        passData.Lights[i].Intensity = scene.Lights[i].Intensity;
-    }
-
-    passData.AmbientLight = scene.AmbientLight;
-    passData.AmbientIntensity = scene.AmbientIntensity;
-    passData.EyePosition = scene.Camera->GetPosition();
+    passData.ViewProjection = s_CommonData.Scene->Camera->GetViewProjectionMatrix();
+    passData.NumLights = s_CommonData.NumLights;
+    passData.AmbientLight = s_CommonData.Scene->AmbientLight;
+    passData.AmbientIntensity = s_CommonData.Scene->AmbientIntensity;
+    passData.EyePosition = s_CommonData.Scene->Camera->GetPosition();
 
     while (counter < s_OpaqueObjects.size())
     {
@@ -50,7 +42,7 @@ void Hazel::D3D12ForwardRenderer::ImplRenderSubmitted(Scene& scene)
         cmdList->RSSetScissorRects(1, &Context->m_ScissorRect);
 
         ID3D12DescriptorHeap* const heaps[] = {
-            ResourceDescriptorHeap->GetHeap()
+            s_ResourceDescriptorHeap->GetHeap()
         };
         cmdList->SetDescriptorHeaps(_countof(heaps), heaps);
 
@@ -58,6 +50,7 @@ void Hazel::D3D12ForwardRenderer::ImplRenderSubmitted(Scene& scene)
         cmdList->OMSetRenderTargets(1, &rtv, true, &D3D12Renderer::Context->DepthStencilView());
 
         cmdList->SetGraphicsRootConstantBufferView(ShaderIndices_Pass, passBuffer.Resource()->GetGPUVirtualAddress());
+        cmdList->SetGraphicsRootDescriptorTable(ShaderIndices_Lights, s_LightsBufferAllocation.GPUHandle);
 
         for (size_t i = 0; i < MaxItemsPerQueue; i++)
         {
@@ -93,9 +86,17 @@ void Hazel::D3D12ForwardRenderer::ImplRenderSubmitted(Scene& scene)
 
             cmdList->IASetVertexBuffers(0, 1, &vb);
             cmdList->IASetIndexBuffer(&ib);
-            cmdList->SetGraphicsRootDescriptorTable(ShaderIndices_Albedo, go->Material->AlbedoTexture->DescriptorAllocation.GPUHandle);
-            cmdList->SetGraphicsRootDescriptorTable(ShaderIndices_Normal, go->Material->NormalTexture->DescriptorAllocation.GPUHandle);
-            cmdList->SetGraphicsRootDescriptorTable(ShaderIndices_Specular, go->Material->SpecularTexture->DescriptorAllocation.GPUHandle);
+            if (go->Material->HasAlbedoTexture) {
+                cmdList->SetGraphicsRootDescriptorTable(ShaderIndices_Albedo, go->Material->AlbedoTexture->DescriptorAllocation.GPUHandle);
+            }
+
+            if (go->Material->HasNormalTexture) {
+                cmdList->SetGraphicsRootDescriptorTable(ShaderIndices_Normal, go->Material->NormalTexture->DescriptorAllocation.GPUHandle);
+            }
+
+            if (go->Material->HasSpecularTexture) {
+                cmdList->SetGraphicsRootDescriptorTable(ShaderIndices_Specular, go->Material->SpecularTexture->DescriptorAllocation.GPUHandle);
+            }
 
             cmdList->SetGraphicsRootConstantBufferView(ShaderIndices_PerObject,
                 (perObjectBuffer.Resource()->GetGPUVirtualAddress() + perObjectBuffer.CalculateOffset(i))

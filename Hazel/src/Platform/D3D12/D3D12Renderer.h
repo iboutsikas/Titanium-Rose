@@ -21,6 +21,8 @@ namespace Hazel
     {
     public:
 
+        static constexpr uint8_t MaxSupportedLights = 25;
+
         enum RendererType 
         {
             RendererType_Forward,
@@ -53,6 +55,10 @@ namespace Hazel
         /// </summary>
         static void Present();
 
+
+        static void BeginScene(Scene& scene);
+        static void EndScene();
+
         static void ResizeViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height);
 
         static void SetVCsync(bool enable);
@@ -61,7 +67,7 @@ namespace Hazel
         static void AddStaticRenderTarget(Ref<D3D12Texture2D> texture);
 
         static void Submit(Ref<GameObject>& gameObject);
-        static void RenderSubmitted(Scene& scene);
+        static void RenderSubmitted();
 
         static RendererType GetCurrentRenderType() { return s_CurrentRenderer->ImplGetRendererType(); }
 
@@ -69,25 +75,45 @@ namespace Hazel
         static void Shutdown();
     protected:
 
-        static D3D12_INPUT_ELEMENT_DESC s_InputLayout[];
-        static uint32_t s_InputLayoutCount;
+        
 
         struct CommonData 
         {
             size_t StaticResources;
             size_t StaticRenderTargets;
+            size_t NumLights;
+            Scene* Scene;
         };
 
-        static D3D12DescriptorHeap* ResourceDescriptorHeap;
-        static D3D12DescriptorHeap* RenderTargetDescriptorHeap;
+        static CommonData s_CommonData;
+
+        struct alignas(16) RendererLight
+        {
+            glm::vec4 Position;
+            // ( 16 bytes )
+            glm::vec3 Color;
+            float Intensity;
+            // ( 16 bytes )
+            float Range;
+            float _padding[3];
+            // ( 16 bytes )
+        };
+
+        static D3D12_INPUT_ELEMENT_DESC s_InputLayout[];
+        static uint32_t s_InputLayoutCount;
+
+        static D3D12DescriptorHeap* s_ResourceDescriptorHeap;
+        static D3D12DescriptorHeap* s_RenderTargetDescriptorHeap;
 
         static std::vector<Ref<GameObject>> s_OpaqueObjects;
         static std::vector<Ref<GameObject>> s_TransparentObjects;
         static std::vector<D3D12Renderer*> s_AvailableRenderers;
-
+        static Scope<D3D12UploadBuffer<RendererLight>> s_LightsBuffer;
+        static HeapAllocationDescription s_LightsBufferAllocation;
         static D3D12Renderer* s_CurrentRenderer;
 
-        virtual void ImplRenderSubmitted(Scene& scene) = 0;
+
+        virtual void ImplRenderSubmitted() = 0;
         virtual void ImplOnInit() = 0;
         virtual RendererType ImplGetRendererType() = 0;
     };

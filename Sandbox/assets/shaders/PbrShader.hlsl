@@ -1,13 +1,12 @@
-Texture2D<float4> AlbedoTexture     : register(t0);
-Texture2D<float3> NormalTexture     : register(t1);
-Texture2D<float3> SpecularTexture   : register(t2);
-
-SamplerState someSampler: register(s0);
-
 #include "RootSignatures.hlsli"
 #include "Common.hlsli"
 
-#define MaxLights 2
+Texture2D<float4> AlbedoTexture     : register(t0);
+Texture2D<float3> NormalTexture     : register(t1);
+Texture2D<float3> SpecularTexture   : register(t2);
+StructuredBuffer<Light> SceneLights : register(t3);
+
+SamplerState someSampler: register(s0);
 
 struct PSInput
 {
@@ -33,14 +32,7 @@ cbuffer cbPass : register(b1) {
     float3 AmbientLight         : packoffset(c4.x);
     float AmbientIntensity      : packoffset(c4.w);     
     float3 EyePosition          : packoffset(c5.x);
-    float  _padding             : packoffset(c5.w);
-    struct Light {
-        float3 Position;
-        uint Range;
-        float3 Color;
-        float Intensity;
-    } Lights[MaxLights]         : packoffset(c6);
-    
+    uint  NumLights             : packoffset(c5.w);       
 };
 
 
@@ -95,7 +87,9 @@ float4 PS_Main(PSInput input) : SV_TARGET
     float specular;
     if (HasSpecular)
     {
-        specular = SpecularTexture.Sample(someSampler, input.uv);
+        // The texture is normalized from 0 - 1. So we need to multiply it by SOME scale.
+        // In this case it is the shininess we get from the material
+        specular = SpecularTexture.Sample(someSampler, input.uv).r * MaterialSpecular;
     }
     else
     {
@@ -103,37 +97,43 @@ float4 PS_Main(PSInput input) : SV_TARGET
     }
 
     float3 ambientContribution = AmbientLight.rgb * AmbientIntensity;
+
+    float3 FragmentToView = normalize(EyePosition - input.w_Pos);
+
     
     float3 diffuseContribution = float3(0, 0, 0);
     float3 specularContribution = float3(0, 0, 0);
 
-    for (int i = 0; i < MaxLights; i++)
+    for (uint i = 0; i < NumLights; i++)
     {
-        Light the_light = Lights[i];
+        Light the_light = SceneLights[i];
         
 
-        // Diffuse Contribution
         float3 L = the_light.Position - input.w_Pos;
+        float d = length(L);
+        if (d > the_light.Range)
+        {
+            continue;
+        }
+
 
         float shadowFactor = step(0, dot(geometricNormal, L));
-
+        float attenuation = CalculateAttenuation(the_light, d);
         float3 Lnorm = normalize(L);
 
-        float d = length(L);
-        float r = the_light.Range;
+        // Diffuse Contribution
 
-        float attenuation = 1.0 / 1.0 + d * d / r; // (1.0 + (2.0 * d / r) + ((d * d) / (r * r)) );
+        float3 diffContrib = CalculateDiffuse(the_light, Lnorm, normal) * 
+                            the_light.Intensity * 
+                            attenuation *
+                            shadowFactor;
+        diffuseContribution += diffContrib;
 
-        float NdotL = max(dot(normal, Lnorm), 0);
-
-        float3 contribution = the_light.Intensity * (the_light.Color * NdotL) /  (attenuation);
-        diffuseContribution += contribution;
-
-        // Specular Contribution
-        float3 R = normalize(reflect(-L, normal));
-        float specularFalloff = saturate(dot(R, L));
-        specularFalloff *= specular; // this is sampled by the specular texture
-        specularContribution += ( the_light.Intensity * specularFalloff * the_light.Color * shadowFactor) / attenuation;
+        float3 specContrib = CalculateSpecular(the_light, FragmentToView, Lnorm, normal) * 
+                            the_light.Intensity * 
+                            shadowFactor *
+                            attenuation;
+        specularContribution += specContrib;
     }
 
     float3 finalSurfaceColor = 0;

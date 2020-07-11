@@ -13,8 +13,13 @@ namespace Hazel {
 	ShaderLibrary*	D3D12Renderer::ShaderLibrary;
 	TextureLibrary* D3D12Renderer::TextureLibrary;
 
-	D3D12DescriptorHeap* D3D12Renderer::ResourceDescriptorHeap;
-	D3D12DescriptorHeap* D3D12Renderer::RenderTargetDescriptorHeap;
+	D3D12DescriptorHeap* D3D12Renderer::s_ResourceDescriptorHeap;
+	D3D12DescriptorHeap* D3D12Renderer::s_RenderTargetDescriptorHeap;
+
+	D3D12Renderer::CommonData D3D12Renderer::s_CommonData;
+
+	Scope<D3D12UploadBuffer<D3D12Renderer::RendererLight>> D3D12Renderer::s_LightsBuffer;
+	HeapAllocationDescription D3D12Renderer::s_LightsBufferAllocation;
 
 	D3D12_INPUT_ELEMENT_DESC D3D12Renderer::s_InputLayout[] = {
 			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(Hazel::Vertex, Position), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
@@ -66,6 +71,31 @@ namespace Hazel {
 		Context->SwapBuffers();
 	}
 
+	void D3D12Renderer::BeginScene(Scene& scene)
+	{
+		s_CommonData.Scene = &scene;
+
+		for (size_t i = 0; i < scene.Lights.size(); i++)
+		{
+			auto& l = scene.Lights[i];
+
+			RendererLight rl;
+			rl.Color = l.GameObject->Material->Color;
+			rl.Position = glm::vec4(l.GameObject->Transform.Position(), 1.0f);
+			rl.Range = l.Range;
+			rl.Intensity = l.Intensity;
+			s_LightsBuffer->CopyData(i, rl);
+
+			s_CommonData.NumLights++;
+		}
+	}
+
+	void D3D12Renderer::EndScene()
+	{
+		s_CommonData.NumLights = 0;
+		s_CommonData.Scene = nullptr;
+	}
+
 	void D3D12Renderer::ResizeViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height)
 	{
 		Context->m_Viewport.TopLeftX = x;
@@ -112,7 +142,7 @@ namespace Hazel {
 
 	void D3D12Renderer::AddStaticResource(Ref<D3D12Texture2D> texture)
 	{
-		texture->DescriptorAllocation = ResourceDescriptorHeap->Allocate(1);
+		texture->DescriptorAllocation = s_ResourceDescriptorHeap->Allocate(1);
 		HZ_CORE_ASSERT(texture->DescriptorAllocation.Allocated, "Could not allocate space on the resource heap");
 		D3D12Renderer::Context->DeviceResources->Device->CreateShaderResourceView(
 			texture->GetResource(),
@@ -145,9 +175,9 @@ namespace Hazel {
 		}
 	}
 
-	void D3D12Renderer::RenderSubmitted(Scene& scene)
+	void D3D12Renderer::RenderSubmitted()
 	{
-		s_CurrentRenderer->ImplRenderSubmitted(scene);
+		s_CurrentRenderer->ImplRenderSubmitted();
 		s_TransparentObjects.clear();
 		s_OpaqueObjects.clear();
 	}
@@ -167,29 +197,55 @@ namespace Hazel {
 		// s_AvailableRenderers[RendererType_TextureSpace] = new Texture space renderer
 		s_CurrentRenderer = s_AvailableRenderers[RendererType_Forward];
 
-		ResourceDescriptorHeap = new D3D12DescriptorHeap(
+		s_ResourceDescriptorHeap = new D3D12DescriptorHeap(
 			D3D12Renderer::Context->DeviceResources->Device.Get(),
 			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
 			D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE,
 			MAX_RESOURCES
 		);
 
-		RenderTargetDescriptorHeap = new D3D12DescriptorHeap(
+		s_RenderTargetDescriptorHeap = new D3D12DescriptorHeap(
 			D3D12Renderer::Context->DeviceResources->Device.Get(),
 			D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
 			D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
 			MAX_RENDERTARGETS
 		);
+
+
+		HZ_CORE_ASSERT((sizeof(RendererLight) % 16) == 0, "The size of the light struct should be 128-bit aligned");
+
+		s_LightsBuffer = CreateScope<D3D12UploadBuffer<RendererLight>>(MaxSupportedLights, false);
+		s_LightsBuffer->Resource()->SetName(L"Lights buffer");
+
+		s_LightsBufferAllocation = s_ResourceDescriptorHeap->Allocate(1);
+
+		D3D12_SHADER_RESOURCE_VIEW_DESC desc;
+		desc.Format = DXGI_FORMAT_UNKNOWN;
+		desc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+		desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		desc.Buffer.FirstElement = 0;
+		desc.Buffer.NumElements = MaxSupportedLights;
+		desc.Buffer.StructureByteStride = sizeof(RendererLight);
+		desc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+
+		Context->DeviceResources->Device->CreateShaderResourceView(
+			s_LightsBuffer->Resource(),
+			&desc,
+			s_LightsBufferAllocation.CPUHandle
+		);
+
 	}
 
 	void D3D12Renderer::Shutdown()
 	{
+		s_LightsBuffer.release();
+
 		delete Context;
 		delete ShaderLibrary;
 		delete TextureLibrary;
 
-		delete ResourceDescriptorHeap;
-		delete RenderTargetDescriptorHeap;
+		delete s_ResourceDescriptorHeap;
+		delete s_RenderTargetDescriptorHeap;
 
 		// TODO: Flush pipeline maybe ?
 		for (auto r : s_AvailableRenderers)
