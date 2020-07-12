@@ -42,9 +42,9 @@ PSInput VS_Main(VSInput input)
 {
     PSInput result;
 
-    float3 N = normalize(mul((float3x3)WorldToLocal, input.normal));
-    float3 T = normalize(mul((float3x3)WorldToLocal, input.tangent));
-    float3 B = normalize(cross(T, N));
+    float3 N = normalize(mul((float3x3)LocalToWorld, input.normal));
+    float3 T = normalize(mul((float3x3)LocalToWorld, input.tangent));
+    float3 B = normalize(mul((float3x3)LocalToWorld, input.binormal));
     float3x3 TBN = float3x3(T, B, N);
     result.TBN = TBN;
 
@@ -54,7 +54,7 @@ PSInput VS_Main(VSInput input)
     result.uv = input.uv;
     result.uv.y = 1.0 - result.uv.y;
     
-    result.w_Pos = mul(float4(input.position, 1.0), LocalToWorld).xyz;
+    result.w_Pos = mul(LocalToWorld, float4(input.position, 1.0)).xyz;
     
     return result;
 }
@@ -77,24 +77,30 @@ float4 PS_Main(PSInput input) : SV_TARGET
     if (HasNormal)
     {
         normal = NormalTexture.Sample(someSampler, input.uv);
-        normal = 2.0 * normal - 1.0;
+        normal = (2.0 * normal) - 1.0;
         normal = normalize(mul(normal, input.TBN));
+        
     }
     else
     {
         normal = geometricNormal;
     }
 
-    float specular;
+    float specular = 0;
     if (HasSpecular)
     {
         // The texture is normalized from 0 - 1. So we need to multiply it by SOME scale.
         // In this case it is the shininess we get from the material
-        specular = SpecularTexture.Sample(someSampler, input.uv).r * MaterialSpecular;
+        specular = SpecularTexture.Sample(someSampler, input.uv).r;
     }
     else
     {
         specular = MaterialSpecular;
+    }
+
+    if (specular < 0)
+    {
+        specular = 0;
     }
 
     float3 ambientContribution = AmbientLight.rgb * AmbientIntensity;
@@ -110,7 +116,7 @@ float4 PS_Main(PSInput input) : SV_TARGET
         Light the_light = SceneLights[i];
         
 
-        float3 L = the_light.Position - input.w_Pos;
+        float3 L = the_light.Position.xyz - input.w_Pos;
         float d = length(L);
         if (d > the_light.Range)
         {
@@ -120,7 +126,7 @@ float4 PS_Main(PSInput input) : SV_TARGET
 
         float shadowFactor = step(0, dot(geometricNormal, L));
         float attenuation = CalculateAttenuation(the_light, d);
-        float3 Lnorm = normalize(L);
+        float3 Lnorm = L / d;
 
         // Diffuse Contribution
 
@@ -130,9 +136,10 @@ float4 PS_Main(PSInput input) : SV_TARGET
                             shadowFactor;
         diffuseContribution += diffContrib;
 
-        float3 specContrib = CalculateSpecular(the_light, FragmentToView, Lnorm, normal) * 
+        float3 specContrib = CalculateSpecular(the_light, FragmentToView, Lnorm, normal, 32 * MaterialSpecular) * 
                             the_light.Intensity * 
                             shadowFactor *
+                            specular *
                             attenuation;
         specularContribution += specContrib;
     }

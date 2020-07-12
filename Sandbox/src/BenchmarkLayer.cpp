@@ -19,31 +19,6 @@ static uint32_t STATIC_RESOURCES = 0;
 static constexpr uint32_t MaxItemsPerSubmission = 25;
 static constexpr char* ShaderPath = "assets/shaders/PbrShader.hlsl";
 
-
-
-
-void Submit(Hazel::Ref<Hazel::GameObject>& go,
-    std::vector<Hazel::Ref<Hazel::GameObject>>& opaqueObjects,
-    std::vector<Hazel::Ref<Hazel::GameObject>>& transparentObjects)
-{
-    if (go->Mesh != nullptr) 
-    {
-        if (go->Material->IsTransparent)
-        {
-            transparentObjects.push_back(go);
-        }
-        else
-        {
-            opaqueObjects.push_back(go);
-        }
-    }
-
-    for (auto& c : go->children)
-    {
-        Submit(c, opaqueObjects, transparentObjects);
-    }
-}
-
 BenchmarkLayer::BenchmarkLayer()
     : Layer("BenchmarkLayer"), 
     m_ClearColor({0.1f, 0.1f, 0.1f, 1.0f }),
@@ -112,7 +87,10 @@ BenchmarkLayer::BenchmarkLayer()
         D3D12Renderer::TextureLibrary->AddTexture(t);
     }
 
-    auto model = ModelLoader::LoadFromFile(std::string("assets/models/sponza.obj"), batch);
+    //auto model = ModelLoader::LoadFromFile(std::string("assets/models/test_cube.fbx"), batch);
+    auto model = ModelLoader::LoadFromFile(std::string("assets/models/sponza.fbx"), batch);
+
+    //model->Transform.SetPosition(glm::vec3(0.0f, 15.0f, -10.0f));
 
     m_Scene.Entities.push_back(model);
     m_Scene.Lights.resize(2);
@@ -125,7 +103,7 @@ BenchmarkLayer::BenchmarkLayer()
     {
         light.GameObject = ModelLoader::LoadFromFile(std::string("assets/models/test_sphere.glb"), batch);
         light.Range = 50.0f;
-        light.Intensity = 0.5f;
+        light.Intensity = 1.0f;
         light.GameObject->Material->Color = { 1.0f, 1.0f, 1.0f, 1.0f };
         light.GameObject->Transform.SetScale(0.2f, 0.2f, 0.2f);
         light.GameObject->Transform.SetPosition(0.0f, 0.0f, 5.0f);
@@ -326,6 +304,10 @@ void BenchmarkLayer::OnImGuiRender()
 
     ImGui::Begin("Controls");
     ImGui::ColorEdit4("Clear Color", &m_ClearColor.x);
+    auto camera_pos = m_CameraController.GetCamera().GetPosition();
+    ImGui::InputFloat3("Camera Position", &camera_pos.x);
+    if (m_CameraController.GetCamera().GetPosition() != camera_pos)
+        m_CameraController.GetCamera().SetPosition(camera_pos);
     ImGui::End();
 
     ImGui::Begin("Shader Control Center");
@@ -371,6 +353,15 @@ void BenchmarkLayer::OnImGuiRender()
         ImGui::Checkbox("Follow path", &c->Patrol);
         ImGui::PopID();
     }
+
+    //if (m_Scene.Lights.size() < D3D12Renderer::MaxSupportedLights - 1)
+    //{
+    //    if (ImGui::Button("Add Light"))
+    //    {
+    //        m_Scene.Lights.push_back();
+    //    }
+    //}
+
     ImGui::End();
 #endif
 }

@@ -11,6 +11,8 @@
 
 #include "Platform/D3D12/D3D12Texture.h"
 
+#include <glm/gtc/type_ptr.hpp>
+
 Hazel::TextureLibrary* ModelLoader::TextureLibrary = nullptr;
 
 void processNode(aiNode* node, const aiScene* scene, 
@@ -67,9 +69,8 @@ void processNode(aiNode* node, const aiScene* scene,
 				auto ty = aimesh->mTangents[i].y;
 				auto tz = aimesh->mTangents[i].z;
 				the_vertex.Tangent = glm::vec3(tx, ty, tz);
-				//auto length = glm::length(the_vertex.Tangent);
 
-				//void* p = &length;
+				the_vertex.Binormal = glm::make_vec3((float*)&aimesh->mBitangents[i].x);
 			}
 
 			if (aimesh->HasTextureCoords(0))
@@ -125,11 +126,18 @@ Hazel::Ref<Hazel::GameObject> ModelLoader::LoadFromFile(std::string& filepath, H
 	Assimp::Importer importer;
 
 	uint32_t importFlags = 
+		//aiProcess_CalcTangentSpace |        // Create binormals/tangents just in case
+		//aiProcess_Triangulate |             // Make sure we're triangles
+		//aiProcess_SortByPType |             // Split meshes by primitive type
+		//aiProcess_GenNormals |              // Make sure we have legit normals
+		//aiProcess_GenUVCoords |             // Convert UVs if required 
+		//aiProcess_OptimizeMeshes |          // Batch draws where possible
+		//aiProcess_ValidateDataStructure;    // Validation
+		aiProcess_Triangulate |
 		aiProcess_CalcTangentSpace | 
 		aiProcess_GenUVCoords |
 		aiProcess_GenNormals |
 		aiProcess_TransformUVCoords |
-		aiProcess_PreTransformVertices |
 		aiProcess_ValidateDataStructure;
 
 	if (swapHandedness) {
@@ -172,6 +180,7 @@ Hazel::Ref<Hazel::GameObject> ModelLoader::LoadFromFile(std::string& filepath, H
 		aiMaterial->Get(AI_MATKEY_REFLECTIVITY, metalness);
 
 		float roughness = 1.0f - glm::sqrt(shininess / 100.0f);
+		materials[i]->Specular = shininess;
 
 		aiString texturefile;
 		// Albedo
@@ -242,7 +251,6 @@ Hazel::Ref<Hazel::GameObject> ModelLoader::LoadFromFile(std::string& filepath, H
 		materials[i]->NormalTexture = normalsTexture;
 
 		// Specular 
-		materials[i]->Specular = shininess;
 		Hazel::Ref<Hazel::D3D12Texture2D> specularTexture = nullptr;
 		if (scene->mMaterials[i]->GetTextureCount(aiTextureType_SPECULAR) > 0)
 		{
