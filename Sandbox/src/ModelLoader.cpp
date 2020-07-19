@@ -10,8 +10,10 @@
 #include "Hazel/Renderer/Vertex.h"
 
 #include "Platform/D3D12/D3D12Texture.h"
-
-#include <glm/gtc/type_ptr.hpp>
+#undef min
+#undef max
+#include "glm/glm.hpp"
+#include "glm/gtc/type_ptr.hpp"
 
 Hazel::TextureLibrary* ModelLoader::TextureLibrary = nullptr;
 
@@ -41,7 +43,8 @@ void processNode(aiNode* node, const aiScene* scene,
 
 		std::vector<Hazel::Vertex> vertices;
 		std::vector<uint32_t> indices;
-		// Textures ?!
+		
+		Hazel::AABB boundingBox({ FLT_MAX, FLT_MAX, FLT_MAX }, { -FLT_MAX, -FLT_MAX, -FLT_MAX });
 
 		for (size_t i = 0; i < aimesh->mNumVertices; i++)
 		{
@@ -54,6 +57,13 @@ void processNode(aiNode* node, const aiScene* scene,
 			auto vz = vert.z;
 
 			the_vertex.Position = glm::vec3(vx, vy, vz);
+
+			boundingBox.Min.x = glm::min(vx, boundingBox.Min.x);
+			boundingBox.Min.y = glm::min(vy, boundingBox.Min.y);
+			boundingBox.Min.z = glm::min(vz, boundingBox.Min.z);
+			boundingBox.Max.x = glm::max(vx, boundingBox.Max.x);
+			boundingBox.Max.y = glm::max(vy, boundingBox.Max.y);
+			boundingBox.Max.z = glm::max(vz, boundingBox.Max.z);
 
 			if (aimesh->HasNormals())
 			{

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Hazel/Core/Math/AABB.h"
 #include "Hazel/Renderer/Vertex.h"
 
 #include "Platform/D3D12/D3D12Buffer.h"
@@ -12,5 +13,7 @@ namespace Hazel {
 
 		std::vector<Hazel::Vertex> vertices;
 		std::vector<uint32_t> indices;
+
+		AABB BoundingBox;
 	};
 }
