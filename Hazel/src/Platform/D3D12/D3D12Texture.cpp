@@ -8,13 +8,63 @@
 
 
 namespace Hazel {
-
-	D3D12Texture2D::D3D12Texture2D(std::wstring id, uint32_t width, uint32_t height, uint32_t mips)
-		: m_Identifier(id),
+#pragma region D3D12Texture
+	D3D12Texture::D3D12Texture(uint32_t width, uint32_t height, uint32_t depth, 
+		uint32_t mips, D3D12_RESOURCE_STATES initialState, std::wstring id) :
 		m_Width(width),
 		m_Height(height),
+		m_Depth(depth),
 		m_MipLevels(mips),
-		m_CurrentState(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
+		m_CurrentState(initialState),
+		m_Identifier(id),
+		m_Resource(nullptr)
+	{
+
+	}
+
+	void D3D12Texture::Transition(D3D12ResourceBatch& batch, D3D12_RESOURCE_STATES from, D3D12_RESOURCE_STATES to)
+	{
+		batch.GetCommandList()->ResourceBarrier(1,
+			&CD3DX12_RESOURCE_BARRIER::Transition(
+				m_Resource.Get(),
+				from,
+				to
+			)
+		);
+		m_CurrentState = to;
+	}
+
+	void D3D12Texture::Transition(D3D12ResourceBatch& batch, D3D12_RESOURCE_STATES to)
+	{
+		if (to == m_CurrentState)
+			return;
+		this->Transition(batch, m_CurrentState, to);
+	}
+
+	void D3D12Texture::Transition(ID3D12GraphicsCommandList* commandList, D3D12_RESOURCE_STATES from, D3D12_RESOURCE_STATES to)
+	{
+		commandList->ResourceBarrier(1,
+			&CD3DX12_RESOURCE_BARRIER::Transition(
+				m_Resource.Get(),
+				from,
+				to
+			)
+		);
+		m_CurrentState = to;
+	}
+
+	void D3D12Texture::Transition(ID3D12GraphicsCommandList* commandList, D3D12_RESOURCE_STATES to)
+	{
+		if (to == m_CurrentState)
+			return;
+		this->Transition(commandList, m_CurrentState, to);
+	}
+#pragma endregion
+
+#pragma region D3D12Texture2D
+	D3D12Texture2D::D3D12Texture2D(std::wstring id, uint32_t width, uint32_t height, uint32_t mips)
+		: D3D12Texture(width, height, 1, mips, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, id),
+		m_FeedbackMap(nullptr)
 	{
 	}
 	
@@ -28,62 +78,30 @@ namespace Hazel {
 		batch.Upload(m_Resource.Get(), 0, &subresourceData, 1);
 	}
 
-	void D3D12Texture2D::Transition(D3D12ResourceBatch& batch, D3D12_RESOURCE_STATES from, D3D12_RESOURCE_STATES to)
-	{
-		batch.GetCommandList()->ResourceBarrier(1,
-			&CD3DX12_RESOURCE_BARRIER::Transition(
-				m_Resource.Get(),
-				from,
-				to
-			)
-		);
-		m_CurrentState = to;
-	}
-
-	void D3D12Texture2D::Transition(D3D12ResourceBatch& batch, D3D12_RESOURCE_STATES to)
-	{
-		if (to == m_CurrentState)
-			return;
-		this->Transition(batch, m_CurrentState, to);
-	}
-
-	void D3D12Texture2D::Transition(ID3D12GraphicsCommandList* commandList, D3D12_RESOURCE_STATES from, D3D12_RESOURCE_STATES to)
-	{
-		commandList->ResourceBarrier(1,
-			&CD3DX12_RESOURCE_BARRIER::Transition(
-				m_Resource.Get(),
-				from,
-				to
-			)
-		);
-		m_CurrentState = to;
-	}
-
-	void D3D12Texture2D::Transition(ID3D12GraphicsCommandList* commandList, D3D12_RESOURCE_STATES to)
-	{
-		if (to == m_CurrentState)
-			return;
-		this->Transition(commandList, m_CurrentState, to);
-	}
-	
 	Ref<D3D12Texture2D> D3D12Texture2D::CreateVirtualTexture(D3D12ResourceBatch& batch, TextureCreationOptions& opts)
 	{
+		HZ_CORE_ASSERT(opts.Depth == 1, "2D textures should have a depth of 1");
+
 		if (!opts.Path.empty() && opts.Name.empty())
 		{
 			HZ_CORE_ASSERT(false, "Virtual textures cannot have a path, but they need a name");
 		}
 
-		Ref<D3D12VirtualTexture2D> ret = CreateRef<D3D12VirtualTexture2D>(opts.Name, opts.Width, opts.Height, opts.MipLevels);
+		Ref<D3D12VirtualTexture2D> ret = CreateRef<D3D12VirtualTexture2D>(
+			opts.Name,
+			opts.Width,
+			opts.Height,
+			opts.MipLevels
+		);
 		auto device = batch.GetDevice();
 
 		D3D12_RESOURCE_DESC desc = {};
 		desc.MipLevels = opts.MipLevels;
-		desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		desc.Format = opts.Format;
 		desc.Width = opts.Width;
 		desc.Height = opts.Height;
-		// D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 		desc.Flags = opts.Flags;
-		desc.DepthOrArraySize = 1;
+		desc.DepthOrArraySize = opts.Depth;
 		desc.SampleDesc = { 1, 0 };
 		desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 		desc.Layout = D3D12_TEXTURE_LAYOUT_64KB_UNDEFINED_SWIZZLE;
@@ -130,6 +148,8 @@ namespace Hazel {
 
 	Ref<D3D12Texture2D> D3D12Texture2D::CreateCommittedTexture(D3D12ResourceBatch& batch, TextureCreationOptions& opts)
 	{
+		HZ_CORE_ASSERT(opts.Depth == 1, "2D textures should have a depth of 1");
+
 		Ref<D3D12Texture2D> ret = nullptr;
 
 		// We need to load from a file
@@ -154,6 +174,8 @@ namespace Hazel {
 			);
 
 			auto desc = resource->GetDesc();
+			// HZ_CORE_ASSERT(desc.Format == opts.Format, "The format requested does not match the format in the file");
+
 			ret = CreateRef<D3D12CommittedTexture2D>(
 				opts.Path,
 				desc.Width,
@@ -167,15 +189,20 @@ namespace Hazel {
 		// We create an in memory texture
 		else if (!opts.Name.empty())
 		{
-			ret = CreateRef<D3D12CommittedTexture2D>(opts.Name, opts.Width, opts.Height, opts.MipLevels);
+			ret = CreateRef<D3D12CommittedTexture2D>(
+				opts.Name,
+				opts.Width,
+				opts.Height,
+				opts.MipLevels
+			);
 
 			D3D12_RESOURCE_DESC textureDesc = {};
 			textureDesc.MipLevels = opts.MipLevels;
-			textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+			textureDesc.Format = opts.Format;
 			textureDesc.Width = opts.Width;
 			textureDesc.Height = opts.Height;
 			textureDesc.Flags = opts.Flags;
-			textureDesc.DepthOrArraySize = 1;
+			textureDesc.DepthOrArraySize = opts.Depth;
 			textureDesc.SampleDesc.Count = 1;
 			textureDesc.SampleDesc.Quality = 0;
 			textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
@@ -184,7 +211,7 @@ namespace Hazel {
 				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 				D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES,
 				&textureDesc,
-				D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+				ret->m_CurrentState,
 				nullptr,
 				IID_PPV_ARGS(ret->m_Resource.GetAddressOf())
 			));
@@ -237,17 +264,15 @@ namespace Hazel {
 
 		return ret;
 	}
+#pragma endregion
 
-	/**
-	*
-	*       Virtual Texture
-	*
-	*/
+#pragma region D3D12VirtualTexture2D
 	D3D12VirtualTexture2D::D3D12VirtualTexture2D(std::wstring id, uint32_t width, uint32_t height, uint32_t mips)
 		: D3D12Texture2D(id, width, height, mips),
 		m_NumTiles(0),
 		m_TileShape({}),
-		m_MipInfo({})
+		m_MipInfo({}),
+		m_CachedMipLevels({0, mips - 1})
 	{
 	}
 
@@ -287,15 +312,101 @@ namespace Hazel {
 	{
 		return m_CachedMipLevels;
 	}
+#pragma endregion
 
-	/**
-	*
-	*       Committed Texture
-	*
-	*/
+#pragma region D3D12CommittedTexture2D
 	D3D12CommittedTexture2D::D3D12CommittedTexture2D(std::wstring id, uint32_t width, uint32_t height, uint32_t mips)
 		: D3D12Texture2D(id, width, height, mips)
 	{
 	}
+#pragma endregion
+
+#pragma region D3D12TextureCube
+	Ref<D3D12TextureCube> D3D12TextureCube::Create(D3D12ResourceBatch& batch, TextureCreationOptions& opts)
+	{
+		HZ_CORE_ASSERT(opts.Depth == 6, "Cube textures should have a depth of 6 (6 faces)");
+
+		Ref<D3D12TextureCube> ret = nullptr;
+
+		if (!opts.Path.empty())
+		{
+			TComPtr<ID3D12Resource> resource = nullptr;
+			std::unique_ptr<uint8_t[]> ddsData = nullptr;
+			bool isCube;
+			DirectX::DDS_ALPHA_MODE alphaMode;
+			std::vector<D3D12_SUBRESOURCE_DATA> subData;
+
+			// Leaves resource in COPY_DEST state
+			DirectX::LoadDDSTextureFromFile(
+				batch.GetDevice().Get(),
+				opts.Path.c_str(),
+				resource.GetAddressOf(),
+				ddsData,
+				subData,
+				0,
+				&alphaMode,
+				&isCube
+			);
+
+			HZ_CORE_ASSERT(isCube, "File is not a cube texture");
+
+			auto desc = resource->GetDesc();
+			HZ_CORE_ASSERT(desc.Format == opts.Format, "File and requested format do not match");
+
+			ret = CreateRef<D3D12TextureCube>(
+				desc.Width,
+				desc.Height,
+				desc.DepthOrArraySize,
+				desc.MipLevels,
+				opts.Path
+			);
+			ret->m_Resource.Swap(resource);
+			ret->m_CurrentState = D3D12_RESOURCE_STATE_COPY_DEST;
+			batch.Upload(ret->m_Resource.Get(), 0, subData.data(), subData.size());
+		}
+		else if (!opts.Name.empty())
+		{
+			ret = CreateRef<D3D12TextureCube>(
+				opts.Width, 
+				opts.Height, 
+				opts.Depth,
+				opts.MipLevels,
+				opts.Name 
+			);
+
+			D3D12_RESOURCE_DESC textureDesc = {};
+			textureDesc.MipLevels = opts.MipLevels;
+			textureDesc.Format = opts.Format;
+			textureDesc.Width = opts.Width;
+			textureDesc.Height = opts.Height;
+			textureDesc.Flags = opts.Flags;
+			textureDesc.DepthOrArraySize = opts.Depth;
+			textureDesc.SampleDesc.Count = 1;
+			textureDesc.SampleDesc.Quality = 0;
+			textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+
+			Hazel::D3D12::ThrowIfFailed(batch.GetDevice()->CreateCommittedResource(
+				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+				D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES,
+				&textureDesc,
+				ret->m_CurrentState,
+				nullptr,
+				IID_PPV_ARGS(ret->m_Resource.GetAddressOf())
+			));
+		}
+		else
+		{
+			HZ_CORE_ASSERT(false, "Commited textures need to have a path or a name");
+		}
+
+		return ret;
+	}
+	D3D12TextureCube::D3D12TextureCube(uint32_t width, uint32_t height, uint32_t depth, 
+		uint32_t mips, std::wstring id) :
+		D3D12Texture(width, height, depth, mips, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, id)
+	{
+	}
+#pragma endregion
+	
 }
 

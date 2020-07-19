@@ -15,40 +15,73 @@ namespace Hazel {
     class D3D12Context;
     class D3D12TilePool;
 
-    class D3D12Texture2D
+    class D3D12Texture
     {
     public:
         struct TextureCreationOptions
         {
             uint32_t Width;
             uint32_t Height;
+            uint32_t Depth;
             uint32_t MipLevels;
             std::wstring Path;
             std::wstring Name;
             D3D12_RESOURCE_FLAGS Flags;
-        };
+            DXGI_FORMAT Format;
 
-        struct MipLevels {
-            uint32_t FinestMip;
-            uint32_t CoarsestMip;
+            TextureCreationOptions() :
+                Width(1), Height(1), Depth(1), MipLevels(1),
+                Path(L""), Name(L""), 
+                Flags(D3D12_RESOURCE_FLAG_NONE),
+                Format(DXGI_FORMAT_R8G8B8A8_UNORM)
+            {}
         };
 
         uint32_t GetWidth() const { return m_Width; }
         uint32_t GetHeight() const { return m_Height; }
-
-        void SetData(D3D12ResourceBatch& batch, void* data, uint32_t size);
+        uint32_t GetDepth() const { return m_Depth; }
 
         void Transition(D3D12ResourceBatch& batch, D3D12_RESOURCE_STATES from, D3D12_RESOURCE_STATES to);
         void Transition(D3D12ResourceBatch& batch, D3D12_RESOURCE_STATES to);
         void Transition(ID3D12GraphicsCommandList* commandList, D3D12_RESOURCE_STATES from, D3D12_RESOURCE_STATES to);
         void Transition(ID3D12GraphicsCommandList* commandList, D3D12_RESOURCE_STATES to);
 
-        inline Ref<D3D12FeedbackMap> GetFeedbackMap() const { return m_FeedbackMap; }
-        inline void SetFeedbackMap(Ref<D3D12FeedbackMap> feedbackMap) { m_FeedbackMap = feedbackMap; }
         inline ID3D12Resource* GetResource() const { return m_Resource.Get(); }
         inline uint32_t GetMipLevels() const { return  m_MipLevels; }
         inline bool HasMips() const { return m_MipLevels > 1; }
         inline std::wstring GetIdentifier() const { return m_Identifier; }
+        inline DXGI_FORMAT GetFormat() const { return m_Resource->GetDesc().Format; }
+
+
+    protected:
+        uint32_t m_Width;
+        uint32_t m_Height;
+        uint32_t m_Depth;
+        uint32_t m_MipLevels;
+        
+        D3D12_RESOURCE_STATES m_CurrentState;
+
+        std::wstring m_Identifier;
+
+        TComPtr<ID3D12Resource> m_Resource;
+
+        D3D12Texture(uint32_t width, uint32_t height, uint32_t depth, uint32_t mips,
+            D3D12_RESOURCE_STATES initialState, std::wstring id);
+
+    };
+#pragma region Texture2D
+    class D3D12Texture2D: public D3D12Texture
+    {
+    public:
+        struct MipLevels {
+            uint32_t FinestMip;
+            uint32_t CoarsestMip;
+        };
+
+        void SetData(D3D12ResourceBatch& batch, void* data, uint32_t size);
+
+        inline Ref<D3D12FeedbackMap> GetFeedbackMap() const { return m_FeedbackMap; }
+        inline void SetFeedbackMap(Ref<D3D12FeedbackMap> feedbackMap) { m_FeedbackMap = feedbackMap; }
 
         virtual bool IsVirtual() const = 0;
         virtual MipLevels ExtractMipsUsed() { return { 0, m_MipLevels - 1 }; }
@@ -66,13 +99,6 @@ namespace Hazel {
 
         D3D12Texture2D(std::wstring id, uint32_t width, uint32_t height, uint32_t mips = 1);
 
-        std::wstring m_Identifier;
-        uint32_t m_Width;
-        uint32_t m_Height;
-        uint32_t m_MipLevels;
-        D3D12_RESOURCE_STATES m_CurrentState;
-
-        TComPtr<ID3D12Resource> m_Resource;
         Ref<D3D12FeedbackMap> m_FeedbackMap;
     };
 
@@ -115,4 +141,17 @@ namespace Hazel {
         friend class D3D12TilePool;
         friend class D3D12Texture2D;
     };
+
+#pragma endregion
+
+#pragma region Cube Texture
+    class D3D12TextureCube : public D3D12Texture
+    {
+    public:
+        static Ref<D3D12TextureCube> Create(D3D12ResourceBatch& batch, TextureCreationOptions& opts);
+        D3D12TextureCube(uint32_t width, uint32_t height, uint32_t depth, uint32_t mips, std::wstring id);
+
+    protected:
+    };
+#pragma endregion
 }
