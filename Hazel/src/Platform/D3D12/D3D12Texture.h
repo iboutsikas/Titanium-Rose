@@ -24,14 +24,14 @@ namespace Hazel {
             uint32_t Height;
             uint32_t Depth;
             uint32_t MipLevels;
-            std::wstring Path;
-            std::wstring Name;
+            std::string Path;
+            std::string Name;
             D3D12_RESOURCE_FLAGS Flags;
             DXGI_FORMAT Format;
 
             TextureCreationOptions() :
                 Width(1), Height(1), Depth(1), MipLevels(1),
-                Path(L""), Name(L""), 
+                Path(""), Name(""), 
                 Flags(D3D12_RESOURCE_FLAG_NONE),
                 Format(DXGI_FORMAT_R8G8B8A8_UNORM)
             {}
@@ -49,7 +49,7 @@ namespace Hazel {
         inline ID3D12Resource* GetResource() const { return m_Resource.Get(); }
         inline uint32_t GetMipLevels() const { return  m_MipLevels; }
         inline bool HasMips() const { return m_MipLevels > 1; }
-        inline std::wstring GetIdentifier() const { return m_Identifier; }
+        inline std::string GetIdentifier() const { return m_Identifier; }
         inline DXGI_FORMAT GetFormat() const { return m_Resource->GetDesc().Format; }
 
 
@@ -61,12 +61,12 @@ namespace Hazel {
         
         D3D12_RESOURCE_STATES m_CurrentState;
 
-        std::wstring m_Identifier;
+        std::string m_Identifier;
 
         TComPtr<ID3D12Resource> m_Resource;
 
         D3D12Texture(uint32_t width, uint32_t height, uint32_t depth, uint32_t mips,
-            D3D12_RESOURCE_STATES initialState, std::wstring id);
+            D3D12_RESOURCE_STATES initialState, std::string id);
 
     };
 #pragma region Texture2D
@@ -97,7 +97,7 @@ namespace Hazel {
         HeapAllocationDescription DescriptorAllocation;
     protected:
 
-        D3D12Texture2D(std::wstring id, uint32_t width, uint32_t height, uint32_t mips = 1);
+        D3D12Texture2D(std::string id, uint32_t width, uint32_t height, uint32_t mips = 1);
 
         Ref<D3D12FeedbackMap> m_FeedbackMap;
     };
@@ -105,7 +105,7 @@ namespace Hazel {
     class D3D12CommittedTexture2D : public D3D12Texture2D
     {
     public:
-        D3D12CommittedTexture2D(std::wstring id, uint32_t width, uint32_t height, uint32_t mips = 1);
+        D3D12CommittedTexture2D(std::string id, uint32_t width, uint32_t height, uint32_t mips = 1);
         D3D12CommittedTexture2D() = delete;
         virtual bool IsVirtual() const override { return false; }
     private:
@@ -117,7 +117,7 @@ namespace Hazel {
     class D3D12VirtualTexture2D : public D3D12Texture2D
     {
     public:
-        D3D12VirtualTexture2D(std::wstring id, uint32_t width, uint32_t height, uint32_t mips = 1);
+        D3D12VirtualTexture2D(std::string id, uint32_t width, uint32_t height, uint32_t mips = 1);
         D3D12VirtualTexture2D() = delete;
         virtual bool IsVirtual() const override { return true; }
 
@@ -149,7 +149,7 @@ namespace Hazel {
     {
     public:
         static Ref<D3D12TextureCube> Create(D3D12ResourceBatch& batch, TextureCreationOptions& opts);
-        D3D12TextureCube(uint32_t width, uint32_t height, uint32_t depth, uint32_t mips, std::wstring id);
+        D3D12TextureCube(uint32_t width, uint32_t height, uint32_t depth, uint32_t mips, std::string id);
 
     protected:
     };

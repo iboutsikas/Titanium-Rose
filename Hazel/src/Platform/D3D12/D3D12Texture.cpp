@@ -10,7 +10,7 @@
 namespace Hazel {
 #pragma region D3D12Texture
 	D3D12Texture::D3D12Texture(uint32_t width, uint32_t height, uint32_t depth, 
-		uint32_t mips, D3D12_RESOURCE_STATES initialState, std::wstring id) :
+		uint32_t mips, D3D12_RESOURCE_STATES initialState, std::string id) :
 		m_Width(width),
 		m_Height(height),
 		m_Depth(depth),
@@ -62,7 +62,7 @@ namespace Hazel {
 #pragma endregion
 
 #pragma region D3D12Texture2D
-	D3D12Texture2D::D3D12Texture2D(std::wstring id, uint32_t width, uint32_t height, uint32_t mips)
+	D3D12Texture2D::D3D12Texture2D(std::string id, uint32_t width, uint32_t height, uint32_t mips)
 		: D3D12Texture(width, height, 1, mips, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, id),
 		m_FeedbackMap(nullptr)
 	{
@@ -113,7 +113,9 @@ namespace Hazel {
 			IID_PPV_ARGS(ret->m_Resource.GetAddressOf())
 		));
 
-		ret->m_Resource->SetName(opts.Name.c_str());
+		std::wstring wPath(opts.Name.begin(), opts.Name.end());
+
+		ret->m_Resource->SetName(wPath.c_str());
 
 		UINT subresourceCount = desc.MipLevels;
 		ret->m_Tilings.resize(subresourceCount);
@@ -161,10 +163,12 @@ namespace Hazel {
 			DirectX::DDS_ALPHA_MODE alphaMode;
 			std::vector<D3D12_SUBRESOURCE_DATA> subData;
 
+			std::wstring wPath(opts.Path.begin(), opts.Path.end());
+
 			// Leaves resource in COPY_DEST state
 			DirectX::LoadDDSTextureFromFile(
 				batch.GetDevice().Get(),
-				opts.Path.c_str(),
+				wPath.c_str(),
 				resource.GetAddressOf(),
 				ddsData,
 				subData,
@@ -267,7 +271,7 @@ namespace Hazel {
 #pragma endregion
 
 #pragma region D3D12VirtualTexture2D
-	D3D12VirtualTexture2D::D3D12VirtualTexture2D(std::wstring id, uint32_t width, uint32_t height, uint32_t mips)
+	D3D12VirtualTexture2D::D3D12VirtualTexture2D(std::string id, uint32_t width, uint32_t height, uint32_t mips)
 		: D3D12Texture2D(id, width, height, mips),
 		m_NumTiles(0),
 		m_TileShape({}),
@@ -315,7 +319,7 @@ namespace Hazel {
 #pragma endregion
 
 #pragma region D3D12CommittedTexture2D
-	D3D12CommittedTexture2D::D3D12CommittedTexture2D(std::wstring id, uint32_t width, uint32_t height, uint32_t mips)
+	D3D12CommittedTexture2D::D3D12CommittedTexture2D(std::string id, uint32_t width, uint32_t height, uint32_t mips)
 		: D3D12Texture2D(id, width, height, mips)
 	{
 	}
@@ -336,10 +340,12 @@ namespace Hazel {
 			DirectX::DDS_ALPHA_MODE alphaMode;
 			std::vector<D3D12_SUBRESOURCE_DATA> subData;
 
+			std::wstring wPath(opts.Path.begin(), opts.Path.end());
+
 			// Leaves resource in COPY_DEST state
 			DirectX::LoadDDSTextureFromFile(
 				batch.GetDevice().Get(),
-				opts.Path.c_str(),
+				wPath.c_str(),
 				resource.GetAddressOf(),
 				ddsData,
 				subData,
@@ -402,7 +408,7 @@ namespace Hazel {
 		return ret;
 	}
 	D3D12TextureCube::D3D12TextureCube(uint32_t width, uint32_t height, uint32_t depth, 
-		uint32_t mips, std::wstring id) :
+		uint32_t mips, std::string id) :
 		D3D12Texture(width, height, depth, mips, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, id)
 	{
 	}

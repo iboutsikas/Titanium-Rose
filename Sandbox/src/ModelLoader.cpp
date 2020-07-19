@@ -202,17 +202,16 @@ Hazel::Ref<Hazel::GameObject> ModelLoader::LoadFromFile(std::string& filepath, H
 			std::string filepath = "assets/textures/" + filename;
 
 			HZ_INFO("\tUsing diffuse texture: {}", filename);
-			std::wstring widepath(filepath.begin(), filepath.end());
-			if (TextureLibrary->Exists(widepath))
+			if (TextureLibrary->Exists(filepath))
 			{
-				albedoTexture = TextureLibrary->GetTexture(widepath);
+				albedoTexture = TextureLibrary->GetTexture(filepath);
 			}
 			else
 			{
 				// Load the texture, get it into the Library
 				Hazel::D3D12Texture2D::TextureCreationOptions opts;
 				opts.Flags = D3D12_RESOURCE_FLAG_NONE;
-				opts.Path = widepath;
+				opts.Path = filepath;
 				albedoTexture = Hazel::D3D12Texture2D::CreateCommittedTexture(batch, opts);
 				TextureLibrary->AddTexture(albedoTexture);
 			}
@@ -238,16 +237,15 @@ Hazel::Ref<Hazel::GameObject> ModelLoader::LoadFromFile(std::string& filepath, H
 			std::string filepath = "assets/textures/" + filename;
 
 			HZ_INFO("\tUsing diffuse texture: {}", filename);
-			std::wstring widepath(filepath.begin(), filepath.end());
-			if (TextureLibrary->Exists(widepath))
+			if (TextureLibrary->Exists(filepath))
 			{
-				normalsTexture = TextureLibrary->GetTexture(widepath);
+				normalsTexture = TextureLibrary->GetTexture(filepath);
 			}
 			else
 			{
 				Hazel::D3D12Texture2D::TextureCreationOptions opts;
 				opts.Flags = D3D12_RESOURCE_FLAG_NONE;
-				opts.Path = widepath;
+				opts.Path = filepath;
 				normalsTexture = Hazel::D3D12Texture2D::CreateCommittedTexture(batch, opts);
 				TextureLibrary->AddTexture(normalsTexture);
 			}
@@ -267,18 +265,17 @@ Hazel::Ref<Hazel::GameObject> ModelLoader::LoadFromFile(std::string& filepath, H
 			scene->mMaterials[i]->GetTexture(aiTextureType_SPECULAR, 0, &texturefile);
 			std::string filename(texturefile.C_Str());
 			std::string filepath = "assets/textures/" + filename;
+			
 			HZ_INFO("\tUsing specular texture: {}", filename);
-
-			std::wstring widepath(filepath.begin(), filepath.end());
-			if (TextureLibrary->Exists(widepath))
+			if (TextureLibrary->Exists(filepath))
 			{
-				specularTexture = TextureLibrary->GetTexture(widepath);
+				specularTexture = TextureLibrary->GetTexture(filepath);
 			}
 			else
 			{
 				Hazel::D3D12Texture2D::TextureCreationOptions opts;
 				opts.Flags = D3D12_RESOURCE_FLAG_NONE;
-				opts.Path = widepath;
+				opts.Path = filepath;
 				specularTexture = Hazel::D3D12Texture2D::CreateCommittedTexture(batch, opts);
 				TextureLibrary->AddTexture(specularTexture);
 			}

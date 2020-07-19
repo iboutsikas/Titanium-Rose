@@ -41,7 +41,7 @@ BenchmarkLayer::BenchmarkLayer()
 
     {
         Hazel::D3D12Texture2D::TextureCreationOptions opts;
-        opts.Name = L"White Texture";
+        opts.Name = "White Texture";
         opts.Width = 1;
         opts.Height = 1;
         opts.MipLevels = 1;
@@ -57,7 +57,7 @@ BenchmarkLayer::BenchmarkLayer()
 
     {
         Hazel::D3D12Texture2D::TextureCreationOptions opts;
-        opts.Name = L"Dummy Normal Texture";
+        opts.Name = "Dummy Normal Texture";
         opts.Width = 1;
         opts.Height = 1;
         opts.MipLevels = 1;
@@ -73,7 +73,7 @@ BenchmarkLayer::BenchmarkLayer()
 
     {
         Hazel::D3D12Texture2D::TextureCreationOptions opts;
-        opts.Name = L"Dummy Specular Texture";
+        opts.Name = "Dummy Specular Texture";
         opts.Width = 1;
         opts.Height = 1;
         opts.MipLevels = 1;
