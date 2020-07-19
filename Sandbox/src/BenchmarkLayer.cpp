@@ -87,10 +87,14 @@ BenchmarkLayer::BenchmarkLayer()
         D3D12Renderer::TextureLibrary->AddTexture(t);
     }
 
-    //auto model = ModelLoader::LoadFromFile(std::string("assets/models/test_cube.fbx"), batch);
-    auto model = ModelLoader::LoadFromFile(std::string("assets/models/sponza.fbx"), batch);
+#define USE_SPONZA 0
 
-    //model->Transform.SetPosition(glm::vec3(0.0f, 15.0f, -10.0f));
+#if USE_SPONZA
+    auto model = ModelLoader::LoadFromFile(std::string("assets/models/sponza.fbx"), batch);
+#else
+    auto model = ModelLoader::LoadFromFile(std::string("assets/models/earth.fbx"), batch);
+    model->Transform.SetPosition(glm::vec3(0.0f, 15.0f, -10.0f));
+#endif
 
     m_Scene.Entities.push_back(model);
     m_Scene.Lights.resize(2);
@@ -112,13 +116,22 @@ BenchmarkLayer::BenchmarkLayer()
     for (size_t i = 0; i < m_Scene.Lights.size(); i++)
     {
         if (i == 0) {
+#if USE_SPONZA
             m_Scene.Lights[i].GameObject->Transform.SetPosition(120.0f, 15.0f, 0.0f);
+#else
+            m_Scene.Lights[i].GameObject->Transform.SetPosition(-17.0f, 15.0f, 0.0f);
+#endif
             m_PatrolComponents[i].Transform = &m_Scene.Lights[i].GameObject->Transform;
             m_PatrolComponents[i].NextWaypoint = &m_Path[2];
             m_PatrolComponents[i].Patrol = false;
         }
         else if (i == 1) {
-            m_Scene.Lights[i].GameObject->Transform.SetPosition(-120.0f, 15.0f, 0.0f);
+#if USE_SPONZA
+            m_Scene.Lights[i].GameObject->Transform.SetPosition(120.0f, 15.0f, 0.0f);
+#else
+            m_Scene.Lights[i].GameObject->Transform.SetPosition(12.0f, 15.0f, 0.0f);
+#endif
+            //m_Scene.Lights[i].GameObject->Transform.SetPosition(12.0f, 15.0f, 0.0f);
             m_PatrolComponents[i].Transform = &m_Scene.Lights[i].GameObject->Transform;
             m_PatrolComponents[i].NextWaypoint = &m_Path[0];
             m_PatrolComponents[i].Patrol = false;

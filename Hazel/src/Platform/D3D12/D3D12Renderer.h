@@ -16,6 +16,8 @@
 
 namespace Hazel
 {
+    class D3D12VertexBuffer;
+    class D3D12IndexBuffer;
 
     class D3D12Renderer
     {
@@ -71,6 +73,8 @@ namespace Hazel
 
         static RendererType GetCurrentRenderType() { return s_CurrentRenderer->ImplGetRendererType(); }
 
+        
+
         static void Init();
         static void Shutdown();
     protected:
@@ -79,8 +83,19 @@ namespace Hazel
 
         struct CommonData 
         {
+            CommonData() : 
+                StaticResources(0), DynamicResources(0),
+                StaticRenderTargets(0), DynamicRenderTargets(0),
+                NumLights(0),
+                Scene(nullptr)
+            {
+                
+            }
+
             size_t StaticResources;
+            size_t DynamicResources;
             size_t StaticRenderTargets;
+            size_t DynamicRenderTargets;
             size_t NumLights;
             Scene* Scene;
         };
@@ -111,10 +126,12 @@ namespace Hazel
         static Scope<D3D12UploadBuffer<RendererLight>> s_LightsBuffer;
         static HeapAllocationDescription s_LightsBufferAllocation;
         static D3D12Renderer* s_CurrentRenderer;
-
+        static D3D12VertexBuffer* s_SkyboxVB;
+        static D3D12IndexBuffer* s_SkyboxIB;
 
         virtual void ImplRenderSubmitted() = 0;
         virtual void ImplOnInit() = 0;
+        virtual void ImplSubmit(Ref<GameObject>& gameObject) {};
         virtual RendererType ImplGetRendererType() = 0;
     };
 }

@@ -136,7 +136,7 @@ float4 PS_Main(PSInput input) : SV_TARGET
                             shadowFactor;
         diffuseContribution += diffContrib;
 
-        float3 specContrib = CalculateSpecular(the_light, FragmentToView, Lnorm, normal, 32 * MaterialSpecular) * 
+        float3 specContrib = CalculateSpecular(the_light, FragmentToView, Lnorm, normal, 32) * 
                             the_light.Intensity * 
                             shadowFactor *
                             specular *
@@ -150,5 +150,5 @@ float4 PS_Main(PSInput input) : SV_TARGET
     finalSurfaceColor += specularContribution;
     finalSurfaceColor *= albedo.rgb;
 
-    return float4(finalSurfaceColor, albedo.a) + EmissiveColor;
+    return saturate(float4(finalSurfaceColor, albedo.a)) + EmissiveColor;
 }
