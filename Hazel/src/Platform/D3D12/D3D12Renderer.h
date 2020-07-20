@@ -65,15 +65,17 @@ namespace Hazel
 
         static void SetVCsync(bool enable);
 
-        static void AddStaticResource(Ref<D3D12Texture2D> texture);
-        static void AddStaticRenderTarget(Ref<D3D12Texture2D> texture);
+        static void AddStaticResource(Ref<D3D12Texture> texture);
+        static void AddDynamicResource(Ref<D3D12Texture> texture);
+        static void AddStaticRenderTarget(Ref<D3D12Texture> texture);
 
         static void Submit(Ref<GameObject>& gameObject);
         static void RenderSubmitted();
+        static void RenderSkybox();
 
         static RendererType GetCurrentRenderType() { return s_CurrentRenderer->ImplGetRendererType(); }
 
-        
+        static std::pair<Ref<D3D12TextureCube>, Ref<D3D12TextureCube>> LoadEnvironmentMap(std::string& path);
 
         static void Init();
         static void Shutdown();

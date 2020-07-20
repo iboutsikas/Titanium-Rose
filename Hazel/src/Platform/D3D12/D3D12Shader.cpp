@@ -8,7 +8,7 @@
 
 namespace Hazel {
 
-	D3D12Shader::D3D12Shader(const std::string& filepath, PipelineStateStream pipelineStream, ShaderType shaderTypes)
+	D3D12Shader::D3D12Shader(const std::string& filepath, CD3DX12_PIPELINE_STATE_STREAM pipelineStream, ShaderType shaderTypes)
 		:m_Path(filepath), m_PipelineDesc(pipelineStream), m_ShaderTypes(shaderTypes)
 	{
 		HZ_PROFILE_FUNCTION();
@@ -48,7 +48,7 @@ namespace Hazel {
 
 	bool D3D12Shader::Recompile(void* stream)
 	{
-		PipelineStateStream* pipelineStream = static_cast<PipelineStateStream*>(stream);
+		CD3DX12_PIPELINE_STATE_STREAM* pipelineStream = static_cast<CD3DX12_PIPELINE_STATE_STREAM*>(stream);
 
 		if ((m_ShaderTypes & ShaderType::Compute) == ShaderType::Compute)
 		{
@@ -85,7 +85,7 @@ namespace Hazel {
 	
 	}
 	
-	bool D3D12Shader::RecompileCompute(PipelineStateStream* pipelineStream)
+	bool D3D12Shader::RecompileCompute(CD3DX12_PIPELINE_STATE_STREAM* pipelineStream)
 	{
 		if (pipelineStream != nullptr)
 		{
@@ -116,14 +116,14 @@ namespace Hazel {
 		return false;
 	}
 
-	bool D3D12Shader::RecompileGraphics(PipelineStateStream* pipelineStream)
+	bool D3D12Shader::RecompileGraphics(CD3DX12_PIPELINE_STATE_STREAM* pipelineStream)
 	{
 		if (pipelineStream != nullptr) {
 			m_PipelineDesc.InputLayout = pipelineStream->InputLayout;
 			m_PipelineDesc.PrimitiveTopologyType = pipelineStream->PrimitiveTopologyType;
 			m_PipelineDesc.DSVFormat = pipelineStream->DSVFormat;
 			m_PipelineDesc.RTVFormats = pipelineStream->RTVFormats;
-			m_PipelineDesc.Rasterizer = pipelineStream->Rasterizer;
+			m_PipelineDesc.RasterizerState = pipelineStream->RasterizerState;
 		}
 
 		m_CompilationState.reset(new CompilationSate());
@@ -241,7 +241,7 @@ namespace Hazel {
 	}
 
 
-	HRESULT D3D12Shader::BuildPSO(CompilationSate* state, PipelineStateStream* pipelineStream)
+	HRESULT D3D12Shader::BuildPSO(CompilationSate* state, CD3DX12_PIPELINE_STATE_STREAM* pipelineStream)
 	{
 		pipelineStream->pRootSignature = state->rootSignature.Get();
 
@@ -264,7 +264,7 @@ namespace Hazel {
 
 
 		D3D12_PIPELINE_STATE_STREAM_DESC pipelineStateStreamDesc = {
-			sizeof(PipelineStateStream), pipelineStream
+			sizeof(CD3DX12_PIPELINE_STATE_STREAM), pipelineStream
 		};
 
 		auto hr = D3D12Renderer::Context->DeviceResources->Device->CreatePipelineState(

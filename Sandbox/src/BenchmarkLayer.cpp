@@ -15,6 +15,8 @@
 #include "ImGui/ImGuiHelpers.h"
 #include "winpixeventruntime/pix3.h"
 
+#include <memory>
+
 static uint32_t STATIC_RESOURCES = 0;
 static constexpr uint32_t MaxItemsPerSubmission = 25;
 static constexpr char* ShaderPath = "assets/shaders/PbrShader.hlsl";
@@ -52,7 +54,7 @@ BenchmarkLayer::BenchmarkLayer()
         t->Transition(batch, D3D12_RESOURCE_STATE_COPY_DEST);
         t->SetData(batch, white, sizeof(white));
         t->Transition(batch, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-        D3D12Renderer::TextureLibrary->AddTexture(t);
+        D3D12Renderer::TextureLibrary->Add(t);
     }
 
     {
@@ -68,7 +70,7 @@ BenchmarkLayer::BenchmarkLayer()
         t->Transition(batch, D3D12_RESOURCE_STATE_COPY_DEST);
         t->SetData(batch, white, sizeof(white));
         t->Transition(batch, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-        D3D12Renderer::TextureLibrary->AddTexture(t);
+        D3D12Renderer::TextureLibrary->Add(t);
     }
 
     {
@@ -84,7 +86,7 @@ BenchmarkLayer::BenchmarkLayer()
         t->Transition(batch, D3D12_RESOURCE_STATE_COPY_DEST);
         t->SetData(batch, white, sizeof(white));
         t->Transition(batch, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-        D3D12Renderer::TextureLibrary->AddTexture(t);
+        D3D12Renderer::TextureLibrary->Add(t);
     }
 
 #define USE_SPONZA 0
@@ -101,6 +103,10 @@ BenchmarkLayer::BenchmarkLayer()
     m_Scene.Camera = &m_CameraController.GetCamera();
     m_Scene.AmbientLight = { 1.0f, 1.0f, 1.0f };
     m_Scene.AmbientIntensity = 0.1f;
+
+    auto [env, irb] = D3D12Renderer::LoadEnvironmentMap(std::string("assets/textures/grasscube1024.dds"));
+
+    m_Scene.Environment.EnvironmentMap = env;
 
     m_PatrolComponents.resize(2);
     for (auto& light : m_Scene.Lights)
@@ -141,9 +147,15 @@ BenchmarkLayer::BenchmarkLayer()
 #if 1
     for (auto& a : *D3D12Renderer::TextureLibrary)
     {
-        D3D12Renderer::AddStaticResource(a.second);
+        auto tex = std::static_pointer_cast<D3D12Texture>(a.second);
+
+        D3D12Renderer::AddStaticResource(tex);
         a.second->Transition(batch, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     }
+    
+    D3D12Renderer::AddDynamicResource(env);
+    env->Transition(batch, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
 #endif
     batch.End(D3D12Renderer::Context->DeviceResources->CommandQueue.Get()).wait();
 }
@@ -186,6 +198,8 @@ void BenchmarkLayer::OnUpdate(Hazel::Timestep ts)
     
     D3D12Renderer::RenderSubmitted();
     
+    D3D12Renderer::RenderSkybox();
+
     D3D12Renderer::EndScene();
 
 #if 0

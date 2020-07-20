@@ -204,7 +204,7 @@ Hazel::Ref<Hazel::GameObject> ModelLoader::LoadFromFile(std::string& filepath, H
 			HZ_INFO("\tUsing diffuse texture: {}", filename);
 			if (TextureLibrary->Exists(filepath))
 			{
-				albedoTexture = TextureLibrary->GetTexture(filepath);
+				albedoTexture = TextureLibrary->GetAs<Hazel::D3D12Texture2D>(filepath);
 			}
 			else
 			{
@@ -213,7 +213,7 @@ Hazel::Ref<Hazel::GameObject> ModelLoader::LoadFromFile(std::string& filepath, H
 				opts.Flags = D3D12_RESOURCE_FLAG_NONE;
 				opts.Path = filepath;
 				albedoTexture = Hazel::D3D12Texture2D::CreateCommittedTexture(batch, opts);
-				TextureLibrary->AddTexture(albedoTexture);
+				TextureLibrary->Add(albedoTexture);
 			}
 			materials[i]->HasAlbedoTexture = true;
 			materials[i]->Color = glm::vec4(0.0f, 0.0f, 0.0f, 0.0f);
@@ -239,7 +239,7 @@ Hazel::Ref<Hazel::GameObject> ModelLoader::LoadFromFile(std::string& filepath, H
 			HZ_INFO("\tUsing diffuse texture: {}", filename);
 			if (TextureLibrary->Exists(filepath))
 			{
-				normalsTexture = TextureLibrary->GetTexture(filepath);
+				normalsTexture = TextureLibrary->GetAs<Hazel::D3D12Texture2D>(filepath);
 			}
 			else
 			{
@@ -247,7 +247,7 @@ Hazel::Ref<Hazel::GameObject> ModelLoader::LoadFromFile(std::string& filepath, H
 				opts.Flags = D3D12_RESOURCE_FLAG_NONE;
 				opts.Path = filepath;
 				normalsTexture = Hazel::D3D12Texture2D::CreateCommittedTexture(batch, opts);
-				TextureLibrary->AddTexture(normalsTexture);
+				TextureLibrary->Add(normalsTexture);
 			}
 			materials[i]->HasNormalTexture = true;
 		}
@@ -269,7 +269,7 @@ Hazel::Ref<Hazel::GameObject> ModelLoader::LoadFromFile(std::string& filepath, H
 			HZ_INFO("\tUsing specular texture: {}", filename);
 			if (TextureLibrary->Exists(filepath))
 			{
-				specularTexture = TextureLibrary->GetTexture(filepath);
+				specularTexture = TextureLibrary->GetAs<Hazel::D3D12Texture2D>(filepath);
 			}
 			else
 			{
@@ -277,7 +277,7 @@ Hazel::Ref<Hazel::GameObject> ModelLoader::LoadFromFile(std::string& filepath, H
 				opts.Flags = D3D12_RESOURCE_FLAG_NONE;
 				opts.Path = filepath;
 				specularTexture = Hazel::D3D12Texture2D::CreateCommittedTexture(batch, opts);
-				TextureLibrary->AddTexture(specularTexture);
+				TextureLibrary->Add(specularTexture);
 			}
 			materials[i]->HasSpecularTexture = true;
 		}

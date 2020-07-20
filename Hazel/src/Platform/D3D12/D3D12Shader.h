@@ -6,6 +6,8 @@
 #include "Platform/D3D12/D3D12Context.h"
 #include "d3d12.h"
 
+struct CD3DX12_PIPELINE_STATE_STREAM;
+
 namespace Hazel {
 	
 	
@@ -14,21 +16,21 @@ namespace Hazel {
 	public:
 		
 
-		struct PipelineStateStream
-		{
-			CD3DX12_PIPELINE_STATE_STREAM_ROOT_SIGNATURE pRootSignature;
-			CD3DX12_PIPELINE_STATE_STREAM_INPUT_LAYOUT InputLayout;
-			CD3DX12_PIPELINE_STATE_STREAM_PRIMITIVE_TOPOLOGY PrimitiveTopologyType;
-			CD3DX12_PIPELINE_STATE_STREAM_VS VS;
-			CD3DX12_PIPELINE_STATE_STREAM_PS PS;
-			CD3DX12_PIPELINE_STATE_STREAM_GS GS;
-			CD3DX12_PIPELINE_STATE_STREAM_CS CS;
-			CD3DX12_PIPELINE_STATE_STREAM_DEPTH_STENCIL_FORMAT DSVFormat;
-			CD3DX12_PIPELINE_STATE_STREAM_RENDER_TARGET_FORMATS RTVFormats;
-			CD3DX12_PIPELINE_STATE_STREAM_RASTERIZER Rasterizer;
-		};
+		//struct PipelineStateStream
+		//{
+		//	CD3DX12_PIPELINE_STATE_STREAM_ROOT_SIGNATURE pRootSignature;
+		//	CD3DX12_PIPELINE_STATE_STREAM_INPUT_LAYOUT InputLayout;
+		//	CD3DX12_PIPELINE_STATE_STREAM_PRIMITIVE_TOPOLOGY PrimitiveTopologyType;
+		//	CD3DX12_PIPELINE_STATE_STREAM_VS VS;
+		//	CD3DX12_PIPELINE_STATE_STREAM_PS PS;
+		//	CD3DX12_PIPELINE_STATE_STREAM_GS GS;
+		//	CD3DX12_PIPELINE_STATE_STREAM_CS CS;
+		//	CD3DX12_PIPELINE_STATE_STREAM_DEPTH_STENCIL_FORMAT DSVFormat;
+		//	CD3DX12_PIPELINE_STATE_STREAM_RENDER_TARGET_FORMATS RTVFormats;
+		//	CD3DX12_PIPELINE_STATE_STREAM_RASTERIZER Rasterizer;
+		//};
 
-		D3D12Shader(const std::string& filepath, PipelineStateStream pipelineStream, ShaderType shaderTypes = VertexAndFragment);
+		D3D12Shader(const std::string& filepath, CD3DX12_PIPELINE_STATE_STREAM pipelineStream, ShaderType shaderTypes = VertexAndFragment);
 		D3D12Shader(const std::string& name, const std::string& vertexSrc, const std::string& fragmentSrc);
 		virtual ~D3D12Shader();
 
@@ -67,20 +69,20 @@ namespace Hazel {
 			TComPtr<ID3D12PipelineState> pipelineState;
 		};
 
-		bool RecompileCompute(PipelineStateStream* pipelineStream);
-		bool RecompileGraphics(PipelineStateStream* pipelineStream);
+		bool RecompileCompute(CD3DX12_PIPELINE_STATE_STREAM* pipelineStream);
+		bool RecompileGraphics(CD3DX12_PIPELINE_STATE_STREAM* pipelineStream);
 
 
 		HRESULT Compile(const std::wstring& filepathW, LPCSTR entryPoint, LPCSTR profile, ID3DBlob** blob);
 		HRESULT ExtractRootSignature(CompilationSate* state, TComPtr<ID3DBlob> shaderBlob);
-		HRESULT BuildPSO(CompilationSate* state, PipelineStateStream* pipelineStream);
+		HRESULT BuildPSO(CompilationSate* state, CD3DX12_PIPELINE_STATE_STREAM* pipelineStream);
 	private:
 		TComPtr<ID3DBlob> m_VertexBlob;
 		TComPtr<ID3DBlob> m_FragmentBlob;
 		TComPtr<ID3DBlob> m_GeometryBlob;
 		TComPtr<ID3D12RootSignature> m_RootSignature;
 		TComPtr<ID3D12PipelineState> m_PipelineState;
-		PipelineStateStream m_PipelineDesc;
+		CD3DX12_PIPELINE_STATE_STREAM m_PipelineDesc;
 		Ref<CompilationSate> m_CompilationState;
 
 		std::string m_Name;

@@ -10,11 +10,12 @@
 namespace Hazel {
 #pragma region D3D12Texture
 	D3D12Texture::D3D12Texture(uint32_t width, uint32_t height, uint32_t depth, 
-		uint32_t mips, D3D12_RESOURCE_STATES initialState, std::string id) :
+		uint32_t mips, bool isCube, D3D12_RESOURCE_STATES initialState, std::string id) :
 		m_Width(width),
 		m_Height(height),
 		m_Depth(depth),
 		m_MipLevels(mips),
+		m_IsCube(isCube),
 		m_CurrentState(initialState),
 		m_Identifier(id),
 		m_Resource(nullptr)
@@ -63,7 +64,7 @@ namespace Hazel {
 
 #pragma region D3D12Texture2D
 	D3D12Texture2D::D3D12Texture2D(std::string id, uint32_t width, uint32_t height, uint32_t mips)
-		: D3D12Texture(width, height, 1, mips, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, id),
+		: D3D12Texture(width, height, 1, mips, false, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, id),
 		m_FeedbackMap(nullptr)
 	{
 	}
@@ -328,8 +329,6 @@ namespace Hazel {
 #pragma region D3D12TextureCube
 	Ref<D3D12TextureCube> D3D12TextureCube::Create(D3D12ResourceBatch& batch, TextureCreationOptions& opts)
 	{
-		HZ_CORE_ASSERT(opts.Depth == 6, "Cube textures should have a depth of 6 (6 faces)");
-
 		Ref<D3D12TextureCube> ret = nullptr;
 
 		if (!opts.Path.empty())
@@ -357,7 +356,6 @@ namespace Hazel {
 			HZ_CORE_ASSERT(isCube, "File is not a cube texture");
 
 			auto desc = resource->GetDesc();
-			HZ_CORE_ASSERT(desc.Format == opts.Format, "File and requested format do not match");
 
 			ret = CreateRef<D3D12TextureCube>(
 				desc.Width,
@@ -372,6 +370,8 @@ namespace Hazel {
 		}
 		else if (!opts.Name.empty())
 		{
+			HZ_CORE_ASSERT(opts.Depth == 6, "Cube textures should have a depth of 6 (6 faces)");
+
 			ret = CreateRef<D3D12TextureCube>(
 				opts.Width, 
 				opts.Height, 
@@ -409,7 +409,7 @@ namespace Hazel {
 	}
 	D3D12TextureCube::D3D12TextureCube(uint32_t width, uint32_t height, uint32_t depth, 
 		uint32_t mips, std::string id) :
-		D3D12Texture(width, height, depth, mips, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, id)
+		D3D12Texture(width, height, depth, mips, true, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, id)
 	{
 	}
 #pragma endregion

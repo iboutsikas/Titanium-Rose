@@ -1,14 +1,22 @@
 #include "hzpch.h"
 #include "D3D12Renderer.h"
 
+#include "Platform/D3D12/d3dx12.h"
 #include "Platform/D3D12/D3D12Buffer.h"
 #include "Platform/D3D12/D3D12ResourceBatch.h"
 #include "Platform/D3D12/D3D12ForwardRenderer.h"
 #include "Platform/D3D12/D3D12Shader.h"
 
+#include "glm/gtc/type_ptr.hpp"
+
+#include "WinPixEventRuntime/pix3.h"
 
 #define MAX_RESOURCES       100
 #define MAX_RENDERTARGETS   50
+
+struct SkyboxVertex {
+	glm::vec3 Position;
+};
 
 namespace Hazel {
 	D3D12Context*	D3D12Renderer::Context;
@@ -173,8 +181,13 @@ namespace Hazel {
 		Context->SetVSync(enable);
 	}
 
-	void D3D12Renderer::AddStaticResource(Ref<D3D12Texture2D> texture)
+	void D3D12Renderer::AddStaticResource(Ref<D3D12Texture> texture)
 	{
+		if (s_CommonData.DynamicResources != 0) {
+			HZ_CORE_WARN("Tried to allocate static resource after a dynamic resource");
+			return;
+		}
+
 		texture->DescriptorAllocation = s_ResourceDescriptorHeap->Allocate(1);
 		HZ_CORE_ASSERT(texture->DescriptorAllocation.Allocated, "Could not allocate space on the resource heap");
 		D3D12Renderer::Context->DeviceResources->Device->CreateShaderResourceView(
@@ -185,7 +198,42 @@ namespace Hazel {
 		s_CommonData.StaticResources++;
 	}
 
-	void D3D12Renderer::AddStaticRenderTarget(Ref<D3D12Texture2D> texture)
+	void D3D12Renderer::AddDynamicResource(Ref<D3D12Texture> texture)
+	{
+
+		texture->DescriptorAllocation = s_ResourceDescriptorHeap->Allocate(1);
+		HZ_CORE_ASSERT(texture->DescriptorAllocation.Allocated, "Could not allocate space on the resource heap");
+		
+		auto desc = texture->GetResource()->GetDesc();
+
+		auto dim = texture->IsCube() ? D3D12_SRV_DIMENSION_TEXTURECUBE : D3D12_SRV_DIMENSION_TEXTURE2D;
+
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		srvDesc.Format = desc.Format;
+		srvDesc.ViewDimension = dim;
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+
+		switch (dim)
+		{
+		case D3D12_SRV_DIMENSION_TEXTURE2D: {
+			srvDesc.Texture2D.MostDetailedMip = 0;
+			srvDesc.Texture2D.MipLevels = texture->GetMipLevels();
+		}
+		case D3D12_SRV_DIMENSION_TEXTURECUBE: {
+			srvDesc.TextureCube.MostDetailedMip = 0;
+			srvDesc.TextureCube.MipLevels = texture->GetMipLevels();
+		}
+		}
+
+		D3D12Renderer::Context->DeviceResources->Device->CreateShaderResourceView(
+			texture->GetResource(),
+			&srvDesc,
+			texture->DescriptorAllocation.CPUHandle
+		);
+		s_CommonData.DynamicResources++;
+	}
+
+	void D3D12Renderer::AddStaticRenderTarget(Ref<D3D12Texture> texture)
 	{
 	}
 
@@ -214,6 +262,90 @@ namespace Hazel {
 		s_CurrentRenderer->ImplRenderSubmitted();
 		s_TransparentObjects.clear();
 		s_OpaqueObjects.clear();
+	}
+
+	void D3D12Renderer::RenderSkybox()
+	{
+		auto shader = ShaderLibrary->GetAs<D3D12Shader>("skybox");
+		
+		auto camera = s_CommonData.Scene->Camera;
+		struct {
+			glm::mat4 ViewInverse;
+			glm::mat4 ProjectionTranspose;
+		} PassData;
+		PassData.ViewInverse = glm::inverse(camera->GetViewMatrix());
+		PassData.ProjectionTranspose = glm::inverse(camera->GetProjectionMatrix());
+
+		auto& env = s_CommonData.Scene->Environment;
+
+		auto vb = s_SkyboxVB->GetView();
+		vb.StrideInBytes = sizeof(SkyboxVertex);
+		auto ib = s_SkyboxIB->GetView();
+
+
+		D3D12ResourceBatch batch(Context->DeviceResources->Device);
+		auto cmdList = batch.Begin();
+		PIXBeginEvent(cmdList.Get(), PIX_COLOR(255, 0, 255), "Skybox pass");
+
+		cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		cmdList->IASetVertexBuffers(0, 1, &vb);
+		cmdList->IASetIndexBuffer(&ib);
+		cmdList->OMSetRenderTargets(1, &Context->CurrentBackBufferView(), TRUE, &Context->DepthStencilView());
+		cmdList->RSSetViewports(1, &Context->m_Viewport);
+		cmdList->RSSetScissorRects(1, &Context->m_ScissorRect);
+		ID3D12DescriptorHeap* descriptorHeaps[] = {
+			s_ResourceDescriptorHeap->GetHeap()
+		};
+		cmdList->SetDescriptorHeaps(1, descriptorHeaps);
+		cmdList->SetGraphicsRootSignature(shader->GetRootSignature());
+		cmdList->SetPipelineState(shader->GetPipelineState());
+		cmdList->SetGraphicsRoot32BitConstants(0, sizeof(PassData) / sizeof(float), &PassData, 0);
+		cmdList->SetGraphicsRootDescriptorTable(1, env.EnvironmentMap->DescriptorAllocation.GPUHandle);
+
+		cmdList->DrawIndexedInstanced(s_SkyboxIB->GetCount(), 1, 0, 0, 0);
+
+		PIXEndEvent(cmdList.Get());
+		batch.End(Context->DeviceResources->CommandQueue.Get()).wait();
+	}
+
+	std::pair<Ref<D3D12TextureCube>, Ref<D3D12TextureCube>> D3D12Renderer::LoadEnvironmentMap(std::string& path)
+	{
+		if (TextureLibrary->Exists(path))
+		{
+			auto tex = TextureLibrary->GetAs<D3D12TextureCube>(path);
+
+			return { tex, nullptr };
+		}
+
+		std::string extension = path.substr(path.find_last_of(".") + 1);
+
+		if (extension == "hdri")
+		{
+			// Load from hdri
+		}
+		else if (extension == "dds")
+		{
+
+			D3D12ResourceBatch batch(Context->DeviceResources->Device);
+			batch.Begin();
+
+			D3D12Texture::TextureCreationOptions opts;
+			opts.Path = path;
+			opts.Flags = D3D12_RESOURCE_FLAG_NONE;
+			auto tex = D3D12TextureCube::Create(batch, opts);
+
+			batch.End(Context->DeviceResources->CommandQueue.Get());
+
+			TextureLibrary->Add(tex);
+
+			return { tex, nullptr };
+		}
+		else
+		{
+			HZ_CORE_ASSERT(false, "Image file is not supported");
+		}
+
+		return std::pair<Ref<D3D12TextureCube>, Ref<D3D12TextureCube>>();
 	}
 
 	void D3D12Renderer::Init()
@@ -287,7 +419,7 @@ namespace Hazel {
 #pragma region Engine Shaders
 		// Skybox
 		{
-			D3D12_INPUT_ELEMENT_DESC inputLayout[] = {
+			static D3D12_INPUT_ELEMENT_DESC inputLayout[] = {
 				{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 			};
 
@@ -298,19 +430,21 @@ namespace Hazel {
 			CD3DX12_RASTERIZER_DESC rasterizer(D3D12_DEFAULT);
 			rasterizer.FrontCounterClockwise = TRUE;
 
-			D3D12Shader::PipelineStateStream pipelineStateStream;
+			CD3DX12_PIPELINE_STATE_STREAM pipelineStateStream;
 
 			pipelineStateStream.InputLayout = { inputLayout, _countof(inputLayout) };
 			pipelineStateStream.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 			pipelineStateStream.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 			pipelineStateStream.RTVFormats = rtvFormats;
-			pipelineStateStream.Rasterizer = CD3DX12_PIPELINE_STATE_STREAM_RASTERIZER(rasterizer);
-		/*	auto shader = Hazel::CreateRef<Hazel::D3D12Shader>("assets/shaders/skybox.hlsl", pipelineStateStream);
-			D3D12Renderer::ShaderLibrary->Add(shader);*/
+			pipelineStateStream.RasterizerState = CD3DX12_PIPELINE_STATE_STREAM_RASTERIZER(rasterizer);
+			
+			CD3DX12_DEPTH_STENCIL_DESC1 depthDesc(D3D12_DEFAULT);
+			depthDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 
-			struct SkyboxVertex {
-				glm::vec3 Position;
-			};
+			pipelineStateStream.DepthStencilState = CD3DX12_PIPELINE_STATE_STREAM_DEPTH_STENCIL1(depthDesc);
+
+			auto shader = Hazel::CreateRef<Hazel::D3D12Shader>("assets/shaders/skybox.hlsl", pipelineStateStream);
+			D3D12Renderer::ShaderLibrary->Add(shader);
 
 			std::vector<SkyboxVertex> verts(4);
 			verts[0] = { { -1.0f , -1.0f, 0.1f } };

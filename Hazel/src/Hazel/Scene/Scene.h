@@ -2,6 +2,7 @@
 
 #include "Hazel/ComponentSystem/GameObject.h"
 #include "Hazel/Renderer/PerspectiveCamera.h"
+#include "Platform/D3D12/D3D12Texture.h"
 
 namespace Hazel
 {
@@ -12,6 +13,11 @@ namespace Hazel
         float Intensity;
     };
 
+    struct Environment
+    {
+        Ref<D3D12TextureCube> EnvironmentMap;
+    };
+
     class Scene
     {
     public:
@@ -20,6 +26,7 @@ namespace Hazel
         PerspectiveCamera* Camera;
         glm::vec3 AmbientLight;
         float AmbientIntensity;
+        Environment Environment;
     };
 }
 

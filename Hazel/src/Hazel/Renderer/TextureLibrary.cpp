@@ -7,7 +7,7 @@ namespace Hazel {
         m_TextureMap.clear();
     }
 
-    void TextureLibrary::AddTexture(Ref<Hazel::D3D12Texture2D> texture)
+    void TextureLibrary::Add(Ref<Hazel::D3D12Texture> texture)
     {
         auto thing = m_TextureMap.find(texture->GetIdentifier());
 
@@ -18,9 +18,9 @@ namespace Hazel {
         m_TextureMap[texture->GetIdentifier()] = texture;
     }
 
-    Ref<D3D12Texture2D> TextureLibrary::GetTexture(std::string& key)
+    Ref<D3D12Texture> TextureLibrary::Get(std::string& key)
     {
-        Ref<D3D12Texture2D> ret = nullptr;
+        Ref<D3D12Texture> ret = nullptr;
 
         auto thing = m_TextureMap.find(key);
 

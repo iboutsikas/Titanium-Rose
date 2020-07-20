@@ -132,13 +132,13 @@ void Hazel::D3D12ForwardRenderer::ImplOnInit()
         rasterizer.FrontCounterClockwise = TRUE;
         rasterizer.CullMode = D3D12_CULL_MODE_BACK;
 
-        Hazel::D3D12Shader::PipelineStateStream pipelineStateStream;
+        CD3DX12_PIPELINE_STATE_STREAM pipelineStateStream;
 
         pipelineStateStream.InputLayout = { s_InputLayout, s_InputLayoutCount };
         pipelineStateStream.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
         pipelineStateStream.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
         pipelineStateStream.RTVFormats = rtvFormats;
-        pipelineStateStream.Rasterizer = CD3DX12_PIPELINE_STATE_STREAM_RASTERIZER(rasterizer);
+        pipelineStateStream.RasterizerState = CD3DX12_PIPELINE_STATE_STREAM_RASTERIZER(rasterizer);
         auto shader = Hazel::CreateRef<Hazel::D3D12Shader>("assets/shaders/" SHADER_NAME ".hlsl", pipelineStateStream);
         D3D12Renderer::ShaderLibrary->Add(shader);
     }
