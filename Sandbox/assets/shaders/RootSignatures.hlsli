@@ -31,3 +31,4 @@
     "borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK," \
     "filter = FILTER_ANISOTROPIC, "\
     "visibility = SHADER_VISIBILITY_PIXEL)"
+    

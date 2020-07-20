@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-
+#include "Hazel/Core/Image.h"
 #include "Hazel/Renderer/Texture.h"
 
 #include "d3d12.h"
@@ -15,6 +15,7 @@ namespace Hazel {
     class D3D12Context;
     class D3D12TilePool;
 
+#pragma region Texture
     class D3D12Texture
     {
     public:
@@ -52,7 +53,9 @@ namespace Hazel {
         inline bool HasMips() const { return m_MipLevels > 1; }
         inline std::string GetIdentifier() const { return m_Identifier; }
         inline DXGI_FORMAT GetFormat() const { return m_Resource->GetDesc().Format; }
-        HeapAllocationDescription DescriptorAllocation;
+        HeapAllocationDescription SRVAllocation;
+        HeapAllocationDescription UAVAllocation;
+        HeapAllocationDescription RTVAllocation;
 
     protected:
         uint32_t m_Width;
@@ -71,6 +74,8 @@ namespace Hazel {
             bool isCube, D3D12_RESOURCE_STATES initialState, std::string id);
 
     };
+#pragma endregion
+
 
 #pragma region Texture2D
     class D3D12Texture2D: public D3D12Texture
@@ -98,6 +103,11 @@ namespace Hazel {
         static Ref<D3D12FeedbackMap>	CreateFeedbackMap(D3D12ResourceBatch& batch, Ref<D3D12Texture2D> texture);
 
     protected:
+
+        static Ref<D3D12Texture2D> LoadFromDDS(D3D12ResourceBatch& batch, TextureCreationOptions& opts);
+
+        static Ref<D3D12Texture2D> LoadFromImage(Ref<Image>& image, D3D12ResourceBatch& batch, TextureCreationOptions& opts);
+
         D3D12Texture2D(std::string id, uint32_t width, uint32_t height, uint32_t mips = 1);
 
         Ref<D3D12FeedbackMap> m_FeedbackMap;

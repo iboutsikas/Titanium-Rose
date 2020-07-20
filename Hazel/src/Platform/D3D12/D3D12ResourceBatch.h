@@ -2,6 +2,8 @@
 #include "d3d12.h"
 #include "future"
 
+#include "Hazel/Core/Image.h"
+
 #include "Platform/D3D12/ComPtr.h"
 
 namespace Hazel {
@@ -20,6 +22,7 @@ namespace Hazel {
             uint32_t numSubresources);
 
         void TrackResource(_In_ ID3D12Resource* resource);
+        void TrackImage(_In_ Ref<Image> image);
 
         std::future<void> End(ID3D12CommandQueue* commandQueue);
 
@@ -28,10 +31,12 @@ namespace Hazel {
         TComPtr<ID3D12GraphicsCommandList> m_CommandList;
         TComPtr<ID3D12CommandAllocator> m_CommandAllocator;
         std::vector<TComPtr<ID3D12DeviceChild>> m_TrackedObjects;
+        std::vector<Ref<Image>>                 m_TrackedImages;
         bool m_Finalized;
 
         struct Batch {
             std::vector<TComPtr<ID3D12DeviceChild>> TrackedObjects;
+            std::vector<Ref<Image>>                 TrackedImages;
             TComPtr<ID3D12GraphicsCommandList>      CommandList;
             TComPtr<ID3D12Fence>  			        Fence;
             HANDLE                                  GpuCompleteEvent;

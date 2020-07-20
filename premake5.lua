@@ -28,7 +28,7 @@ IncludeDir["assimp"] 	= "Hazel/vendor/assimp"
 IncludeDir["winpix"] 	= "Hazel/vendor/winpixeventruntime/Include"
 IncludeDir["spdlog"]	= "Hazel/vendor/spdlog/include"
 IncludeDir["assimp"]	= "Hazel/vendor/assimp/include"
--- IncludeDir["Glad"] = "Hazel/vendor/Glad/include"
+IncludeDir["stbi"] 		= "Hazel/vendor/stb_image"
 
 
 include "Hazel/vendor/GLFW"
@@ -75,6 +75,7 @@ project "Hazel"
 		"%{IncludeDir.glm}",
 		"%{IncludeDir.spdlog}",
 		"%{IncludeDir.assimp}",
+		"%{IncludeDir.stbi}"
 
 	}
 
@@ -140,7 +141,8 @@ project "Sandbox"
 		"Hazel/vendor",
 		"%{IncludeDir.glm}",
 		"%{IncludeDir.spdlog}",
-		"%{IncludeDir.assimp}"
+		"%{IncludeDir.assimp}",
+		"%{IncludeDir.stbi}"
 	}
 
 	defines

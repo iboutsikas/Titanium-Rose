@@ -131,6 +131,9 @@ namespace Hazel
         static D3D12VertexBuffer* s_SkyboxVB;
         static D3D12IndexBuffer* s_SkyboxIB;
 
+        static void CreateUAV(Ref<D3D12Texture>& texture, uint32_t mip);
+        static void CreateSRV(Ref<D3D12Texture>& texture, uint32_t mostDetailedMip = 0, uint32_t mips = 0);
+
         virtual void ImplRenderSubmitted() = 0;
         virtual void ImplOnInit() = 0;
         virtual void ImplSubmit(Ref<GameObject>& gameObject) {};

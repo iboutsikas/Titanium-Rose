@@ -88,15 +88,15 @@ void Hazel::D3D12ForwardRenderer::ImplRenderSubmitted()
             cmdList->IASetVertexBuffers(0, 1, &vb);
             cmdList->IASetIndexBuffer(&ib);
             if (go->Material->HasAlbedoTexture) {
-                cmdList->SetGraphicsRootDescriptorTable(ShaderIndices_Albedo, go->Material->AlbedoTexture->DescriptorAllocation.GPUHandle);
+                cmdList->SetGraphicsRootDescriptorTable(ShaderIndices_Albedo, go->Material->AlbedoTexture->SRVAllocation.GPUHandle);
             }
 
             if (go->Material->HasNormalTexture) {
-                cmdList->SetGraphicsRootDescriptorTable(ShaderIndices_Normal, go->Material->NormalTexture->DescriptorAllocation.GPUHandle);
+                cmdList->SetGraphicsRootDescriptorTable(ShaderIndices_Normal, go->Material->NormalTexture->SRVAllocation.GPUHandle);
             }
 
             if (go->Material->HasSpecularTexture) {
-                cmdList->SetGraphicsRootDescriptorTable(ShaderIndices_Specular, go->Material->SpecularTexture->DescriptorAllocation.GPUHandle);
+                cmdList->SetGraphicsRootDescriptorTable(ShaderIndices_Specular, go->Material->SpecularTexture->SRVAllocation.GPUHandle);
             }
 
             cmdList->SetGraphicsRootConstantBufferView(ShaderIndices_PerObject,

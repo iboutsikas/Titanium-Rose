@@ -9,6 +9,8 @@
 
 #include "glm/gtc/type_ptr.hpp"
 
+#include <memory>
+
 #include "WinPixEventRuntime/pix3.h"
 
 #define MAX_RESOURCES       100
@@ -188,12 +190,17 @@ namespace Hazel {
 			return;
 		}
 
-		texture->DescriptorAllocation = s_ResourceDescriptorHeap->Allocate(1);
-		HZ_CORE_ASSERT(texture->DescriptorAllocation.Allocated, "Could not allocate space on the resource heap");
+		if (texture->SRVAllocation.Allocated)
+		{
+			return;
+		}
+
+		texture->SRVAllocation = s_ResourceDescriptorHeap->Allocate(1);
+		HZ_CORE_ASSERT(texture->SRVAllocation.Allocated, "Could not allocate space on the resource heap");
 		D3D12Renderer::Context->DeviceResources->Device->CreateShaderResourceView(
 			texture->GetResource(),
 			nullptr,
-			texture->DescriptorAllocation.CPUHandle
+			texture->SRVAllocation.CPUHandle
 		);
 		s_CommonData.StaticResources++;
 	}
@@ -201,8 +208,8 @@ namespace Hazel {
 	void D3D12Renderer::AddDynamicResource(Ref<D3D12Texture> texture)
 	{
 
-		texture->DescriptorAllocation = s_ResourceDescriptorHeap->Allocate(1);
-		HZ_CORE_ASSERT(texture->DescriptorAllocation.Allocated, "Could not allocate space on the resource heap");
+		texture->SRVAllocation = s_ResourceDescriptorHeap->Allocate(1);
+		HZ_CORE_ASSERT(texture->SRVAllocation.Allocated, "Could not allocate space on the resource heap");
 		
 		auto desc = texture->GetResource()->GetDesc();
 
@@ -228,7 +235,7 @@ namespace Hazel {
 		D3D12Renderer::Context->DeviceResources->Device->CreateShaderResourceView(
 			texture->GetResource(),
 			&srvDesc,
-			texture->DescriptorAllocation.CPUHandle
+			texture->SRVAllocation.CPUHandle
 		);
 		s_CommonData.DynamicResources++;
 	}
@@ -287,6 +294,8 @@ namespace Hazel {
 		auto cmdList = batch.Begin();
 		PIXBeginEvent(cmdList.Get(), PIX_COLOR(255, 0, 255), "Skybox pass");
 
+		env.EnvironmentMap->Transition(batch, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
 		cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		cmdList->IASetVertexBuffers(0, 1, &vb);
 		cmdList->IASetIndexBuffer(&ib);
@@ -300,7 +309,7 @@ namespace Hazel {
 		cmdList->SetGraphicsRootSignature(shader->GetRootSignature());
 		cmdList->SetPipelineState(shader->GetPipelineState());
 		cmdList->SetGraphicsRoot32BitConstants(0, sizeof(PassData) / sizeof(float), &PassData, 0);
-		cmdList->SetGraphicsRootDescriptorTable(1, env.EnvironmentMap->DescriptorAllocation.GPUHandle);
+		cmdList->SetGraphicsRootDescriptorTable(1, env.EnvironmentMap->SRVAllocation.GPUHandle);
 
 		cmdList->DrawIndexedInstanced(s_SkyboxIB->GetCount(), 1, 0, 0, 0);
 
@@ -317,13 +326,10 @@ namespace Hazel {
 			return { tex, nullptr };
 		}
 
-		std::string extension = path.substr(path.find_last_of(".") + 1);
 
-		if (extension == "hdri")
-		{
-			// Load from hdri
-		}
-		else if (extension == "dds")
+		std::string extension = path.substr(path.find_last_of(".") + 1);
+		// It is a DDS cubemap hopefully, we load it as is
+		if (extension == "dds")
 		{
 
 			D3D12ResourceBatch batch(Context->DeviceResources->Device);
@@ -340,12 +346,80 @@ namespace Hazel {
 
 			return { tex, nullptr };
 		}
-		else
+
+
+
+		Ref<D3D12Texture2D> equirectangularImage = nullptr;
+		Ref<D3D12TextureCube> envUnfiltered = nullptr;
+
+		// Load the equirect image and create the unfiltered cube texture
 		{
-			HZ_CORE_ASSERT(false, "Image file is not supported");
+			D3D12ResourceBatch batch(Context->DeviceResources->Device);
+			auto cmdList = batch.Begin();
+			{
+				D3D12Texture::TextureCreationOptions opts;
+				opts.Path = path;
+				opts.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+				opts.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+				opts.MipLevels = 1;
+				equirectangularImage = D3D12Texture2D::CreateCommittedTexture(batch, opts);
+				equirectangularImage->Transition(batch, D3D12_RESOURCE_STATE_COMMON);
+				CreateSRV(std::static_pointer_cast<D3D12Texture>(equirectangularImage));
+			}
+
+			{
+				D3D12Texture::TextureCreationOptions opts;
+				opts.Name = "Env Unfiltered";
+				opts.Width = 2048;
+				opts.Height = 2048;
+				opts.Depth = 6;
+				opts.MipLevels = 12;
+				opts.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+				opts.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+				envUnfiltered = D3D12TextureCube::Create(batch, opts);
+				envUnfiltered->Transition(batch, D3D12_RESOURCE_STATE_COMMON);
+				CreateUAV(std::static_pointer_cast<D3D12Texture>(envUnfiltered), 0);
+
+			}
+			batch.End(Context->DeviceResources->CommandQueue.Get()).wait();
+		}
+		
+		// Convert equirect to cube and filter
+		{
+			D3D12ResourceBatch batch(Context->DeviceResources->Device);
+			auto cmdList = batch.Begin();
+
+			auto shader = ShaderLibrary->GetAs<D3D12Shader>("Equirectangular2Cube");
+
+			envUnfiltered->Transition(batch, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			ID3D12DescriptorHeap* heaps[] = {
+				s_ResourceDescriptorHeap->GetHeap()
+			};
+			cmdList->SetDescriptorHeaps(1, heaps);
+			cmdList->SetPipelineState(shader->GetPipelineState());
+			cmdList->SetComputeRootSignature(shader->GetRootSignature());
+			cmdList->SetComputeRootDescriptorTable(0, equirectangularImage->SRVAllocation.GPUHandle); // Source Texture
+			cmdList->SetComputeRootDescriptorTable(1, envUnfiltered->UAVAllocation.GPUHandle); // Destination Texture
+			uint32_t threadsX = envUnfiltered->GetWidth() / 32;
+			uint32_t threadsY = envUnfiltered->GetHeight() / 32;
+			uint32_t threadsZ = 6;
+			cmdList->Dispatch(threadsX, threadsY, threadsZ);
+
+			envUnfiltered->Transition(batch, D3D12_RESOURCE_STATE_COMMON);
+
+			batch.End(Context->DeviceResources->CommandQueue.Get()).wait();
+
+			
 		}
 
-		return std::pair<Ref<D3D12TextureCube>, Ref<D3D12TextureCube>>();
+		s_ResourceDescriptorHeap->Release(envUnfiltered->UAVAllocation);
+		s_ResourceDescriptorHeap->Release(equirectangularImage->SRVAllocation);
+		CreateSRV(std::static_pointer_cast<D3D12Texture>(envUnfiltered));
+		TextureLibrary->Add(envUnfiltered);
+		//TextureLibrary->Add(equirectangularImage);
+
+
+		return { envUnfiltered, nullptr};
 	}
 
 	void D3D12Renderer::Init()
@@ -444,24 +518,34 @@ namespace Hazel {
 			pipelineStateStream.DepthStencilState = CD3DX12_PIPELINE_STATE_STREAM_DEPTH_STENCIL1(depthDesc);
 
 			auto shader = Hazel::CreateRef<Hazel::D3D12Shader>("assets/shaders/skybox.hlsl", pipelineStateStream);
+			HZ_CORE_ASSERT(shader, "Shader was null");
 			D3D12Renderer::ShaderLibrary->Add(shader);
-
-			std::vector<SkyboxVertex> verts(4);
-			verts[0] = { { -1.0f , -1.0f, 0.1f } };
-			verts[1] = { {  1.0f , -1.0f, 0.1f } };
-			verts[2] = { {  1.0f ,  1.0f, 0.1f } };
-			verts[3] = { { -1.0f ,  1.0f, 0.1f } };
-
-			std::vector<uint32_t> indices = { 0, 1, 2, 2, 3, 0 };
-
-			D3D12ResourceBatch batch(Context->DeviceResources->Device);
-			batch.Begin();
-
-			s_SkyboxVB = new D3D12VertexBuffer(batch, (float*)verts.data(), verts.size() * sizeof(SkyboxVertex));
-			s_SkyboxIB = new D3D12IndexBuffer(batch, indices.data(), indices.size());
-
-			batch.End(Context->DeviceResources->CommandQueue.Get()).wait();
 		}
+
+		// Equirectangular to Cube
+		{
+			CD3DX12_PIPELINE_STATE_STREAM stream;
+
+			auto shader = CreateRef<D3D12Shader>("assets/shaders/Equirectangular2Cube.hlsl", stream, ShaderType::Compute);
+			HZ_CORE_ASSERT(shader, "Shader was null");
+			D3D12Renderer::ShaderLibrary->Add(shader);
+		}
+
+		std::vector<SkyboxVertex> verts(4);
+		verts[0] = { { -1.0f , -1.0f, 0.1f } };
+		verts[1] = { {  1.0f , -1.0f, 0.1f } };
+		verts[2] = { {  1.0f ,  1.0f, 0.1f } };
+		verts[3] = { { -1.0f ,  1.0f, 0.1f } };
+
+		std::vector<uint32_t> indices = { 0, 1, 2, 2, 3, 0 };
+
+		D3D12ResourceBatch batch(Context->DeviceResources->Device);
+		batch.Begin();
+
+		s_SkyboxVB = new D3D12VertexBuffer(batch, (float*)verts.data(), verts.size() * sizeof(SkyboxVertex));
+		s_SkyboxIB = new D3D12IndexBuffer(batch, indices.data(), indices.size());
+
+		batch.End(Context->DeviceResources->CommandQueue.Get()).wait();
 #pragma endregion
 
 
@@ -485,6 +569,85 @@ namespace Hazel {
 		{
 			delete r;
 		}
+	}
+
+	void D3D12Renderer::CreateUAV(Ref<D3D12Texture>& texture, uint32_t mip)
+	{
+		if (!texture->UAVAllocation.Allocated)
+		{
+			texture->UAVAllocation = s_ResourceDescriptorHeap->Allocate(1);
+		}
+		auto desc = texture->GetResource()->GetDesc();
+
+		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+		uavDesc.Format = desc.Format;
+
+		if (desc.DepthOrArraySize > 1)
+		{
+			uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
+			uavDesc.Texture2DArray.MipSlice = mip;
+			uavDesc.Texture2DArray.FirstArraySlice = 0;
+			uavDesc.Texture2DArray.ArraySize = desc.DepthOrArraySize;
+		}
+		else
+		{
+			uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+			uavDesc.Texture2D.MipSlice = mip;
+		}
+
+		Context->DeviceResources->Device->CreateUnorderedAccessView(
+			texture->GetResource(),
+			nullptr,
+			&uavDesc,
+			texture->UAVAllocation.CPUHandle
+		);
+	}
+
+	void D3D12Renderer::CreateSRV(Ref<D3D12Texture>& texture, uint32_t mostDetailedMip, uint32_t mips)
+	{
+		if (!texture->SRVAllocation.Allocated)
+		{
+			texture->SRVAllocation = s_ResourceDescriptorHeap->Allocate(1);
+		}
+
+		auto desc = texture->GetResource()->GetDesc();
+
+		uint32_t actuallMipLevels = (mips > 0) ? mips : desc.MipLevels - mostDetailedMip;
+
+		D3D12_SRV_DIMENSION srvDim;
+		switch (desc.DepthOrArraySize) {
+			case 1:  srvDim = D3D12_SRV_DIMENSION_TEXTURE2D; break;
+			case 6:  srvDim = D3D12_SRV_DIMENSION_TEXTURECUBE; break;
+			default: srvDim = D3D12_SRV_DIMENSION_TEXTURE2DARRAY; break;
+		}
+
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		srvDesc.Format = desc.Format;
+		srvDesc.ViewDimension = srvDim;
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+
+		switch (srvDim) {
+		case D3D12_SRV_DIMENSION_TEXTURE2D:
+			srvDesc.Texture2D.MostDetailedMip = mostDetailedMip;
+			srvDesc.Texture2D.MipLevels = actuallMipLevels;
+			break;
+		case D3D12_SRV_DIMENSION_TEXTURE2DARRAY:
+			srvDesc.Texture2DArray.MostDetailedMip = mostDetailedMip;
+			srvDesc.Texture2DArray.MipLevels = actuallMipLevels;
+			srvDesc.Texture2DArray.FirstArraySlice = 0;
+			srvDesc.Texture2DArray.ArraySize = desc.DepthOrArraySize;
+			break;
+		case D3D12_SRV_DIMENSION_TEXTURECUBE:
+			assert(desc.DepthOrArraySize == 6);
+			srvDesc.TextureCube.MostDetailedMip = mostDetailedMip;
+			srvDesc.TextureCube.MipLevels = actuallMipLevels;
+			break;
+		}
+		Context->DeviceResources->Device->CreateShaderResourceView(
+			texture->GetResource(),
+			&srvDesc,
+			texture->SRVAllocation.CPUHandle
+		);
 	}
 	
 }

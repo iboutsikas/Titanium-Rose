@@ -154,42 +154,23 @@ namespace Hazel {
 		HZ_CORE_ASSERT(opts.Depth == 1, "2D textures should have a depth of 1");
 
 		Ref<D3D12Texture2D> ret = nullptr;
-
 		// We need to load from a file
 		if (!opts.Path.empty())
 		{
-			TComPtr<ID3D12Resource> resource = nullptr;
-			std::unique_ptr<uint8_t[]> ddsData = nullptr;
-			bool isCube;
-			DirectX::DDS_ALPHA_MODE alphaMode;
-			std::vector<D3D12_SUBRESOURCE_DATA> subData;
+			std::string extension = opts.Path.substr(opts.Path.find_last_of(".") + 1);
 
-			std::wstring wPath(opts.Path.begin(), opts.Path.end());
+			if (extension == "dds")
+			{
+				ret = LoadFromDDS(batch, opts);
+			}
+			else
+			{
+				Ref<Image> img = Image::FromFile(opts.Path);
 
-			// Leaves resource in COPY_DEST state
-			DirectX::LoadDDSTextureFromFile(
-				batch.GetDevice().Get(),
-				wPath.c_str(),
-				resource.GetAddressOf(),
-				ddsData,
-				subData,
-				0,
-				&alphaMode,
-				&isCube
-			);
-
-			auto desc = resource->GetDesc();
-			// HZ_CORE_ASSERT(desc.Format == opts.Format, "The format requested does not match the format in the file");
-
-			ret = CreateRef<D3D12CommittedTexture2D>(
-				opts.Path,
-				desc.Width,
-				desc.Height,
-				desc.MipLevels
-			);
-			ret->m_Resource.Swap(resource);
-			ret->m_CurrentState = D3D12_RESOURCE_STATE_COPY_DEST;
-			batch.Upload(ret->m_Resource.Get(), 0, subData.data(), subData.size());
+				//opts.Format = img->IsHdr() ? DXGI_FORMAT_R16G16B16A16_FLOAT : opts.Format;
+				//opts.MipLevels = 1 + std::floor(std::log10((float)std::max(img->GetWidth(), img->GetHeight())) / std::log10(2.0));
+				ret = LoadFromImage(img, batch, opts);
+			}
 		}
 		// We create an in memory texture
 		else if (!opts.Name.empty())
@@ -266,6 +247,86 @@ namespace Hazel {
 						tiles_x, tiles_y, sizeof(uint32_t)
 					);
 
+
+		return ret;
+	}
+	Ref<D3D12Texture2D> D3D12Texture2D::LoadFromDDS(D3D12ResourceBatch& batch, TextureCreationOptions& opts)
+	{
+		TComPtr<ID3D12Resource> resource = nullptr;
+		std::unique_ptr<uint8_t[]> ddsData = nullptr;
+		bool isCube;
+		DirectX::DDS_ALPHA_MODE alphaMode;
+		std::vector<D3D12_SUBRESOURCE_DATA> subData;
+
+		std::wstring wPath(opts.Path.begin(), opts.Path.end());
+
+		// Leaves resource in COPY_DEST state
+		DirectX::LoadDDSTextureFromFile(
+			batch.GetDevice().Get(),
+			wPath.c_str(),
+			resource.GetAddressOf(),
+			ddsData,
+			subData,
+			0,
+			&alphaMode,
+			&isCube
+		);
+
+		auto desc = resource->GetDesc();
+		// HZ_CORE_ASSERT(desc.Format == opts.Format, "The format requested does not match the format in the file");
+
+		Ref<D3D12CommittedTexture2D> ret = CreateRef<D3D12CommittedTexture2D>(
+			opts.Path,
+			desc.Width,
+			desc.Height,
+			desc.MipLevels
+			);
+		ret->m_Resource.Swap(resource);
+		ret->m_CurrentState = D3D12_RESOURCE_STATE_COPY_DEST;
+		batch.Upload(ret->m_Resource.Get(), 0, subData.data(), subData.size());
+		return ret;
+
+	}
+
+	Ref<D3D12Texture2D> D3D12Texture2D::LoadFromImage(Ref<Image>& image, D3D12ResourceBatch& batch, TextureCreationOptions& opts)
+	{
+		TComPtr<ID3D12Resource> resource = nullptr;
+		D3D12_RESOURCE_DESC desc = {};
+		desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+		desc.Width = image->GetWidth();
+		desc.Height = image->GetHeight();
+		desc.DepthOrArraySize = 1;
+		desc.MipLevels = opts.MipLevels;
+		desc.Format = opts.Format;
+		desc.SampleDesc.Count = 1;
+		desc.Flags = opts.Flags;
+
+		D3D12::ThrowIfFailed(batch.GetDevice()->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+			D3D12_HEAP_FLAG_NONE,
+			&desc,
+			D3D12_RESOURCE_STATE_COPY_DEST,
+			nullptr,
+			IID_PPV_ARGS(resource.GetAddressOf())
+		));
+
+		Ref<D3D12CommittedTexture2D> ret = CreateRef<D3D12CommittedTexture2D>(
+			opts.Path,
+			desc.Width,
+			desc.Height,
+			desc.MipLevels
+		);
+
+		ret->m_Resource.Swap(resource);
+		ret->m_CurrentState = D3D12_RESOURCE_STATE_COPY_DEST;
+
+		D3D12_SUBRESOURCE_DATA data = { };
+		data.pData = image->Bytes<void>();
+		data.RowPitch = (uint64_t)image->GetWidth() * image->BytesPerPixel();
+		data.SlicePitch = data.RowPitch * image->GetHeight();
+
+		batch.TrackImage(image);
+		batch.Upload(ret->m_Resource.Get(), 0, &data, 1);
 
 		return ret;
 	}

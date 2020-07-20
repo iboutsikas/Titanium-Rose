@@ -91,6 +91,11 @@ namespace Hazel {
 		m_TrackedObjects.emplace_back(resource);
 	}
 
+	void D3D12ResourceBatch::TrackImage(Ref<Image> image)
+	{
+		m_TrackedImages.push_back(image);
+	}
+
 	std::future<void> D3D12ResourceBatch::End(ID3D12CommandQueue* commandQueue)
 	{
 		HZ_CORE_ASSERT(m_Finalized != true, "Resource batch has been finalized");
@@ -113,6 +118,7 @@ namespace Hazel {
 		batch->Fence = fence;
 		batch->GpuCompleteEvent = evt;
 		std::swap(m_TrackedObjects, batch->TrackedObjects);
+		std::swap(m_TrackedImages, batch->TrackedImages);
 
 		std::future<void> ret = std::async(std::launch::async, [batch]() {
 			auto wr = WaitForSingleObject(batch->GpuCompleteEvent, INFINITE);

@@ -104,7 +104,7 @@ BenchmarkLayer::BenchmarkLayer()
     m_Scene.AmbientLight = { 1.0f, 1.0f, 1.0f };
     m_Scene.AmbientIntensity = 0.1f;
 
-    auto [env, irb] = D3D12Renderer::LoadEnvironmentMap(std::string("assets/textures/grasscube1024.dds"));
+    auto [env, irb] = D3D12Renderer::LoadEnvironmentMap(std::string("assets/environments/chinese_garden_4k.hdr"));
 
     m_Scene.Environment.EnvironmentMap = env;
 
@@ -153,9 +153,6 @@ BenchmarkLayer::BenchmarkLayer()
         a.second->Transition(batch, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     }
     
-    D3D12Renderer::AddDynamicResource(env);
-    env->Transition(batch, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
 #endif
     batch.End(D3D12Renderer::Context->DeviceResources->CommandQueue.Get()).wait();
 }
