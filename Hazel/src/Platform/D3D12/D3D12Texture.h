@@ -10,6 +10,7 @@
 #include "Platform/D3D12/D3D12ResourceBatch.h"
 #include "Platform/D3D12/D3D12DescriptorHeap.h"
 
+const float clrclr[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 namespace Hazel {
     class D3D12Context;
@@ -29,12 +30,14 @@ namespace Hazel {
             std::string Name;
             D3D12_RESOURCE_FLAGS Flags;
             DXGI_FORMAT Format;
+            bool IsDepthStencil;
 
             TextureCreationOptions() :
                 Width(1), Height(1), Depth(1), MipLevels(1),
-                Path(""), Name(""), 
+                Path(""), Name(""),
                 Flags(D3D12_RESOURCE_FLAG_NONE),
-                Format(DXGI_FORMAT_R8G8B8A8_UNORM)
+                Format(DXGI_FORMAT_R8G8B8A8_UNORM),
+                IsDepthStencil(false)
             {}
         };
 
@@ -47,6 +50,10 @@ namespace Hazel {
         void Transition(D3D12ResourceBatch& batch, D3D12_RESOURCE_STATES to);
         void Transition(ID3D12GraphicsCommandList* commandList, D3D12_RESOURCE_STATES from, D3D12_RESOURCE_STATES to);
         void Transition(ID3D12GraphicsCommandList* commandList, D3D12_RESOURCE_STATES to);
+
+        // Sets the current state WITHOUT performing a transition
+        // Only for use when the transition has been batched.
+        void SetCurrentState(D3D12_RESOURCE_STATES state);
 
         inline ID3D12Resource* GetResource() const { return m_Resource.Get(); }
         inline uint32_t GetMipLevels() const { return  m_MipLevels; }

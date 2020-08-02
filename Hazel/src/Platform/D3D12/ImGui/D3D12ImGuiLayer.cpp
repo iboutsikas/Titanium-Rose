@@ -1,6 +1,7 @@
 #include "hzpch.h"
 
 #include "Platform/D3D12/ImGui/D3D12ImGuiLayer.h"
+#include "Platform/D3D12/D3D12Renderer.h"
 
 #include "imgui.h"
 
@@ -46,15 +47,8 @@ namespace Hazel {
             style.WindowRounding = 0.0f;
             style.Colors[ImGuiCol_WindowBg].w = 1.0f;
         }
-        // TODO: Figure out a way for ImGui to have its own heap maybe ?
-		//m_SRVHeap = m_Context->DeviceResources->CreateDescriptorHeap(
-  //          m_Context->DeviceResources->Device,
-		//	D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-		//	1,
-		//	D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
-		//);
-  //      m_SRVHeap->SetName(L"ImGuiLayer SRV Heap");
-		
+        
+        m_FontTexureDescription = D3D12Renderer::GetImguiAllocation();
 
         // Setup Platform/Renderer bindings
         ImGui_ImplWin32_Init(m_Context->GetNativeHandle());
@@ -62,9 +56,9 @@ namespace Hazel {
         ImGui_ImplDX12_Init(r->Device.Get(), 
             r->BackBuffers.size(),
             DXGI_FORMAT_R8G8B8A8_UNORM, 
-            r->SRVDescriptorHeap.Get(),
-            r->SRVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
-            r->SRVDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+            D3D12Renderer::s_ResourceDescriptorHeap->GetHeap(),
+            m_FontTexureDescription.CPUHandle,
+            m_FontTexureDescription.GPUHandle);
 	}
 	void D3D12ImGuiLayer::OnDetach()
 	{
@@ -74,11 +68,6 @@ namespace Hazel {
 	}
 	void D3D12ImGuiLayer::Begin()
 	{
-        m_Context->DeviceResources->CommandList->SetDescriptorHeaps(
-            1,
-            m_Context->DeviceResources->SRVDescriptorHeap.GetAddressOf()
-        );
-
         ImGui_ImplDX12_NewFrame();
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();

@@ -175,9 +175,13 @@ Hazel::Ref<Hazel::GameObject> ModelLoader::LoadFromFile(std::string& filepath, H
 
 		materials[i]->Name = std::string(name.C_Str());
 
-		aiColor3D diffuseColor;
-		aiColor3D emissiveColor;
-		aiMaterial->Get(AI_MATKEY_COLOR_DIFFUSE, diffuseColor);
+		aiColor3D diffuseColor = { 1.0f, 1.0f, 1.0f };
+		if (aiMaterial->Get(AI_MATKEY_COLOR_DIFFUSE, diffuseColor) == AI_SUCCESS)
+		{
+			materials[i]->Color = glm::vec3(diffuseColor.r, diffuseColor.g, diffuseColor.b);
+		}
+
+		aiColor3D emissiveColor = { 0.0f, 0.0f, 0.0f };
 		if (aiMaterial->Get(AI_MATKEY_COLOR_EMISSIVE, emissiveColor) == AI_SUCCESS)
 		{
 			materials[i]->EmissiveColor = glm::vec4(emissiveColor.r, emissiveColor.g, emissiveColor.b, 1.0f);
@@ -190,8 +194,6 @@ Hazel::Ref<Hazel::GameObject> ModelLoader::LoadFromFile(std::string& filepath, H
 		aiMaterial->Get(AI_MATKEY_REFLECTIVITY, metalness);
 
 		float roughness = 1.0f - glm::sqrt(shininess / 100.0f);
-		materials[i]->Specular = shininess;
-
 		aiString texturefile;
 		// Albedo
 		Hazel::Ref<Hazel::D3D12Texture2D> albedoTexture;
@@ -258,35 +260,69 @@ Hazel::Ref<Hazel::GameObject> ModelLoader::LoadFromFile(std::string& filepath, H
 		}
 		materials[i]->NormalTexture = normalsTexture;
 
-		// Specular 
-		Hazel::Ref<Hazel::D3D12Texture2D> specularTexture = nullptr;
-		if (scene->mMaterials[i]->GetTextureCount(aiTextureType_SPECULAR) > 0)
+		// Roughness
+		Hazel::Ref<Hazel::D3D12Texture2D> roughnessTexture = nullptr;
+		if (aiMaterial->GetTexture(aiTextureType_SHININESS, 0, &texturefile) == AI_SUCCESS)
 		{
-			scene->mMaterials[i]->GetTexture(aiTextureType_SPECULAR, 0, &texturefile);
 			std::string filename(texturefile.C_Str());
 			std::string filepath = "assets/textures/" + filename;
-			
-			HZ_INFO("\tUsing specular texture: {}", filename);
+
+			HZ_INFO("\tUsing roughness texture: {}", filename);
+
 			if (TextureLibrary->Exists(filepath))
 			{
-				specularTexture = TextureLibrary->GetAs<Hazel::D3D12Texture2D>(filepath);
+				roughnessTexture = TextureLibrary->GetAs<Hazel::D3D12Texture2D>(filepath);
 			}
 			else
 			{
 				Hazel::D3D12Texture2D::TextureCreationOptions opts;
 				opts.Flags = D3D12_RESOURCE_FLAG_NONE;
 				opts.Path = filepath;
-				specularTexture = Hazel::D3D12Texture2D::CreateCommittedTexture(batch, opts);
-				TextureLibrary->Add(specularTexture);
+				roughnessTexture = Hazel::D3D12Texture2D::CreateCommittedTexture(batch, opts);
+				TextureLibrary->Add(roughnessTexture);
 			}
-			materials[i]->HasSpecularTexture = true;
+			materials[i]->HasRoughnessTexture = true;
 		}
 		else
 		{
-			HZ_WARN("\tNot using specular map");
-			materials[i]->HasSpecularTexture = false;
+			HZ_WARN("\tNot using roughness map");
+			materials[i]->HasRoughnessTexture = false;
+			materials[i]->Roughness = roughness;
 		}
-		materials[i]->SpecularTexture = specularTexture;
+		materials[i]->RoughnessTexture = roughnessTexture;
+
+		// Matallic
+		Hazel::Ref<Hazel::D3D12Texture2D> metallicTexture = nullptr;
+		if (aiMaterial->GetTexture(aiTextureType_METALNESS, 0, &texturefile) == AI_SUCCESS)
+		{
+			std::string filename(texturefile.C_Str());
+			std::string filepath = "assets/textures/" + filename;
+
+			HZ_INFO("\tUsing metallic texture: {}", filename);
+
+			if (TextureLibrary->Exists(filepath))
+			{
+				metallicTexture = TextureLibrary->GetAs<Hazel::D3D12Texture2D>(filepath);
+			}
+			else
+			{
+				Hazel::D3D12Texture2D::TextureCreationOptions opts;
+				opts.Flags = D3D12_RESOURCE_FLAG_NONE;
+				opts.Path = filepath;
+				metallicTexture = Hazel::D3D12Texture2D::CreateCommittedTexture(batch, opts);
+				TextureLibrary->Add(metallicTexture);
+			}
+			materials[i]->HasMatallicTexture = true;
+		}
+		else
+		{
+			HZ_WARN("\tNot using metallic map");
+			materials[i]->HasMatallicTexture = false;
+			materials[i]->Metallic = metalness;
+		}
+		materials[i]->MetallicTexture = metallicTexture;
+		
+
 
 		// Alpha
 		if (scene->mMaterials[i]->GetTextureCount(aiTextureType_OPACITY) > 0)

@@ -3,9 +3,10 @@
 #include "Hazel/ImGui/ImGuiLayer.h"
 
 #include "Platform/D3D12/D3D12Context.h"
+#include "Platform/D3D12/D3D12DescriptorHeap.h"
 
 namespace Hazel {
-
+	
 	class D3D12ImGuiLayer : public ImGuiLayer {
 		
 	public:
@@ -19,6 +20,6 @@ namespace Hazel {
 		static LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 	private:
 		D3D12Context* m_Context;
-		TComPtr<ID3D12DescriptorHeap> m_SRVHeap;
+		HeapAllocationDescription m_FontTexureDescription;
 	};
 }

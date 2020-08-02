@@ -16,8 +16,8 @@ void ImGui::TransformControl(Hazel::HTransform* transform)
 
 void ImGui::MaterialControl(Hazel::HMaterial* material)
 {
-	ImGui::InputFloat("Specular", &material->Specular);
-	ImGui::ColorEdit4("Material Color", &material->Color.x);
+	//ImGui::InputFloat("Specular", &material->Specular);
+	ImGui::ColorEdit3("Material Color", &material->Color.x);
 }
 
 void ImGui::MeshSelectControl(Hazel::Ref<Hazel::GameObject>& target, std::vector<Hazel::Ref<Hazel::GameObject>>& models)

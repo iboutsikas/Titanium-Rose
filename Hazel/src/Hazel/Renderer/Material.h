@@ -9,23 +9,28 @@ namespace Hazel {
 	class HMaterial 
 	{
 	public:
+		HMaterial();
+		
 		~HMaterial() 
 		{
 			HZ_CORE_WARN("Material {0} destroyed", Name);
 		}
 
-		float Specular;
-		glm::vec4 Color;
-		glm::vec4 EmissiveColor;
+		glm::vec3 Color;
+		glm::vec3 EmissiveColor;
+		float Roughness;
+		float Metallic;
 
 		bool HasAlbedoTexture;
 		bool HasNormalTexture;
-		bool HasSpecularTexture;
+		bool HasRoughnessTexture;
+		bool HasMatallicTexture;
 		bool IsTransparent;
 
 		Hazel::Ref<Hazel::D3D12Texture2D> AlbedoTexture;
 		Hazel::Ref<Hazel::D3D12Texture2D> NormalTexture;
-		Hazel::Ref<Hazel::D3D12Texture2D> SpecularTexture;
+		Hazel::Ref<Hazel::D3D12Texture2D> RoughnessTexture;
+		Hazel::Ref<Hazel::D3D12Texture2D> MetallicTexture;
 		std::string Name;
 	};
 #if 0

@@ -7,6 +7,8 @@
 #include "Platform/D3D12/D3D12ResourceBatch.h"
 #include "Platform/D3D12/D3D12Shader.h"
 
+#include "winpixeventruntime/pix3.h"
+
 #include <future>
 
 #define SHADER_NAME "PbrShader"
@@ -18,6 +20,9 @@ void Hazel::D3D12ForwardRenderer::ImplRenderSubmitted()
 
     uint32_t counter = 0;
     auto shader = ShaderLibrary->GetAs<D3D12Shader>(SHADER_NAME);
+    auto envRad = s_CommonData.Scene->Environment.EnvironmentMap;
+    auto envIrr = s_CommonData.Scene->Environment.IrradianceMap;
+    auto lut = TextureLibrary->GetAs<D3D12Texture2D>(std::string("spbrdf"));
 
     HPassData passData;
     passData.ViewProjection = s_CommonData.Scene->Camera->GetViewProjectionMatrix();
@@ -26,10 +31,14 @@ void Hazel::D3D12ForwardRenderer::ImplRenderSubmitted()
     passData.AmbientIntensity = s_CommonData.Scene->AmbientIntensity;
     passData.EyePosition = s_CommonData.Scene->Camera->GetPosition();
 
+    auto framebuffer = ResolveFrameBuffer();
+
     while (counter < s_OpaqueObjects.size())
     {
         D3D12ResourceBatch batch(Context->DeviceResources->Device);
         auto cmdList = batch.Begin();
+
+        PIXBeginEvent(cmdList.Get(), PIX_COLOR(255, 0, 255), "Geometry Pass: %d", counter / MaxItemsPerQueue);
 
         D3D12UploadBuffer<HPerObjectData> perObjectBuffer(batch, MaxItemsPerQueue, true);
         D3D12UploadBuffer<HPassData> passBuffer(batch, 1, true);
@@ -38,19 +47,22 @@ void Hazel::D3D12ForwardRenderer::ImplRenderSubmitted()
         cmdList->SetPipelineState(shader->GetPipelineState());
         cmdList->SetGraphicsRootSignature(shader->GetRootSignature());
         cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        cmdList->RSSetViewports(1, &Context->m_Viewport);
-        cmdList->RSSetScissorRects(1, &Context->m_ScissorRect);
+        cmdList->RSSetViewports(1, &Context->Viewport);
+        cmdList->RSSetScissorRects(1, &Context->ScissorRect);
 
         ID3D12DescriptorHeap* const heaps[] = {
             s_ResourceDescriptorHeap->GetHeap()
         };
         cmdList->SetDescriptorHeaps(_countof(heaps), heaps);
 
-        auto rtv = Context->CurrentBackBufferView();
-        cmdList->OMSetRenderTargets(1, &rtv, true, &D3D12Renderer::Context->DepthStencilView());
+        
+        cmdList->OMSetRenderTargets(1, &framebuffer->RTVAllocation.CPUHandle, true, &framebuffer->DSVAllocation.CPUHandle);
 
         cmdList->SetGraphicsRootConstantBufferView(ShaderIndices_Pass, passBuffer.Resource()->GetGPUVirtualAddress());
         cmdList->SetGraphicsRootDescriptorTable(ShaderIndices_Lights, s_LightsBufferAllocation.GPUHandle);
+        cmdList->SetGraphicsRootDescriptorTable(ShaderIndices_EnvRadiance, envRad->SRVAllocation.GPUHandle);
+        cmdList->SetGraphicsRootDescriptorTable(ShaderIndices_EnvIrradiance, envIrr->SRVAllocation.GPUHandle);
+        cmdList->SetGraphicsRootDescriptorTable(ShaderIndices_BRDFLUT, lut->SRVAllocation.GPUHandle);
 
         for (size_t i = 0; i < MaxItemsPerQueue; i++)
         {
@@ -72,13 +84,14 @@ void Hazel::D3D12ForwardRenderer::ImplRenderSubmitted()
             HPerObjectData objectData;
             objectData.LocalToWorld = go->Transform.LocalToWorldMatrix();
             objectData.WorldToLocal = glm::transpose(go->Transform.WorldToLocalMatrix());
+            objectData.MaterialColor = go->Material->Color;
             objectData.HasAlbedo = go->Material->HasAlbedoTexture;
-            objectData.HasNormal = go->Material->HasNormalTexture;
-            objectData.HasSpecular = go->Material->HasSpecularTexture;
-            objectData.Specular = go->Material->Specular;
-            objectData.Color = go->Material->Color;
             objectData.EmissiveColor = go->Material->EmissiveColor;
-
+            objectData.HasNormal = go->Material->HasNormalTexture;
+            objectData.HasMetallic = go->Material->HasMatallicTexture;
+            objectData.Metallic = go->Material->Metallic;
+            objectData.HasRoughness = go->Material->HasRoughnessTexture;
+            objectData.Roughness = go->Material->Roughness;
             perObjectBuffer.CopyData(i, objectData);
 
             auto vb = go->Mesh->vertexBuffer->GetView();
@@ -95,8 +108,12 @@ void Hazel::D3D12ForwardRenderer::ImplRenderSubmitted()
                 cmdList->SetGraphicsRootDescriptorTable(ShaderIndices_Normal, go->Material->NormalTexture->SRVAllocation.GPUHandle);
             }
 
-            if (go->Material->HasSpecularTexture) {
-                cmdList->SetGraphicsRootDescriptorTable(ShaderIndices_Specular, go->Material->SpecularTexture->SRVAllocation.GPUHandle);
+            if (go->Material->HasRoughnessTexture) {
+                cmdList->SetGraphicsRootDescriptorTable(ShaderIndices_Roughness, go->Material->RoughnessTexture->SRVAllocation.GPUHandle);
+            }
+
+            if (go->Material->HasMatallicTexture) {
+                cmdList->SetGraphicsRootDescriptorTable(ShaderIndices_Metalness, go->Material->MetallicTexture->SRVAllocation.GPUHandle);
             }
 
             cmdList->SetGraphicsRootConstantBufferView(ShaderIndices_PerObject,
@@ -109,6 +126,7 @@ void Hazel::D3D12ForwardRenderer::ImplRenderSubmitted()
         }
         batch.TrackResource(perObjectBuffer.Resource());
         batch.TrackResource(passBuffer.Resource());
+        PIXEndEvent(cmdList.Get());
         renderTasks.push_back(batch.End(Context->DeviceResources->CommandQueue.Get()));
 
         for (auto& task : renderTasks)
@@ -126,7 +144,7 @@ void Hazel::D3D12ForwardRenderer::ImplOnInit()
     {
         D3D12_RT_FORMAT_ARRAY rtvFormats = {};
         rtvFormats.NumRenderTargets = 1;
-        rtvFormats.RTFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+        rtvFormats.RTFormats[0] = DXGI_FORMAT_R16G16B16A16_FLOAT;
 
         CD3DX12_RASTERIZER_DESC rasterizer(D3D12_DEFAULT);
         rasterizer.FrontCounterClockwise = TRUE;

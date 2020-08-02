@@ -7,6 +7,7 @@
 
 #include "Platform/D3D12/D3D12DescriptorHeap.h"
 #include "Platform/D3D12/D3D12Context.h"
+#include "Platform/D3D12/FrameBuffer.h"
 
 #include "glm/vec4.hpp"
 
@@ -24,6 +25,7 @@ namespace Hazel
     public:
 
         static constexpr uint8_t MaxSupportedLights = 25;
+        static constexpr uint8_t MipsPerIteration = 4;
 
         enum RendererType 
         {
@@ -35,6 +37,11 @@ namespace Hazel
         static ShaderLibrary* ShaderLibrary;
         static TextureLibrary* TextureLibrary;
         static D3D12Context* Context;
+
+        static D3D12DescriptorHeap* s_ResourceDescriptorHeap;
+        static D3D12DescriptorHeap* s_RenderTargetDescriptorHeap;
+        static D3D12DescriptorHeap* s_DepthStencilDescriptorHeap;
+
 
         /// <summary>
         /// This method will transition the current back buffer to a render target, and clear it.
@@ -67,15 +74,31 @@ namespace Hazel
 
         static void AddStaticResource(Ref<D3D12Texture> texture);
         static void AddDynamicResource(Ref<D3D12Texture> texture);
+        static void ReleaseDynamicResource(Ref<D3D12Texture> texture);
         static void AddStaticRenderTarget(Ref<D3D12Texture> texture);
 
         static void Submit(Ref<GameObject>& gameObject);
         static void RenderSubmitted();
-        static void RenderSkybox();
+        static void RenderSkybox(uint32_t mipLevel = 0);
+        static void DoToneMapping();
+
+        static void GenerateMips(Ref<D3D12Texture>& texture, uint32_t mostDetailedMip = 0);
 
         static RendererType GetCurrentRenderType() { return s_CurrentRenderer->ImplGetRendererType(); }
 
         static std::pair<Ref<D3D12TextureCube>, Ref<D3D12TextureCube>> LoadEnvironmentMap(std::string& path);
+        static Ref<FrameBuffer> ResolveFrameBuffer();
+
+        static void CreateUAV(Ref<D3D12Texture>& texture, uint32_t mip);
+        static void CreateUAV(Ref<D3D12Texture>& texture, HeapAllocationDescription& description, uint32_t mip);
+        static void CreateSRV(Ref<D3D12Texture>& texture, uint32_t mostDetailedMip = 0, uint32_t mips = 0, bool forceArray = false);
+        static void CreateSRV(Ref<D3D12Texture>& texture, HeapAllocationDescription& description, uint32_t mostDetailedMip = 0, uint32_t mips = 0, bool forceArray = false);
+        static void CreateRTV(Ref<D3D12Texture>& texture, uint32_t mip = 0);
+        static void CreateRTV(Ref<D3D12Texture>& texture, HeapAllocationDescription& description, uint32_t mip = 0);
+        //static void CreateDSV(Ref<D3D12Texture>& texture);
+        static void CreateDSV(Ref<D3D12Texture>& texture, HeapAllocationDescription& description);
+
+        static inline HeapAllocationDescription GetImguiAllocation() { return s_ImGuiAllocation; }
 
         static void Init();
         static void Shutdown();
@@ -118,21 +141,25 @@ namespace Hazel
 
         static D3D12_INPUT_ELEMENT_DESC s_InputLayout[];
         static uint32_t s_InputLayoutCount;
-
-        static D3D12DescriptorHeap* s_ResourceDescriptorHeap;
-        static D3D12DescriptorHeap* s_RenderTargetDescriptorHeap;
+        static uint32_t s_CurrentFrameBuffer;
 
         static std::vector<Ref<GameObject>> s_OpaqueObjects;
         static std::vector<Ref<GameObject>> s_TransparentObjects;
         static std::vector<D3D12Renderer*> s_AvailableRenderers;
+        static std::vector<Ref<FrameBuffer>> s_Framebuffers;
         static Scope<D3D12UploadBuffer<RendererLight>> s_LightsBuffer;
         static HeapAllocationDescription s_LightsBufferAllocation;
+        static HeapAllocationDescription s_ImGuiAllocation;
         static D3D12Renderer* s_CurrentRenderer;
-        static D3D12VertexBuffer* s_SkyboxVB;
-        static D3D12IndexBuffer* s_SkyboxIB;
+        static D3D12VertexBuffer* s_FullscreenQuadVB;
+        static D3D12IndexBuffer* s_FullscreenQuadIB;
 
-        static void CreateUAV(Ref<D3D12Texture>& texture, uint32_t mip);
-        static void CreateSRV(Ref<D3D12Texture>& texture, uint32_t mostDetailedMip = 0, uint32_t mips = 0);
+        static void ReclaimDynamicDescriptors();
+        static void CreateFrameBuffers();
+        static void CreateFrameBuffers(D3D12ResourceBatch& batch);
+
+
+
 
         virtual void ImplRenderSubmitted() = 0;
         virtual void ImplOnInit() = 0;

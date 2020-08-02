@@ -20,7 +20,11 @@ namespace Hazel
         {
             ShaderIndices_Albedo,
             ShaderIndices_Normal,
-            ShaderIndices_Specular,
+            ShaderIndices_Metalness,
+			ShaderIndices_Roughness,
+			ShaderIndices_EnvRadiance,
+			ShaderIndices_EnvIrradiance,
+			ShaderIndices_BRDFLUT,
 			ShaderIndices_Lights,
             ShaderIndices_PerObject,
             ShaderIndices_Pass,
@@ -28,14 +32,21 @@ namespace Hazel
         };
 
 		struct alignas(16) HPerObjectData {
-			glm::mat4 LocalToWorld;
+			glm::mat4 LocalToWorld; 
+			// ----- 16 bytes -----
 			glm::mat4 WorldToLocal;
-			glm::vec4 Color;
-			glm::vec4 EmissiveColor;
-			float Specular;
+			// ----- 16 bytes -----
+			glm::vec3 MaterialColor;
 			uint32_t HasAlbedo;
+			// ----- 16 bytes -----
+			glm::vec3 EmissiveColor;
 			uint32_t HasNormal;
-			uint32_t HasSpecular;
+			// ----- 16 bytes -----
+			uint32_t HasMetallic;
+			float Metallic;
+			uint32_t HasRoughness;
+			float Roughness;
+			// ----- 16 bytes -----
 		};
 
 		struct alignas(16) HPassData {

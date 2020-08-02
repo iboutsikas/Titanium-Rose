@@ -136,6 +136,7 @@ project "Sandbox"
 
 	includedirs
 	{
+		"%{IncludeDir.GLFW}",
 		"%{prj.name}/src",
 		"Hazel/src",
 		"Hazel/vendor",

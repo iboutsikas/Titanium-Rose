@@ -5,9 +5,12 @@
 
 // Need these to expose the HWND from GLFW. Too much work to
 // re-write a new win32 only window.
-#define GLFW_EXPOSE_NATIVE_WIN32
-#include <GLFW/glfw3.h>
-#include <GLFW/glfw3native.h>
+#ifndef GLFW_EXPOSE_NATIVE_WIN32
+	#define GLFW_EXPOSE_NATIVE_WIN32
+#endif // !1
+
+#include <glfw/glfw3.h>
+#include <glfw/glfw3native.h>
 
 #include <d3d12.h>
 #include <dxgi1_6.h>
@@ -58,7 +61,7 @@ bool CheckTearingSupport()
 namespace Hazel {
 
 	D3D12Context::D3D12Context()
-		: m_Window(), m_NativeHandle(nullptr), m_ScissorRect({0, 0, LONG_MAX, LONG_MAX})
+		: m_Window(), m_NativeHandle(nullptr), ScissorRect({0, 0, LONG_MAX, LONG_MAX})
 	{
 		
 	}
@@ -143,7 +146,7 @@ namespace Hazel {
 			->Device
 			->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
-		DeviceResources->SRVDescriptorHeap = DeviceResources->CreateDescriptorHeap(
+	/*	DeviceResources->SRVDescriptorHeap = DeviceResources->CreateDescriptorHeap(
 			DeviceResources->Device,
 			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
 			3,
@@ -158,23 +161,23 @@ namespace Hazel {
 			D3D12_DESCRIPTOR_HEAP_TYPE_DSV,
 			1
 		);
-		NAME_D3D12_OBJECT(DeviceResources->DSVDescriptorHeap);
+		NAME_D3D12_OBJECT(DeviceResources->DSVDescriptorHeap);*/
 #pragma endregion
 
 		CreateRenderTargetViews();
 		CreateDepthStencil();
 
 		// Initial viewport
-		m_Viewport.TopLeftX = 0.0f;
-		m_Viewport.TopLeftY = 0.0f;
-		m_Viewport.Width = static_cast<float>(width);
-		m_Viewport.Height = static_cast<float>(height);
-		m_Viewport.MinDepth = 0.0f;
-		m_Viewport.MaxDepth = 1.0f;
+		Viewport.TopLeftX = 0.0f;
+		Viewport.TopLeftY = 0.0f;
+		Viewport.Width = static_cast<float>(width);
+		Viewport.Height = static_cast<float>(height);
+		Viewport.MinDepth = 0.0f;
+		Viewport.MaxDepth = 1.0f;
 
 		DeviceResources->Fence = DeviceResources->CreateFence(DeviceResources->Device);
 
-		PerformInitializationTransitions();
+		// PerformInitializationTransitions();
 
 		DXGI_ADAPTER_DESC3 desc;
 		theAdapter->GetDesc3(&desc);
@@ -223,7 +226,7 @@ namespace Hazel {
 		);
 
 		// Update the resource
-		m_CurrentFrameResource->FenceValue = m_FenceValue;
+		CurrentFrameResource->FenceValue = m_FenceValue;
 	}
 
 	void D3D12Context::SetVSync(bool enable)
@@ -262,57 +265,57 @@ namespace Hazel {
 
 	void D3D12Context::CleanupRenderTargetViews()
 	{
-		ThrowIfFailed(DeviceResources->CommandList->Reset(
-			DeviceResources->CommandAllocator.Get(),
-			nullptr)
-		);
+		//ThrowIfFailed(DeviceResources->CommandList->Reset(
+		//	DeviceResources->CommandAllocator.Get(),
+		//	nullptr)
+		//);
 
 		for (int i = 0; i < DeviceResources->SwapChainBufferCount; i++)
 		{
 			DeviceResources->BackBuffers[i].Reset();
 		}
 
-		DeviceResources->DepthStencilBuffer.Reset();
+		//DeviceResources->DepthStencilBuffer.Reset();
 	}
 
 	void D3D12Context::CreateDepthStencil()
 	{
-		D3D12_RESOURCE_DESC desc;
+		//D3D12_RESOURCE_DESC desc;
 
-		desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-		desc.Alignment = 0;
-		desc.Width = m_Window->GetWidth();
-		desc.Height = m_Window->GetHeight();
-		desc.DepthOrArraySize = 1;
-		desc.MipLevels = 1;
-		desc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-		desc.SampleDesc = { 1, 0 };
-		desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-		desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+		//desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+		//desc.Alignment = 0;
+		//desc.Width = m_Window->GetWidth();
+		//desc.Height = m_Window->GetHeight();
+		//desc.DepthOrArraySize = 1;
+		//desc.MipLevels = 1;
+		//desc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		//desc.SampleDesc = { 1, 0 };
+		//desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+		//desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 
-		D3D12_CLEAR_VALUE clear;
-		clear.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-		clear.DepthStencil.Depth = 1.0f;
-		clear.DepthStencil.Stencil = 0;
+		//D3D12_CLEAR_VALUE clear;
+		//clear.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		//clear.DepthStencil.Depth = 1.0f;
+		//clear.DepthStencil.Stencil = 0;
 
-		ThrowIfFailed(DeviceResources->Device->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-			D3D12_HEAP_FLAG_NONE,
-			&desc,
-			D3D12_RESOURCE_STATE_COMMON,
-			&clear,
-			IID_PPV_ARGS(DeviceResources->DepthStencilBuffer.GetAddressOf())
-		));
+		//ThrowIfFailed(DeviceResources->Device->CreateCommittedResource(
+		//	&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+		//	D3D12_HEAP_FLAG_NONE,
+		//	&desc,
+		//	D3D12_RESOURCE_STATE_COMMON,
+		//	&clear,
+		//	IID_PPV_ARGS(DeviceResources->DepthStencilBuffer.GetAddressOf())
+		//));
 
-		DeviceResources->Device->CreateDepthStencilView(
-			DeviceResources->DepthStencilBuffer.Get(),
-			nullptr,
-			DepthStencilView()
-		);
+		//DeviceResources->Device->CreateDepthStencilView(
+		//	DeviceResources->DepthStencilBuffer.Get(),
+		//	nullptr,
+		//	DepthStencilView()
+		//);
 
-		NAME_D3D12_OBJECT(DeviceResources->DepthStencilBuffer);
+		//NAME_D3D12_OBJECT(DeviceResources->DepthStencilBuffer);
 	}
-	void D3D12Context::Flush()
+	void D3D12Context::WaitForGpu()
 	{
 		m_FenceValue = DeviceResources->Signal(
 			DeviceResources->CommandQueue,
@@ -341,8 +344,8 @@ namespace Hazel {
 		);
 
 		m_CurrentBackbufferIndex = DeviceResources->SwapChain->GetCurrentBackBufferIndex();
-		m_Viewport.Width = static_cast<float>(width);
-		m_Viewport.Height = static_cast<float>(height);
+		Viewport.Width = static_cast<float>(width);
+		Viewport.Height = static_cast<float>(height);
 	}
 
 	void D3D12Context::NewFrame()
@@ -350,15 +353,13 @@ namespace Hazel {
 		HZ_PROFILE_FUNCTION();
 		NextFrameResource();
 		// Get from resource
-		auto commandAllocator = m_CurrentFrameResource->CommandAllocator;
+		auto commandAllocator = CurrentFrameResource->CommandAllocator;
 
 		ThrowIfFailed(commandAllocator->Reset());
 		ThrowIfFailed(DeviceResources->CommandList->Reset(
 			commandAllocator.Get(),
 			nullptr)
 		);
-
-		DeviceResources->CommandList->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &DepthStencilView());
 	}
 
 	D3D12_CPU_DESCRIPTOR_HANDLE D3D12Context::CurrentBackBufferView() const
@@ -370,10 +371,10 @@ namespace Hazel {
 		);
 	}
 
-	D3D12_CPU_DESCRIPTOR_HANDLE D3D12Context::DepthStencilView() const
-	{
-		return DeviceResources->DSVDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
-	}
+	//D3D12_CPU_DESCRIPTOR_HANDLE D3D12Context::DepthStencilView() const
+	//{
+	//	return DeviceResources->DSVDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+	//}
 
 	void D3D12Context::PerformInitializationTransitions()
 	{
@@ -400,19 +401,19 @@ namespace Hazel {
 		};
 		DeviceResources->CommandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
 
-		Flush();
+		WaitForGpu();
 	}
 
 	void D3D12Context::NextFrameResource()
 	{
 		m_CurrentBackbufferIndex = DeviceResources->SwapChain->GetCurrentBackBufferIndex();
 
-		m_CurrentFrameResource = FrameResources[m_CurrentBackbufferIndex].get();
+		CurrentFrameResource = FrameResources[m_CurrentBackbufferIndex].get();
 
-		if (m_CurrentFrameResource->FenceValue != 0) {
+		if (CurrentFrameResource->FenceValue != 0) {
 			DeviceResources->WaitForFenceValue(
 				DeviceResources->Fence,
-				m_CurrentFrameResource->FenceValue
+				CurrentFrameResource->FenceValue
 			);
 		}
 	}

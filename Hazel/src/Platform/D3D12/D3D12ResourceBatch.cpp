@@ -5,13 +5,21 @@
 #include "Platform/D3D12/D3D12ResourceBatch.h"
 
 namespace Hazel {
-	D3D12ResourceBatch::D3D12ResourceBatch(TComPtr<ID3D12Device2> device)
-		: m_Device(device),
+	D3D12ResourceBatch::D3D12ResourceBatch(TComPtr<ID3D12Device2> device) : 
+		m_Device(device),
 		m_CommandList(nullptr),
 		m_CommandAllocator(nullptr),
 		m_Finalized(false)
 	{
 		
+	}
+
+	D3D12ResourceBatch::D3D12ResourceBatch(TComPtr<ID3D12Device2> device, TComPtr<ID3D12CommandAllocator> allocator) noexcept(false) :
+		m_Device(device),
+		m_CommandList(nullptr),
+		m_CommandAllocator(allocator),
+		m_Finalized(false)
+	{
 	}
 
 
@@ -32,10 +40,13 @@ namespace Hazel {
 			HZ_CORE_ASSERT(false, "Command List type not supported");
 		}
 
-		D3D12::ThrowIfFailed(m_Device->CreateCommandAllocator(
-			type,
-			IID_PPV_ARGS(&m_CommandAllocator)
-		));
+		if (m_CommandAllocator == nullptr) {
+			D3D12::ThrowIfFailed(m_Device->CreateCommandAllocator(
+				type,
+				IID_PPV_ARGS(&m_CommandAllocator)
+			));
+		}
+		
 
 		D3D12::ThrowIfFailed(m_Device->CreateCommandList(
 			1,
@@ -45,10 +56,8 @@ namespace Hazel {
 			IID_PPV_ARGS(&m_CommandList)
 		));
 
-		if (m_CommandAllocator == nullptr || m_CommandList == nullptr)
-		{
-			__debugbreak();
-		}
+		HZ_CORE_ASSERT(m_CommandAllocator != nullptr || m_CommandList != nullptr, "The allocator or the list are null. And there was no throw");
+		
 
 #ifdef HZ_DEBUG
 		m_CommandAllocator->SetName(L"ResourceUpload Command Allocator");

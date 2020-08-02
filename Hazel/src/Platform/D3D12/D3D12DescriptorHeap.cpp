@@ -120,6 +120,19 @@ ret:
         allocation.CPUHandle.ptr = allocation.GPUHandle.ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
     }
 
+    size_t D3D12DescriptorHeap::GetFreeDescriptorCount() const noexcept
+    {
+        size_t accumulator = 0;
+        
+        for (auto& range : m_FreeDescriptors)
+        {
+            accumulator += range.Count;
+        }
+
+        return accumulator;
+
+    }
+
     D3D12_CPU_DESCRIPTOR_HANDLE D3D12DescriptorHeap::GetFirstCPUHandle() const noexcept
     {
         HZ_CORE_ASSERT(m_Heap != nullptr, "Heap is uninitialized");

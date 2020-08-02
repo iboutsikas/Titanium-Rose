@@ -60,6 +60,11 @@ namespace Hazel {
 			return;
 		this->Transition(commandList, m_CurrentState, to);
 	}
+
+	void D3D12Texture::SetCurrentState(D3D12_RESOURCE_STATES state)
+	{ 
+		m_CurrentState = state;
+	}
 #pragma endregion
 
 #pragma region D3D12Texture2D
@@ -168,9 +173,11 @@ namespace Hazel {
 				Ref<Image> img = Image::FromFile(opts.Path);
 
 				//opts.Format = img->IsHdr() ? DXGI_FORMAT_R16G16B16A16_FLOAT : opts.Format;
-				//opts.MipLevels = 1 + std::floor(std::log10((float)std::max(img->GetWidth(), img->GetHeight())) / std::log10(2.0));
+				//opts.MipLevels = 
 				ret = LoadFromImage(img, batch, opts);
 			}
+			std::wstring wPath(opts.Path.begin(), opts.Path.end());
+			ret->m_Resource->SetName(wPath.c_str());
 		}
 		// We create an in memory texture
 		else if (!opts.Name.empty())
@@ -198,9 +205,11 @@ namespace Hazel {
 				D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES,
 				&textureDesc,
 				ret->m_CurrentState,
-				nullptr,
+				opts.IsDepthStencil ? &CD3DX12_CLEAR_VALUE(opts.Format, 1.0f, 0) : nullptr,
 				IID_PPV_ARGS(ret->m_Resource.GetAddressOf())
 			));
+			std::wstring wName(opts.Name.begin(), opts.Name.end());
+			ret->m_Resource->SetName(wName.c_str());
 		}
 		else
 		{
@@ -426,6 +435,7 @@ namespace Hazel {
 				opts.Path
 			);
 			ret->m_Resource.Swap(resource);
+			ret->m_Resource->SetName(wPath.c_str());
 			ret->m_CurrentState = D3D12_RESOURCE_STATE_COPY_DEST;
 			batch.Upload(ret->m_Resource.Get(), 0, subData.data(), subData.size());
 		}
@@ -460,6 +470,9 @@ namespace Hazel {
 				nullptr,
 				IID_PPV_ARGS(ret->m_Resource.GetAddressOf())
 			));
+
+			std::wstring wName(opts.Name.begin(), opts.Name.end());
+			ret->m_Resource->SetName(wName.c_str());
 		}
 		else
 		{

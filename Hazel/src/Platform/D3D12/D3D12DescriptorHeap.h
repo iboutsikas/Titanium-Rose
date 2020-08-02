@@ -53,6 +53,7 @@ namespace Hazel {
 
         void Release(HeapAllocationDescription& allocation);
 
+        size_t GetFreeDescriptorCount() const noexcept;
         size_t GetCount() const noexcept { return m_Description.NumDescriptors; }
         unsigned int GetFlags() const noexcept { return m_Description.Flags; }
         D3D12_DESCRIPTOR_HEAP_TYPE GetType() const noexcept { return m_Description.Type; }
@@ -87,6 +88,26 @@ namespace Hazel {
         D3D12_DESCRIPTOR_HEAP_DESC  m_Description;
         uint32_t                    m_IncrementSize;
         std::list<AvailableDescriptorRange> m_FreeDescriptors;
+    };
+
+
+    struct HeapValidationMark
+    {
+        HeapValidationMark(D3D12DescriptorHeap* heap) :
+            m_Mark(heap->GetFreeDescriptorCount()),
+            m_Heap(heap)
+        {
+
+        }
+
+        ~HeapValidationMark()
+        {
+            auto diff = m_Mark - m_Heap->GetFreeDescriptorCount();
+            HZ_CORE_ASSERT(diff == 0, "There were descriptors leaked from this heap");
+        }
+    private:
+        size_t m_Mark;
+        D3D12DescriptorHeap* m_Heap;
     };
 
 }

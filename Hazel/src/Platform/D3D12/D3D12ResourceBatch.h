@@ -11,6 +11,7 @@ namespace Hazel {
     {
     public:
         explicit D3D12ResourceBatch(TComPtr<ID3D12Device2> device) noexcept(false);
+        explicit D3D12ResourceBatch(TComPtr<ID3D12Device2> device, TComPtr<ID3D12CommandAllocator> allocator) noexcept(false);
 
         ~D3D12ResourceBatch();
 

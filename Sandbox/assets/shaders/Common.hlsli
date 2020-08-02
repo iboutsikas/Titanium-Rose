@@ -20,10 +20,10 @@ struct Light
 };
 
 
-float CalculateAttenuation(Light light, float distance)
-{
-    return 1.0f - smoothstep( light.Range * 0.75f, light.Range, distance );
-}
+// float CalculateAttenuation(Light light, float distance)
+// {
+//     return 1.0f - smoothstep( light.Range * 0.75f, light.Range, distance );
+// }
 
 float3 CalculateDiffuse(Light light, float3 L, float3 N)
 {
@@ -32,7 +32,7 @@ float3 CalculateDiffuse(Light light, float3 L, float3 N)
     return light.Color * NdotL;
 }
 
-float3 CalculateSpecular(Light light, float3 V, float3 L, float3 N, float3 specularPower)
+float3 CalculateSpecular(Light light, float3 V, float3 L, float3 N, float specularPower)
 {
     float3 R = normalize(reflect(-L, N));
     float RdotV = max(dot(R, V), 0);

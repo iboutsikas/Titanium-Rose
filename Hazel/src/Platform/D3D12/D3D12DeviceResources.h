@@ -39,8 +39,8 @@ namespace Hazel {
         TComPtr<ID3D12GraphicsCommandList>      CommandList;
         TComPtr<ID3D12CommandAllocator>         CommandAllocator;
         TComPtr<ID3D12DescriptorHeap>           RTVDescriptorHeap;
-        TComPtr<ID3D12DescriptorHeap>           SRVDescriptorHeap;
-        TComPtr<ID3D12DescriptorHeap>           DSVDescriptorHeap;
+        //TComPtr<ID3D12DescriptorHeap>           SRVDescriptorHeap;
+        //TComPtr<ID3D12DescriptorHeap>           DSVDescriptorHeap;
         TComPtr<ID3D12Fence>                    Fence;
 
         int SwapChainBufferCount;

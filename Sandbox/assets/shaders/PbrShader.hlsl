@@ -1,31 +1,42 @@
 #include "RootSignatures.hlsli"
 #include "Common.hlsli"
+#include "Environment.common.hlsli"
 
-Texture2D<float4> AlbedoTexture     : register(t0);
+// Constant normal incidence Fresnel factor for all dielectrics.
+static const float3 Fdielectric = 0.04;
+
+Texture2D<float3> AlbedoTexture     : register(t0);
 Texture2D<float3> NormalTexture     : register(t1);
-Texture2D<float3> SpecularTexture   : register(t2);
-StructuredBuffer<Light> SceneLights : register(t3);
+Texture2D<float> MetalnessTexture   : register(t2);
+Texture2D<float> RoughnessTexture   : register(t3);
+TextureCube EnvRadianceTexture      : register(t4);
+TextureCube EnvIrradianceTExture    : register(t5);
+Texture2D<float2> BRDFLUT           : register(t6);
+StructuredBuffer<Light> SceneLights : register(t7);
 
 SamplerState someSampler: register(s0);
+SamplerState brdfSampler: register(s1);
 
 struct PSInput
 {
     float4 position : SV_POSITION;
     float3 normal : NORMAL;
-    float3 w_Pos : POSITION;
+    float3 WorldPosition : POSITION;
     float2 uv: UV;
     float3x3 TBN : TBN;
 };
 
 cbuffer cbPerObject : register(b0) {
-    matrix LocalToWorld     : packoffset(c0);
-    matrix WorldToLocal     : packoffset(c4);
-    float4 MaterialColor    : packoffset(c8);
-    float4 EmissiveColor    : packoffset(c9);
-    float MaterialSpecular  : packoffset(c10.x);
-    bool HasAlbedo          : packoffset(c10.y);
-    bool HasNormal          : packoffset(c10.z);
-    bool HasSpecular        : packoffset(c10.w);
+    matrix LocalToWorld;
+    matrix WorldToLocal;
+    float3 MaterialColor;
+    bool HasAlbedo;
+    float3 EmissiveColor;
+    bool HasNormal;
+    bool HasMetallic;
+    float MaterialMetallic;
+    bool HasRoughness;
+    float MaterialRoughness;
 };
 
 cbuffer cbPass : register(b1) {
@@ -36,119 +47,128 @@ cbuffer cbPass : register(b1) {
     uint  NumLights             : packoffset(c5.w);       
 };
 
-
 [RootSignature(PBR_RS)]
 PSInput VS_Main(VSInput input)
 {
     PSInput result;
 
-    float3 N = normalize(mul((float3x3)LocalToWorld, input.normal));
-    float3 T = normalize(mul((float3x3)LocalToWorld, input.tangent));
-    float3 B = normalize(mul((float3x3)LocalToWorld, input.binormal));
-    float3x3 TBN = float3x3(T, B, N);
-    result.TBN = TBN;
+
+    float3x3 TBN = float3x3(input.tangent, input.binormal, input.normal);
+
+    result.TBN = mul((float3x3)LocalToWorld, TBN);
 
     matrix mvp = mul(ViewProjection, LocalToWorld);
     result.position = mul(mvp, float4(input.position, 1.0f));
-    result.normal = N;
-    result.uv = input.uv;
-    result.uv.y = 1.0 - result.uv.y;
-    
-    result.w_Pos = mul(LocalToWorld, float4(input.position, 1.0)).xyz;
-    
+    result.normal =  mul((float3x3)LocalToWorld, input.normal);
+    result.uv = float2(input.uv.x, 1.0 - input.uv.y);
+        
+    result.WorldPosition = mul(LocalToWorld, float4(input.position, 1.0)).xyz;
+
     return result;
 }
 
 [RootSignature(PBR_RS)]
 float4 PS_Main(PSInput input) : SV_TARGET
 {
-    float4 albedo;
-    if (HasAlbedo)
-    {
-        albedo = AlbedoTexture.Sample(someSampler, input.uv);
-    }
-    else
-    {
-        albedo = MaterialColor;
-    }
+   float3 Albedo = HasAlbedo ? AlbedoTexture.Sample(someSampler, input.uv) : MaterialColor;
+   float  Metalness = HasMetallic ? MetalnessTexture.Sample(someSampler, input.uv).r : MaterialMetallic;
+   float  Roughness = HasRoughness ? RoughnessTexture.Sample(someSampler, input.uv).r : MaterialRoughness;
 
-    float3 normal;
-    float3 geometricNormal = normalize(input.normal);
-    if (HasNormal)
-    {
-        normal = NormalTexture.Sample(someSampler, input.uv);
-        normal = (2.0 * normal) - 1.0;
-        normal = normalize(mul(normal, input.TBN));
-        
-    }
-    else
-    {
-        normal = geometricNormal;
-    }
-
-    float specular = 0;
-    if (HasSpecular)
-    {
-        // The texture is normalized from 0 - 1. So we need to multiply it by SOME scale.
-        // In this case it is the shininess we get from the material
-        specular = SpecularTexture.Sample(someSampler, input.uv).r;
-    }
-    else
-    {
-        specular = MaterialSpecular;
-    }
-
-    if (specular < 0)
-    {
-        specular = 0;
-    }
-
-    float3 ambientContribution = AmbientLight.rgb * AmbientIntensity;
-
-    float3 FragmentToView = normalize(EyePosition - input.w_Pos);
-
+    float3 Normal = normalize(input.normal);
     
-    float3 diffuseContribution = float3(0, 0, 0);
-    float3 specularContribution = float3(0, 0, 0);
+    if (HasNormal) {
+        float3 N = NormalTexture.Sample(someSampler, input.uv).rgb;
+        N = 2.0 * N - 1.0;
+        Normal = normalize(mul(N, input.TBN));
+    }
 
-    for (uint i = 0; i < NumLights; i++)
+    float3 FragmentToCamera = normalize(EyePosition - input.WorldPosition);
+    float cosLo = max(dot(Normal, FragmentToCamera), 0.0);
+
+    // Specular reflection vector.
+    float3 Lr = 2.0 * cosLo * Normal - FragmentToCamera;
+
+    // Fresnel reflectance at normal incidence (for metals use albedo color).
+    float3 F0 = lerp(Fdielectric, Albedo, Metalness);
+
+    float3 directLighting = 0.0;
+    for(uint i = 0; i < NumLights; i++)
     {
-        Light the_light = SceneLights[i];
+        Light l = SceneLights[i];
         
+        float3 V = l.Position.xyz - input.WorldPosition;
 
-        float3 L = the_light.Position.xyz - input.w_Pos;
-        float d = length(L);
-        if (d > the_light.Range)
-        {
+        float d = length(V);
+
+
+        if (d > l.Range) {
             continue;
         }
 
+        float attenuation = CalculateAttenuation(l.Range, d);
 
-        float shadowFactor = step(0, dot(geometricNormal, L));
-        float attenuation = CalculateAttenuation(the_light, d);
-        float3 Lnorm = L / d;
+        float3 Li = normalize(V);
 
-        // Diffuse Contribution
+        // Half-vector between Li and Lo.
+        float3 Lh = normalize(Li + FragmentToCamera);
 
-        float3 diffContrib = CalculateDiffuse(the_light, Lnorm, normal) * 
-                            the_light.Intensity * 
-                            attenuation *
-                            shadowFactor;
-        diffuseContribution += diffContrib;
+        // Calculate angles between surface normal and various light vectors.
+        float cosLi = max(0.0, dot(Normal, Li));
+        float cosLh = max(0.0, dot(Normal, Lh));
 
-        float3 specContrib = CalculateSpecular(the_light, FragmentToView, Lnorm, normal, 32) * 
-                            the_light.Intensity * 
-                            shadowFactor *
-                            specular *
-                            attenuation;
-        specularContribution += specContrib;
+        float3 F = fresnelSchlick(F0, max(dot(Lh, FragmentToCamera), 0.0));
+
+        float D = ndfGGX(cosLh, Roughness);
+
+        float G = gaSchlickGGX(cosLi, cosLo, Roughness);
+
+        float3 kd = lerp(float3(1, 1, 1) - F, float3(0, 0, 0), Metalness);
+
+        // Lambert diffuse BRDF.
+        // We don't scale by 1/PI for lighting & material units to be more convenient.
+        // See: https://seblagarde.wordpress.com/2012/01/08/pi-or-not-to-pi-in-game-lighting-equation/
+        float3 diffuseBRDF = kd * Albedo;
+
+        // Cook-Torrance specular microfacet BRDF.
+        float3 specularBRDF = (F * D * G) / max(Epsilon, 4.0 * cosLi * cosLo);
+
+        // Total contribution for this light.
+        directLighting += (diffuseBRDF + specularBRDF) * l.Color * l.Intensity * cosLi * attenuation;
     }
 
-    float3 finalSurfaceColor = 0;
-    finalSurfaceColor += ambientContribution;
-    finalSurfaceColor += diffuseContribution;
-    finalSurfaceColor += specularContribution;
-    finalSurfaceColor *= albedo.rgb;
+    // Ambient lighting (IBL).
+    float3 ambientLighting;
+    {
+        // Sample diffuse irradiance at normal direction.
+        float3 irradiance = EnvIrradianceTExture.Sample(someSampler, Normal).rgb;
 
-    return saturate(float4(finalSurfaceColor, albedo.a)) + EmissiveColor;
+        // Calculate Fresnel term for ambient lighting.
+        // Since we use pre-filtered cubemap(s) and irradiance is coming from many directions
+        // use cosLo instead of angle with light's half-vector (cosLh above).
+        // See: https://seblagarde.wordpress.com/2011/08/17/hello-world/
+        float3 F = fresnelSchlick(F0, cosLo);
+
+        // Get diffuse contribution factor (as with direct lighting).
+        float3 kd = lerp(1.0 - F, 0.0, Metalness);
+
+        // Irradiance map contains exitant radiance assuming Lambertian BRDF, no need to scale by 1/PI here either.
+        float3 diffuseIBL = kd * Albedo * irradiance;
+
+        uint width, height, levels;
+        EnvRadianceTexture.GetDimensions(0, width, height, levels);
+
+        // Split-sum approximation factors for Cook-Torrance specular BRDF.
+        float3 specularIrradiance = EnvRadianceTexture.SampleLevel(someSampler, Lr, Roughness * levels).rgb;
+
+        // Split-sum approximation factors for Cook-Torrance specular BRDF.
+        float2 specularBRDF = BRDFLUT.Sample(brdfSampler, float2(cosLo, Roughness)).rg;
+        // Total specular IBL contribution.
+        float3 specularIBL = (F0 * specularBRDF.x + specularBRDF.y) * specularIrradiance;
+
+        // Total ambient lighting contribution.
+        ambientLighting = diffuseIBL + specularIBL;
+    }
+
+    // return float4(ambientLighting, 1.0);
+    return float4( ambientLighting + directLighting, 1);
 }

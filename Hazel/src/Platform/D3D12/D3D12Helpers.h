@@ -5,11 +5,16 @@
 #include <system_error>
 #include <string>
 #include <d3d12.h>
-
+#include <cmath>
 #define D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN   ((D3D12_GPU_VIRTUAL_ADDRESS)-1)
 
 #include "Hazel/Core/Log.h"
 namespace Hazel::D3D12 {
+
+    inline uint32_t CalculateMips(uint32_t width, uint32_t height) {
+
+        return 1 + std::floor(std::log10((float)std::max<uint32_t>(width, height)) / std::log10(2.0));
+    }
 
     inline int32_t RoundToMultiple(int32_t number, int32_t multiple) {
         return(number + multiple - 1) / multiple;

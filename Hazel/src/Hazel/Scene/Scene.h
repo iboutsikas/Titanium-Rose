@@ -16,6 +16,7 @@ namespace Hazel
     struct Environment
     {
         Ref<D3D12TextureCube> EnvironmentMap;
+        Ref<D3D12TextureCube> IrradianceMap;
     };
 
     class Scene
@@ -26,7 +27,10 @@ namespace Hazel
         PerspectiveCamera* Camera;
         glm::vec3 AmbientLight;
         float AmbientIntensity;
+        float Exposure;
         Environment Environment;
+
+        void LoadEnvironment(std::string& filepath);
     };
 }
 

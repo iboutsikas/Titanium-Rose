@@ -15,6 +15,7 @@ cbuffer cbPass: register(b0)
 {
     matrix ViewInverse;
     matrix ProjInverse;
+    uint MipLevel;
 }
 
 TextureCube skyMap : register(t0);
@@ -35,6 +36,6 @@ PSInput VS_Main(VSInput vin)
 float4 PS_Main(PSInput pin) : SV_Target
 {
 
-    return skyMap.SampleLevel(skySampler, pin.eyeDirection, 0);
+    return skyMap.SampleLevel(skySampler, pin.eyeDirection, MipLevel);
 }
 

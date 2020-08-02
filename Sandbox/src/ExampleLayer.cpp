@@ -553,7 +553,6 @@ void ExampleLayer::BuildPipeline()
 		rtvFormats.NumRenderTargets = 1;
 		rtvFormats.RTFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 
-
 		CD3DX12_RASTERIZER_DESC rasterizer(D3D12_DEFAULT);
 		rasterizer.FrontCounterClockwise = TRUE;
 		rasterizer.CullMode = D3D12_CULL_MODE_BACK;
