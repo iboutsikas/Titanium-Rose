@@ -107,6 +107,8 @@ float4 PS_Main(PSInput input) : SV_TARGET
 
         float attenuation = CalculateAttenuation(l.Range, d);
 
+        float shadowFactor = step(0, dot(input.normal, FragmentToCamera));
+
         float3 Li = normalize(V);
 
         // Half-vector between Li and Lo.
@@ -133,7 +135,7 @@ float4 PS_Main(PSInput input) : SV_TARGET
         float3 specularBRDF = (F * D * G) / max(Epsilon, 4.0 * cosLi * cosLo);
 
         // Total contribution for this light.
-        directLighting += (diffuseBRDF + specularBRDF) * l.Color * l.Intensity * cosLi * attenuation;
+        directLighting += (diffuseBRDF + specularBRDF) * l.Color * l.Intensity * cosLi * attenuation * shadowFactor;
     }
 
     // Ambient lighting (IBL).
