@@ -27,8 +27,6 @@ void Hazel::D3D12ForwardRenderer::ImplRenderSubmitted()
     HPassData passData;
     passData.ViewProjection = s_CommonData.Scene->Camera->GetViewProjectionMatrix();
     passData.NumLights = s_CommonData.NumLights;
-    passData.AmbientLight = s_CommonData.Scene->AmbientLight;
-    passData.AmbientIntensity = s_CommonData.Scene->AmbientIntensity;
     passData.EyePosition = s_CommonData.Scene->Camera->GetPosition();
 
     auto framebuffer = ResolveFrameBuffer();

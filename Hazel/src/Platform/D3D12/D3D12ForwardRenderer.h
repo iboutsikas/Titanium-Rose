@@ -51,8 +51,6 @@ namespace Hazel
 
 		struct alignas(16) HPassData {
 			glm::mat4 ViewProjection;
-			glm::vec3 AmbientLight;
-			float AmbientIntensity;
 			glm::vec3 EyePosition;
 			uint32_t NumLights;
 		};

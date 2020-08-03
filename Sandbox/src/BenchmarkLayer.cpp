@@ -107,8 +107,6 @@ BenchmarkLayer::BenchmarkLayer()
     m_Scene.Entities.push_back(model);
     m_Scene.Lights.resize(2);
     m_Scene.Camera = &m_CameraController.GetCamera();
-    m_Scene.AmbientLight = { 1.0f, 1.0f, 1.0f };
-    m_Scene.AmbientIntensity = 0.1f;
     m_Scene.Exposure = 1.0f;
 
     m_PatrolComponents.resize(2);
@@ -278,9 +276,9 @@ void BenchmarkLayer::OnImGuiRender()
 
 
     ImGui::Begin("Lights");
-    ImGui::Text("Ambient Light");
-    ImGui::ColorEdit3("Color", &m_Scene.AmbientLight.x);
-    ImGui::DragFloat("Intensity", &m_Scene.AmbientIntensity, 0.01f, 0.0f, 1.0f, "%.2f");
+    //ImGui::Text("Ambient Light");
+    //ImGui::ColorEdit3("Color", &m_Scene.AmbientLight.x);
+    //ImGui::DragFloat("Intensity", &m_Scene.AmbientIntensity, 0.01f, 0.0f, 1.0f, "%.2f");
 
 
     for (size_t i = 0; i < m_Scene.Lights.size(); i++)

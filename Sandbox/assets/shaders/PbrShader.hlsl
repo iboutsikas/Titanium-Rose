@@ -40,11 +40,9 @@ cbuffer cbPerObject : register(b0) {
 };
 
 cbuffer cbPass : register(b1) {
-    matrix ViewProjection       : packoffset(c0);
-    float3 AmbientLight         : packoffset(c4.x);
-    float AmbientIntensity      : packoffset(c4.w);     
-    float3 EyePosition          : packoffset(c5.x);
-    uint  NumLights             : packoffset(c5.w);       
+    matrix ViewProjection       : packoffset(c0); 
+    float3 EyePosition          : packoffset(c4.x);
+    uint  NumLights             : packoffset(c4.w);       
 };
 
 [RootSignature(PBR_RS)]
