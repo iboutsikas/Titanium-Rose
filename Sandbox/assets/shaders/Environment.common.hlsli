@@ -110,7 +110,10 @@ float3 sampleGGX(float u1, float u2, float roughness)
 // Shlick's approximation of the Fresnel factor.
 float3 fresnelSchlick(float3 F0, float cosTheta)
 {
-	return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
+	float x = 1.0 - cosTheta;
+	float xx = x * x;
+	float Fc = xx * xx * x;
+	return F0 + (1.0 - F0) *Fc;
 }
 
 // Schlick-GGX approximation of geometric attenuation function using Smith's method.

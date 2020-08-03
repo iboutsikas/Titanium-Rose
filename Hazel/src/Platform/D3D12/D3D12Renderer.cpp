@@ -832,6 +832,7 @@ namespace Hazel {
 
 	void D3D12Renderer::Shutdown()
 	{
+		Context->WaitForGpu();
 		s_LightsBuffer.release();
 		delete s_FullscreenQuadVB;
 		delete s_FullscreenQuadIB;

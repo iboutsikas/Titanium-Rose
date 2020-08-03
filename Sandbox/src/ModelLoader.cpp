@@ -292,36 +292,68 @@ Hazel::Ref<Hazel::GameObject> ModelLoader::LoadFromFile(std::string& filepath, H
 		materials[i]->RoughnessTexture = roughnessTexture;
 
 		// Matallic
-		Hazel::Ref<Hazel::D3D12Texture2D> metallicTexture = nullptr;
+		bool metallicFound = false;
+		std::string filepath;
 		if (aiMaterial->GetTexture(aiTextureType_METALNESS, 0, &texturefile) == AI_SUCCESS)
 		{
 			std::string filename(texturefile.C_Str());
-			std::string filepath = "assets/textures/" + filename;
+			filepath = "assets/textures/" + filename;
 
 			HZ_INFO("\tUsing metallic texture: {}", filename);
+			metallicFound = true;
 
-			if (TextureLibrary->Exists(filepath))
-			{
-				metallicTexture = TextureLibrary->GetAs<Hazel::D3D12Texture2D>(filepath);
-			}
-			else
-			{
-				Hazel::D3D12Texture2D::TextureCreationOptions opts;
-				opts.Flags = D3D12_RESOURCE_FLAG_NONE;
-				opts.Path = filepath;
-				metallicTexture = Hazel::D3D12Texture2D::CreateCommittedTexture(batch, opts);
-				TextureLibrary->Add(metallicTexture);
-			}
-			materials[i]->HasMatallicTexture = true;
 		}
 		else
 		{
-			HZ_WARN("\tNot using metallic map");
-			materials[i]->HasMatallicTexture = false;
-			materials[i]->Metallic = metalness;
+			for (uint32_t p = 0; p < aiMaterial->mNumProperties; p++)
+			{
+				auto prop = aiMaterial->mProperties[p];
+
+				if (prop->mType == aiPTI_String)
+				{
+                    uint32_t length = *(uint32_t*)prop->mData;
+                    std::string str(prop->mData + 4, length);
+
+					std::string key = prop->mKey.data;
+
+					// The raw property for reflection, ie Metalness. Since 
+					// it is not mapped to the texture earlier for some reason
+					if (key == "$raw.ReflectionFactor|file")
+					{
+						filepath = "assets/textures/" + str;
+						metallicFound = true;
+						break;
+					}
+				}
+			}
 		}
-		materials[i]->MetallicTexture = metallicTexture;
-		
+
+		if (metallicFound)
+		{
+			Hazel::Ref<Hazel::D3D12Texture2D> metallicTexture = nullptr;
+            HZ_INFO("\tUsing metallic texture: {}", filepath);
+
+            if (TextureLibrary->Exists(filepath))
+            {
+                metallicTexture = TextureLibrary->GetAs<Hazel::D3D12Texture2D>(filepath);
+            }
+            else
+            {
+                Hazel::D3D12Texture2D::TextureCreationOptions opts;
+                opts.Flags = D3D12_RESOURCE_FLAG_NONE;
+                opts.Path = filepath;
+				metallicTexture = Hazel::D3D12Texture2D::CreateCommittedTexture(batch, opts);
+                TextureLibrary->Add(metallicTexture);
+            }
+            materials[i]->HasMatallicTexture = true;
+			materials[i]->MetallicTexture = metallicTexture;
+		}
+        else
+        {
+            HZ_WARN("\tNot using roughness map");
+            materials[i]->HasMatallicTexture = false;
+            materials[i]->Metallic = metalness;
+        }
 
 
 		// Alpha
