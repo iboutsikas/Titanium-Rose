@@ -187,10 +187,10 @@ Hazel::Ref<Hazel::GameObject> ModelLoader::LoadFromFile(std::string& filepath, H
 			materials[i]->EmissiveColor = glm::vec4(emissiveColor.r, emissiveColor.g, emissiveColor.b, 1.0f);
 		}
 
-		float shininess;
+		float shininess = 1.0f;
 		aiMaterial->Get(AI_MATKEY_SHININESS, shininess);
 
-		float metalness;
+		float metalness = 0.0f;
 		aiMaterial->Get(AI_MATKEY_REFLECTIVITY, metalness);
 
 		float roughness = 1.0f - glm::sqrt(shininess / 100.0f);
@@ -308,13 +308,14 @@ Hazel::Ref<Hazel::GameObject> ModelLoader::LoadFromFile(std::string& filepath, H
 			for (uint32_t p = 0; p < aiMaterial->mNumProperties; p++)
 			{
 				auto prop = aiMaterial->mProperties[p];
+                std::string key = prop->mKey.data;
+
+                HZ_TRACE("\t\tProperty: {}", key);
 
 				if (prop->mType == aiPTI_String)
 				{
                     uint32_t length = *(uint32_t*)prop->mData;
                     std::string str(prop->mData + 4, length);
-
-					std::string key = prop->mKey.data;
 
 					// The raw property for reflection, ie Metalness. Since 
 					// it is not mapped to the texture earlier for some reason

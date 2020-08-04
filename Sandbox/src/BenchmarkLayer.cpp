@@ -18,6 +18,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <memory>
+#include <random>
 
 static uint32_t STATIC_RESOURCES = 0;
 static constexpr uint32_t MaxItemsPerSubmission = 25;
@@ -37,10 +38,18 @@ BenchmarkLayer::BenchmarkLayer()
     cameraTransform.RotateAround(cameraTransform.Right(), 15.0f);
 
     m_Path.resize(4);
+
+#if USE_SPONZA
     m_Path[0] = { { -122.0f, 15.0f,  42.0f }, &m_Path[1] };
     m_Path[1] = { {  122.0f, 15.0f,  42.0f }, &m_Path[2] };
     m_Path[2] = { {  122.0f, 15.0f, -42.0f }, &m_Path[3] };
     m_Path[3] = { { -122.0f, 15.0f, -42.0f }, &m_Path[0] };
+#else
+    m_Path[0] = { { -16.0f, 0.0f,  16.0f }, &m_Path[1] };
+    m_Path[1] = { {  16.0f, 0.0f,  16.0f }, &m_Path[2] };
+    m_Path[2] = { {  16.0f, 0.0f, -16.0f }, &m_Path[3] };
+    m_Path[3] = { { -16.0f, 0.0f, -16.0f }, &m_Path[0] };
+#endif
 
     ModelLoader::TextureLibrary = Hazel::D3D12Renderer::TextureLibrary;
 
@@ -105,20 +114,26 @@ BenchmarkLayer::BenchmarkLayer()
 #endif
 
     m_Scene.Entities.push_back(model);
-    m_Scene.Lights.resize(2);
+    m_Scene.Lights.resize(D3D12Renderer::MaxSupportedLights);
     m_Scene.Camera = &m_CameraController.GetCamera();
     m_Scene.Exposure = 1.0f;
 
-    m_PatrolComponents.resize(2);
+    m_PatrolComponents.resize(D3D12Renderer::MaxSupportedLights);
     for (auto& light : m_Scene.Lights)
     {
-        light.GameObject = ModelLoader::LoadFromFile(std::string("assets/models/test_sphere.glb"), batch);
-        light.Range = 5.0f;
+        light.GameObject = ModelLoader::LoadFromFile(std::string("assets/models/test_sphere2.glb"), batch);
+        light.Range = 15.0f;
         light.Intensity = 1.0f;
         light.GameObject->Material->Color = { 1.0f, 1.0f, 1.0f };
         light.GameObject->Transform.SetScale(0.2f, 0.2f, 0.2f);
         light.GameObject->Transform.SetPosition(0.0f, 0.0f, 5.0f);
     }
+
+    std::random_device rd;
+    std::mt19937 generator;
+    std::uniform_real_distribution<float> positionDistribution(-16.0f, std::nextafter(16, DBL_MAX));
+    std::uniform_real_distribution<float> colorDistribution(0.0f, std::nextafter(1, DBL_MAX));
+    std::uniform_int_distribution<int> pathDistribution(0, m_Path.size() - 1);
 
     for (size_t i = 0; i < m_Scene.Lights.size(); i++)
     {
@@ -143,6 +158,24 @@ BenchmarkLayer::BenchmarkLayer()
             m_PatrolComponents[i].NextWaypoint = &m_Path[0];
             m_PatrolComponents[i].Patrol = false;
         }
+        else
+        {
+            float x = positionDistribution(generator);
+            float z = positionDistribution(generator);
+
+            m_Scene.Lights[i].GameObject->Transform.SetPosition(x, 0.0f, z);
+
+            float r = colorDistribution(generator);
+            float g = colorDistribution(generator);
+            float b = colorDistribution(generator);
+            m_Scene.Lights[i].GameObject->Material->Color = { r, g, b };
+            int path = pathDistribution(generator);
+
+            m_PatrolComponents[i].Transform = &m_Scene.Lights[i].GameObject->Transform;
+            m_PatrolComponents[i].NextWaypoint = &m_Path[path];
+            m_PatrolComponents[i].Patrol = false;
+        }
+            
 
     }
 #if 1

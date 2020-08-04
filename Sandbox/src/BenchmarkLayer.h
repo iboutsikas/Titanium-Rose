@@ -26,7 +26,7 @@ struct PatrolComponent
 	Hazel::HTransform* Transform = nullptr;
 	bool Patrol = false;
 	Waypoint* NextWaypoint = nullptr;
-	float Speed = 0.03f;
+	float Speed = 5.0f;
 
 	void OnUpdate(Hazel::Timestep ts)
 	{
@@ -36,15 +36,15 @@ struct PatrolComponent
 		}
 
 		glm::vec3 pos = Transform->Position();
-		glm::vec3 distance = NextWaypoint->Position - pos;
+		glm::vec3 movementVector = NextWaypoint->Position - pos;
 
-		float displacement = Speed * ts.GetMilliseconds();
+		float displacement = Speed * ts.GetSeconds();
 
-		if (glm::length2(distance) > displacement * displacement)
+		if (glm::length2(movementVector) > displacement * displacement)
 		{
 			// we move towards nextwaypoint
-			glm::vec3 dir = glm::normalize(distance);
-			glm::vec3 target_pos = pos + dir * displacement;
+			glm::vec3 direction = glm::normalize(movementVector);
+			glm::vec3 target_pos = pos + direction * displacement;
 			//float alpha = ts.GetMilliseconds();
 			//target_pos = glm::lerp(pos, target_pos, ts.GetMilliseconds());
 

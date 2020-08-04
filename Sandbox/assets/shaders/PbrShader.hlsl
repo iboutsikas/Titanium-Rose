@@ -31,7 +31,7 @@ cbuffer cbPerObject : register(b0) {
     matrix WorldToLocal;
     float3 MaterialColor;
     bool HasAlbedo;
-    float3 EmissiveColor;
+    float3 MaterialEmissive;
     bool HasNormal;
     bool HasMetallic;
     float MaterialMetallic;
@@ -90,6 +90,7 @@ float4 PS_Main(PSInput input) : SV_TARGET
     float3 F0 = lerp(Fdielectric, Albedo, Metalness);
 
     float3 directLighting = 0.0;
+    #if 1
     for(uint i = 0; i < NumLights; i++)
     {
         Light l = SceneLights[i];
@@ -135,7 +136,7 @@ float4 PS_Main(PSInput input) : SV_TARGET
         // Total contribution for this light.
         directLighting += (diffuseBRDF + specularBRDF) * l.Color * l.Intensity * cosLi * attenuation * shadowFactor;
     }
-
+    #endif
     // Ambient lighting (IBL).
     float3 ambientLighting;
     {
@@ -169,6 +170,6 @@ float4 PS_Main(PSInput input) : SV_TARGET
         ambientLighting = diffuseIBL + specularIBL;
     }
 
-    // return float4(ambientLighting, 1.0);
-    return float4( ambientLighting + directLighting, 1);
+    // return float4(MaterialEmissive, 1.0);
+    return float4(ambientLighting + directLighting + MaterialEmissive, 1);
 }
