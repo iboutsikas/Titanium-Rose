@@ -129,6 +129,7 @@ namespace Hazel {
 		m_CompilationState.reset(new CompilationSate());
 
 		m_Errors.clear();
+		m_Warnings.clear();
 		std::wstring stemp = std::wstring(m_Path.begin(), m_Path.end());
 
 		if (FAILED(Compile(stemp, "VS_Main", "vs_5_1", &m_CompilationState->vertexBlob))) {
@@ -195,6 +196,14 @@ namespace Hazel {
 				shaderBlob->Release();
 
 			return hr;
+		}
+
+		if (errorBlob != nullptr) 
+		{
+            OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+            HZ_CORE_WARN("Error compiling shader: {}", (char*)errorBlob->GetBufferPointer());
+            m_Warnings.push_back((char*)errorBlob->GetBufferPointer());
+            errorBlob->Release();
 		}
 
 		*blob = shaderBlob;

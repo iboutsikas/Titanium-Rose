@@ -263,14 +263,14 @@ void BenchmarkLayer::OnImGuiRender()
 
     ImGui::Begin("Shader Control Center");    
     ImGui::Columns(2);
-    ImGui::AlignTextToFramePadding();
+    //ImGui::AlignTextToFramePadding();
 
     for (const auto& [key, shader] : *D3D12Renderer::ShaderLibrary)
     {
         ImGui::PushID(shader->GetName().c_str());
         ImGui::Text(shader->GetName().c_str());
         ImGui::NextColumn();
-        ImGui::PushItemWidth(-1);
+        ImGui::PushItemWidth(-1.0f);
 
         if (ImGui::Button("Recompile")) {
             HZ_INFO("Recompile button clicked for {}", shader->GetName());
@@ -279,8 +279,8 @@ void BenchmarkLayer::OnImGuiRender()
                     HZ_ERROR(err);
                 }
             }
-            for (auto& err : shader->GetErrors()) {
-                HZ_WARN(err);
+            for (auto& warn : shader->GetWarnings()) {
+                HZ_WARN(warn);
             }
         }
         ImGui::NextColumn();

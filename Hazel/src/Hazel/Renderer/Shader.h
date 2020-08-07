@@ -39,11 +39,13 @@ namespace Hazel {
 
 		virtual bool Recompile(void* pipelineStream = nullptr) { return true; }
 		virtual std::vector<std::string>& GetErrors() { return m_Errors; }
+		virtual std::vector<std::string>& GetWarnings() { return m_Warnings; }
 
 		static Ref<Shader> Create(const std::string& filepath);
 		static Ref<Shader> Create(const std::string& name, const std::string& vertexSrc, const std::string& fragmentSrc);
 
 	protected:
 		std::vector<std::string> m_Errors;
+		std::vector<std::string> m_Warnings;
 	};
 }
