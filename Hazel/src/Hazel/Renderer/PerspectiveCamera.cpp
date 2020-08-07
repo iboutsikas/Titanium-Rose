@@ -23,6 +23,21 @@ namespace Hazel {
 		m_ViewProjectionMatrix = m_ProjectionMatrix * m_ViewMatrix;
 	}
 
+	Ray PerspectiveCamera::ScreenspaceToRay(float x, float y)
+	{
+		// DX12 Z is [0, 1] in clip space, not [-1, 1]
+        glm::vec4 mouseClipPosition = { x, y, 0.0f, 1.0f };
+		auto inverseProj = glm::inverse(m_ProjectionMatrix);
+		auto inverseView = glm::inverse(glm::mat3(m_ViewMatrix));
+
+		glm::vec4 ray = inverseProj * mouseClipPosition;
+		glm::vec3 rayPos = m_Transform.Position();
+		glm::vec3 dir = inverseView * glm::vec3(ray);
+
+
+		return Ray(rayPos, dir);
+	}
+
 	void PerspectiveCamera::RecalculateViewMatrix()
 	{
 		HZ_PROFILE_FUNCTION();

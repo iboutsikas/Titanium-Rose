@@ -59,15 +59,13 @@ struct PatrolComponent
 
 };
 
+struct DecoupledTextureComponent {
+
+};
+
 class BenchmarkLayer : public Hazel::Layer
 {
 public:
-
-	enum class PropertyFlag
-	{
-		None = 0, ColorProperty = 1
-	};
-
     BenchmarkLayer();
     virtual ~BenchmarkLayer() = default;
 
@@ -77,16 +75,8 @@ public:
 	void OnUpdate(Hazel::Timestep ts) override;
 	virtual void OnImGuiRender() override;
 	void OnEvent(Hazel::Event& e) override;
+	bool OnMouseButtonPressed(Hazel::MouseButtonPressedEvent& event);
 
-	// ImGui UI helpers
-	bool Property(const std::string& name, bool& value);
-	void Property(const std::string& name, float& value, float min = -1.0f, float max = 1.0f, PropertyFlag flags = PropertyFlag::None);
-	void Property(const std::string& name, glm::vec2& value, PropertyFlag flags);
-	void Property(const std::string& name, glm::vec2& value, float min = -1.0f, float max = 1.0f, PropertyFlag flags = PropertyFlag::None);
-	void Property(const std::string& name, glm::vec3& value, PropertyFlag flags);
-	void Property(const std::string& name, glm::vec3& value, float min = -1.0f, float max = 1.0f, PropertyFlag flags = PropertyFlag::None);
-	void Property(const std::string& name, glm::vec4& value, PropertyFlag flags);
-	void Property(const std::string& name, glm::vec4& value, float min = -1.0f, float max = 1.0f, PropertyFlag flags = PropertyFlag::None);
 private:
 
 	Hazel::Scene m_Scene;
@@ -100,5 +90,7 @@ private:
 
 	float m_LastFrameTime;
 	int m_EnvironmentLevel = 0;
+
+	Hazel::Ref<Hazel::GameObject> m_Selection = nullptr;
 };
 

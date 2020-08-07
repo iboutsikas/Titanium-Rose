@@ -10,12 +10,12 @@
 
 #include "ModelLoader.h"
 #include "Hazel/Renderer/Vertex.h"
+#include "Hazel/Core/Math/Ray.h"
 
 #include "ImGui/imgui.h"
 #include "ImGui/ImGuiHelpers.h"
 #include "winpixeventruntime/pix3.h"
 
-#include <glm/gtc/type_ptr.hpp>
 
 #include <memory>
 #include <random>
@@ -45,10 +45,10 @@ BenchmarkLayer::BenchmarkLayer()
     m_Path[2] = { {  122.0f, 15.0f, -42.0f }, &m_Path[3] };
     m_Path[3] = { { -122.0f, 15.0f, -42.0f }, &m_Path[0] };
 #else
-    m_Path[0] = { { -16.0f, 0.0f,  16.0f }, &m_Path[1] };
-    m_Path[1] = { {  16.0f, 0.0f,  16.0f }, &m_Path[2] };
-    m_Path[2] = { {  16.0f, 0.0f, -16.0f }, &m_Path[3] };
-    m_Path[3] = { { -16.0f, 0.0f, -16.0f }, &m_Path[0] };
+    m_Path[0] = { { -13.0f, 0.0f,  13.0f }, &m_Path[1] };
+    m_Path[1] = { {  13.0f, 0.0f,  13.0f }, &m_Path[2] };
+    m_Path[2] = { {  13.0f, 0.0f, -13.0f }, &m_Path[3] };
+    m_Path[3] = { { -13.0f, 0.0f, -13.0f }, &m_Path[0] };
 #endif
 
     ModelLoader::TextureLibrary = Hazel::D3D12Renderer::TextureLibrary;
@@ -114,11 +114,11 @@ BenchmarkLayer::BenchmarkLayer()
 #endif
 
     m_Scene.Entities.push_back(model);
-    m_Scene.Lights.resize(D3D12Renderer::MaxSupportedLights);
+    m_Scene.Lights.resize(2);
     m_Scene.Camera = &m_CameraController.GetCamera();
     m_Scene.Exposure = 1.0f;
 
-    m_PatrolComponents.resize(D3D12Renderer::MaxSupportedLights);
+    m_PatrolComponents.resize(2);
     for (auto& light : m_Scene.Lights)
     {
         light.GameObject = ModelLoader::LoadFromFile(std::string("assets/models/test_sphere2.glb"), batch);
@@ -260,8 +260,8 @@ void BenchmarkLayer::OnImGuiRender()
         m_CameraController.GetCamera().SetPosition(camera_pos);
     ImGui::End();
 
-    ImGui::Begin("Shader Control Center");
-    
+
+    ImGui::Begin("Shader Control Center");    
     ImGui::Columns(2);
     ImGui::AlignTextToFramePadding();
 
@@ -297,133 +297,82 @@ void BenchmarkLayer::OnImGuiRender()
             m_Scene.LoadEnvironment(filename);
     }
     ImGui::DragInt("Skybox LOD", &m_EnvironmentLevel, 0.05f, 0, m_Scene.Environment.EnvironmentMap->GetMipLevels());
-
     ImGui::Columns(2);
     ImGui::AlignTextToFramePadding();
-    Property("Exposure", m_Scene.Exposure, 0.0f, 5.0f);
-    
-
+    ImGui::Property("Exposure", m_Scene.Exposure, 0.0f, 5.0f);
     ImGui::Columns(1);
     ImGui::End();
 
 
 
     ImGui::Begin("Lights");
-    //ImGui::Text("Ambient Light");
-    //ImGui::ColorEdit3("Color", &m_Scene.AmbientLight.x);
-    //ImGui::DragFloat("Intensity", &m_Scene.AmbientIntensity, 0.01f, 0.0f, 1.0f, "%.2f");
-
-
     for (size_t i = 0; i < m_Scene.Lights.size(); i++)
     {
         Hazel::Light* light = &m_Scene.Lights[i];
         PatrolComponent* c = &m_PatrolComponents[i];
 
         ImGui::PushID(i);
-        ImGui::Text("Point Light #%d", i+1);
-        ImGui::TransformControl(&light->GameObject->Transform);
-        light->GameObject->Material->EmissiveColor = light->GameObject->Material->Color;
-        ImGui::MaterialControl(light->GameObject->Material.get());
-        ImGui::DragInt("Range", &light->Range, 1, 0, 1500);
-        ImGui::DragFloat("Intensity", &light->Intensity, 0.1f, 0.0f, 10.0f, "%0.2f");
-        ImGui::Checkbox("Follow path", &c->Patrol);
+        std::string label = "Point Light #" + std::to_string(i + 1);
+        ImGui::Columns(1);
+        if (ImGui::CollapsingHeader(label.c_str(), ImGuiTreeNodeFlags_None))
+        {
+            ImGui::TransformControl(light->GameObject->Transform);
+            light->GameObject->Material->EmissiveColor = light->GameObject->Material->Color;
+            ImGui::MaterialControl(light->GameObject->Material);
+            ImGui::Columns(2);
+            ImGui::Property("Range", light->Range, 1, 50, ImGui::PropertyFlag::None);
+            ImGui::Property("Intensity", light->Intensity, 0.0f, 15.0f, ImGui::PropertyFlag::None);
+            ImGui::Property("Follow path", c->Patrol);
+        }
         ImGui::PopID();
     }
 
     ImGui::End();
+
+    ImGui::EntityPanel(m_Selection);
+    
 #endif
 }
 
 void BenchmarkLayer::OnEvent(Hazel::Event& e)
 {
+    Hazel::EventDispatcher dispatcher(e);
+
+    dispatcher.Dispatch<Hazel::MouseButtonPressedEvent>(HZ_BIND_EVENT_FN(BenchmarkLayer::OnMouseButtonPressed));
 }
 
-
-bool BenchmarkLayer::Property(const std::string& name, bool& value)
+bool BenchmarkLayer::OnMouseButtonPressed(Hazel::MouseButtonPressedEvent& event)
 {
-    ImGui::Text(name.c_str());
-    ImGui::NextColumn();
-    ImGui::PushItemWidth(-1);
+    using namespace Hazel;
 
-    std::string id = "##" + name;
-    bool result = ImGui::Checkbox(id.c_str(), &value);
+    auto [mx, my] = Input::GetMousePosition();
+    ImGui::IsAnyWindowHovered();
 
-    ImGui::PopItemWidth();
-    ImGui::NextColumn();
+    if (event.GetMouseButton() == HZ_MOUSE_BUTTON_LEFT && !ImGui::IsAnyWindowHovered()) {
+        // Convert to clip x and y
+        auto vp = D3D12Renderer::Context->Viewport;
 
-    return result;
+        mx -= vp.TopLeftX;
+        my -= vp.TopLeftY;
+
+        mx = (mx / vp.Width) * 2.0f - 1.0f;
+        my = ((my / vp.Height) * 2.0f - 1.0f) * -1.0f;
+
+        auto ray = m_Scene.Camera->ScreenspaceToRay(mx, my);
+
+        RaycastHit hit;
+
+        if (Ray::Raycast(m_Scene, ray, hit))
+        {
+            HZ_INFO("Raycast hit: {}", hit.GameObject->Name);
+            m_Selection = hit.GameObject;
+        }
+        else
+        {
+            m_Selection = nullptr;
+        }
+    }
+
+    return false;
 }
 
-void BenchmarkLayer::Property(const std::string& name, float& value, float min, float max, BenchmarkLayer::PropertyFlag flags)
-{
-    ImGui::Text(name.c_str());
-    ImGui::NextColumn();
-    ImGui::PushItemWidth(-1);
-
-    std::string id = "##" + name;
-    ImGui::SliderFloat(id.c_str(), &value, min, max);
-
-    ImGui::PopItemWidth();
-    ImGui::NextColumn();
-}
-
-void BenchmarkLayer::Property(const std::string& name, glm::vec2& value, BenchmarkLayer::PropertyFlag flags)
-{
-    Property(name, value, -1.0f, 1.0f, flags);
-}
-
-void BenchmarkLayer::Property(const std::string& name, glm::vec2& value, float min, float max, BenchmarkLayer::PropertyFlag flags)
-{
-    ImGui::Text(name.c_str());
-    ImGui::NextColumn();
-    ImGui::PushItemWidth(-1);
-
-    std::string id = "##" + name;
-    ImGui::SliderFloat2(id.c_str(), glm::value_ptr(value), min, max);
-
-    ImGui::PopItemWidth();
-    ImGui::NextColumn();
-}
-
-void BenchmarkLayer::Property(const std::string& name, glm::vec3& value, BenchmarkLayer::PropertyFlag flags)
-{
-    Property(name, value, -1.0f, 1.0f, flags);
-}
-
-void BenchmarkLayer::Property(const std::string& name, glm::vec3& value, float min, float max, BenchmarkLayer::PropertyFlag flags)
-{
-    ImGui::Text(name.c_str());
-    ImGui::NextColumn();
-    ImGui::PushItemWidth(-1);
-
-    std::string id = "##" + name;
-    if ((int)flags & (int)PropertyFlag::ColorProperty)
-        ImGui::ColorEdit3(id.c_str(), glm::value_ptr(value), ImGuiColorEditFlags_NoInputs);
-    else
-        ImGui::SliderFloat3(id.c_str(), glm::value_ptr(value), min, max);
-
-    ImGui::PopItemWidth();
-    ImGui::NextColumn();
-}
-
-void BenchmarkLayer::Property(const std::string& name, glm::vec4& value, BenchmarkLayer::PropertyFlag flags)
-{
-    Property(name, value, -1.0f, 1.0f, flags);
-}
-
-void BenchmarkLayer::Property(const std::string& name, glm::vec4& value, float min, float max, BenchmarkLayer::PropertyFlag flags)
-{
-
-    ImGui::Text(name.c_str());
-    ImGui::NextColumn();
-    ImGui::PushItemWidth(-1);
-
-    std::string id = "##" + name;
-    if ((int)flags & (int)PropertyFlag::ColorProperty)
-        ImGui::ColorEdit4(id.c_str(), glm::value_ptr(value), ImGuiColorEditFlags_NoInputs);
-    else
-        ImGui::SliderFloat4(id.c_str(), glm::value_ptr(value), min, max);
-
-    ImGui::PopItemWidth();
-    ImGui::NextColumn();
-}

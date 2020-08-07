@@ -171,5 +171,5 @@ float4 PS_Main(PSInput input) : SV_TARGET
     }
 
     // return float4(MaterialEmissive, 1.0);
-    return float4(ambientLighting + directLighting + MaterialEmissive, 1);
+    return float4(directLighting + ambientLighting + MaterialEmissive, 1);
 }

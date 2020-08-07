@@ -97,12 +97,16 @@ void processNode(aiNode* node, const aiScene* scene,
 		for (size_t f = 0; f < aimesh->mNumFaces; f++)
 #pragma region Indices
 		{
-			aiFace face = aimesh->mFaces[f];
-
-			for (size_t i = 0; i < face.mNumIndices; i++)
-			{
-				indices.push_back(face.mIndices[i]);
-			}
+			aiFace& face = aimesh->mFaces[f];
+			HZ_CORE_ASSERT(face.mNumIndices == 3, "Can only deal with triangles right now!");
+			Hazel::Triangle tri;
+			tri.V0 = &vertices[face.mIndices[0]];
+            indices.push_back(face.mIndices[0]);
+            tri.V1 = &vertices[face.mIndices[1]];
+            indices.push_back(face.mIndices[1]);
+            tri.V2 = &vertices[face.mIndices[2]];
+            indices.push_back(face.mIndices[2]);
+			hmesh->triangles.push_back(tri);
 #pragma endregion
 		}
 		
@@ -112,9 +116,9 @@ void processNode(aiNode* node, const aiScene* scene,
 		hmesh->indexBuffer = Hazel::CreateRef<Hazel::D3D12IndexBuffer>(batch, indices.data(), indices.size());
 		hmesh->indexBuffer->GetResource()->SetName(L"Index buffer");
 
-		hmesh->vertices = vertices;
-		hmesh->indices = indices;
-
+		hmesh->vertices.swap(vertices);
+		hmesh->indices.swap(indices);
+		hmesh->BoundingBox = boundingBox;
 		target->Mesh = hmesh;
 	}
 
@@ -309,9 +313,9 @@ Hazel::Ref<Hazel::GameObject> ModelLoader::LoadFromFile(std::string& filepath, H
 			{
 				auto prop = aiMaterial->mProperties[p];
                 std::string key = prop->mKey.data;
-
+#if 0
                 HZ_TRACE("\t\tProperty: {}", key);
-
+#endif
 				if (prop->mType == aiPTI_String)
 				{
                     uint32_t length = *(uint32_t*)prop->mData;

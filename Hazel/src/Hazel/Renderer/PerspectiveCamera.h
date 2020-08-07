@@ -4,6 +4,8 @@
 #include <glm/gtc/quaternion.hpp>
 
 #include "Hazel/ComponentSystem/GameObject.h"
+#include "Hazel/Core/Math/Ray.h"
+
 
 namespace Hazel {
 
@@ -29,6 +31,8 @@ namespace Hazel {
 		glm::vec3 GetUp() { return m_Transform.Up(); }
 
 		HTransform& GetTransform() { return m_Transform; }
+
+		Ray ScreenspaceToRay(float x, float y);
 
 		void RecalculateViewMatrix();
 	private:

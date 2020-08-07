@@ -58,4 +58,5 @@ float4 PS_Main(PSInput pin) : SV_Target
 
 	// Gamma correction.
 	return float4(pow(mappedColor, 1.0/gamma), 1.0);
+	// return float4(color, 1);
 }

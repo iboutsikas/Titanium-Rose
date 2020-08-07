@@ -1,23 +1,93 @@
 #include "ImGuiHelpers.h"
 #include "imgui/imgui.h"
+#ifndef GLM_ENABLE_EXPERIMENTAL
+#define GLM_ENABLE_EXPERIMENTAL
+#endif
 
-void ImGui::TransformControl(Hazel::HTransform* transform)
+#include <glm/gtx/quaternion.hpp>
+#include <glm/gtx/matrix_decompose.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
+
+static std::tuple<glm::vec3, glm::quat, glm::vec3> DecomposeTransform(Hazel::HTransform& transform)
 {
-	auto pos = transform->Position();
-	ImGui::DragFloat3("Position", &pos.x);
-	transform->SetPosition(pos);
+    glm::vec3 scale, translation, skew;
+    glm::vec4 perspective;
+    glm::quat orientation;
+	glm::decompose(transform.LocalToWorldMatrix(), scale, orientation, translation, skew, perspective);
 
-	auto scale = transform->Scale();
-	ImGui::InputFloat3("Scale", &scale.x);
-	transform->SetScale(scale);
-
-	// TODO: Rotation
+    return { translation, orientation, scale };
 }
 
-void ImGui::MaterialControl(Hazel::HMaterial* material)
+void ImGui::TransformControl(Hazel::HTransform& transform)
 {
-	//ImGui::InputFloat("Specular", &material->Specular);
-	ImGui::ColorEdit3("Material Color", &material->Color.x);
+    ImGui::Columns(2);
+    // ------ Translation ------
+    auto translation = transform.Position();
+    Property("Translation", translation, 0.0f, 0.0f, PropertyFlag::InputProperty);
+    if (translation != transform.Position()) {
+        transform.SetPosition(translation);
+    }
+
+    // ------ Scale ------
+    auto scale = transform.Scale();
+    Property("Scale", scale, 0.0f, 0.0f, PropertyFlag::InputProperty);
+    if (scale != transform.Scale()) {
+        transform.SetScale(scale);
+    }
+    ImGui::Columns(1);
+}
+
+void ImGui::MaterialControl(Hazel::Ref<Hazel::HMaterial>& material)
+{
+    ImGui::Columns(2);
+    // ------ Albedo ------
+    ImGui::Separator();
+    bool useAlbedo = material->HasAlbedoTexture;
+    bool useDecoupledTexture = false;
+    Property("Use albedo texture", useAlbedo);
+    Property("Use decoupled texture", useDecoupledTexture);
+
+    if (useAlbedo != material->HasAlbedoTexture) {
+        material->HasAlbedoTexture = useAlbedo;
+    }
+
+    if (!useAlbedo) {
+        ImGui::Property("Albedo Color", material->Color, ImGui::PropertyFlag::ColorProperty);
+    }
+
+    // ------ Roughness ------
+    ImGui::Separator();
+    bool useRoughness = material->HasRoughnessTexture;
+    Property("Use roughness texture", useRoughness);
+
+    if (useRoughness != material->HasRoughnessTexture) {
+        material->HasRoughnessTexture = useRoughness;
+    }
+
+    if (!useRoughness) {
+        ImGui::Property("Roughness", material->Roughness, 0.0f, 1.0f, PropertyFlag::None);
+    }
+
+    // ------ Metallic ------
+    ImGui::Separator();
+    bool useMetallic = material->HasMatallicTexture;
+    Property("Use metallic texture", useMetallic);
+
+    if (useMetallic != material->HasMatallicTexture) {
+        material->HasMatallicTexture = useMetallic;
+    }
+
+    if (!useMetallic) {
+        ImGui::Property("Metallic", material->Metallic, 0.0f, 1.0f, PropertyFlag::None);
+    }
+
+    // ------ Emissive ------
+    ImGui::Separator();
+
+    ImGui::Property("Emissive", material->EmissiveColor, PropertyFlag::ColorProperty);
+
+    ImGui::Columns(1);
 }
 
 void ImGui::MeshSelectControl(Hazel::Ref<Hazel::GameObject>& target, std::vector<Hazel::Ref<Hazel::GameObject>>& models)
@@ -43,4 +113,145 @@ void ImGui::MeshSelectControl(Hazel::Ref<Hazel::GameObject>& target, std::vector
 	if (selectedMesh != target->Mesh) {
 		target->Mesh = selectedMesh;
 	}
+}
+
+void ImGui::EntityPanel(Hazel::Ref<Hazel::GameObject>& target)
+{
+    static constexpr char* emptyString = "";
+
+    ImGui::Begin("Selection");
+    ImGui::Text("Selected entity: %s", target == nullptr ? emptyString : target->Name.c_str());
+
+    ImGui::AlignTextToFramePadding();
+
+    if (target == nullptr) { goto ret; }
+    if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        TransformControl(target->Transform);
+    }
+    
+
+    if (target->Material == nullptr) { goto ret; }
+
+    auto& mat = target->Material;
+    ImGui::Columns(1);
+    if (ImGui::CollapsingHeader("Material", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGui::MaterialControl(mat);
+    }
+
+
+    
+
+ret:
+    ImGui::Columns(1);
+    ImGui::End();
+}
+
+
+bool ImGui::Property(const std::string& name, bool& value)
+{
+    ImGui::Text(name.c_str());
+    ImGui::NextColumn();
+    ImGui::PushItemWidth(-1);
+
+    std::string id = "##" + name;
+    bool result = ImGui::Checkbox(id.c_str(), &value);
+
+    ImGui::PopItemWidth();
+    ImGui::NextColumn();
+
+    return result;
+}
+
+void ImGui::Property(const std::string& name, float& value, float min, float max, ImGui::PropertyFlag flags)
+{
+    ImGui::Text(name.c_str());
+    ImGui::NextColumn();
+    ImGui::PushItemWidth(-1);
+
+    std::string id = "##" + name;
+    ImGui::SliderFloat(id.c_str(), &value, min, max);
+
+    ImGui::PopItemWidth();
+    ImGui::NextColumn();
+}
+
+void ImGui::Property(const std::string& name, int& value, int min, int max, PropertyFlag flags)
+{
+    ImGui::Text(name.c_str());
+    ImGui::NextColumn();
+    ImGui::PushItemWidth(-1);
+
+    std::string id = "##" + name;
+    if ((int)flags & (int)PropertyFlag::InputProperty)
+        ImGui::DragInt(id.c_str(), &value, 1.0f, min, max);
+    else
+        ImGui::SliderInt(id.c_str(), &value, min, max);
+
+    ImGui::PopItemWidth();
+    ImGui::NextColumn();
+}
+
+void ImGui::Property(const std::string& name, glm::vec2& value, ImGui::PropertyFlag flags)
+{
+    Property(name, value, -1.0f, 1.0f, flags);
+}
+
+void ImGui::Property(const std::string& name, glm::vec2& value, float min, float max, ImGui::PropertyFlag flags)
+{
+    ImGui::Text(name.c_str());
+    ImGui::NextColumn();
+    ImGui::PushItemWidth(-1);
+
+    std::string id = "##" + name;
+    ImGui::SliderFloat2(id.c_str(), glm::value_ptr(value), min, max);
+
+    ImGui::PopItemWidth();
+    ImGui::NextColumn();
+}
+
+void ImGui::Property(const std::string& name, glm::vec3& value, ImGui::PropertyFlag flags)
+{
+    Property(name, value, -1.0f, 1.0f, flags);
+}
+
+void ImGui::Property(const std::string& name, glm::vec3& value, float min, float max, ImGui::PropertyFlag flags)
+{
+    ImGui::Text(name.c_str());
+    ImGui::NextColumn();
+    ImGui::PushItemWidth(-1);
+
+    std::string id = "##" + name;
+    if ((int)flags & (int)PropertyFlag::ColorProperty)
+        ImGui::ColorEdit3(id.c_str(), glm::value_ptr(value), ImGuiColorEditFlags_NoInputs);
+    else if ((int)flags & (int)PropertyFlag::InputProperty)
+        ImGui::DragFloat3(id.c_str(), glm::value_ptr(value), 0.02f, min, max);
+    else
+        ImGui::SliderFloat3(id.c_str(), glm::value_ptr(value), min, max);
+
+    ImGui::PopItemWidth();
+    ImGui::NextColumn();
+}
+
+void ImGui::Property(const std::string& name, glm::vec4& value, ImGui::PropertyFlag flags)
+{
+    Property(name, value, -1.0f, 1.0f, flags);
+}
+
+void ImGui::Property(const std::string& name, glm::vec4& value, float min, float max, ImGui::PropertyFlag flags)
+{
+
+    ImGui::Text(name.c_str());
+    ImGui::NextColumn();
+    ImGui::PushItemWidth(-1);
+
+    std::string id = "##" + name;
+    if ((int)flags & (int)PropertyFlag::ColorProperty)
+        ImGui::ColorEdit4(id.c_str(), glm::value_ptr(value), ImGuiColorEditFlags_NoInputs);
+    else
+        ImGui::SliderFloat4(id.c_str(), glm::value_ptr(value), min, max);
+
+    ImGui::PopItemWidth();
+    ImGui::NextColumn();
 }
