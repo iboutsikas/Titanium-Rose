@@ -5,7 +5,9 @@
 #include "Platform/D3D12/D3D12Buffer.h"
 #include "Platform/D3D12/D3D12ResourceBatch.h"
 #include "Platform/D3D12/D3D12ForwardRenderer.h"
+#include "Platform/D3D12/DecoupledRenderer.h"
 #include "Platform/D3D12/D3D12Shader.h"
+#include "Platform/D3D12/D3D12TilePool.h"
 
 #include "glm/gtc/type_ptr.hpp"
 
@@ -24,6 +26,7 @@ namespace Hazel {
 	D3D12Context*	D3D12Renderer::Context;
 	ShaderLibrary*	D3D12Renderer::ShaderLibrary;
 	TextureLibrary* D3D12Renderer::TextureLibrary;
+	D3D12TilePool*   D3D12Renderer::TilePool;
 
 	D3D12DescriptorHeap* D3D12Renderer::s_ResourceDescriptorHeap;
 	D3D12DescriptorHeap* D3D12Renderer::s_RenderTargetDescriptorHeap;
@@ -52,6 +55,8 @@ namespace Hazel {
 	std::vector<Ref<FrameBuffer>> D3D12Renderer::s_Framebuffers;
 	std::vector<Ref<GameObject>> D3D12Renderer::s_OpaqueObjects;
 	std::vector<Ref<GameObject>> D3D12Renderer::s_TransparentObjects;
+	std::vector<Ref<GameObject>> D3D12Renderer::s_DecoupledObjects;
+
 	std::vector<D3D12Renderer*> D3D12Renderer::s_AvailableRenderers;
 	D3D12Renderer* D3D12Renderer::s_CurrentRenderer = nullptr;
 
@@ -244,13 +249,9 @@ namespace Hazel {
 	{
 		if (go->Mesh != nullptr)
 		{
-			if (go->Material->IsTransparent)
+			for (auto& renderer : s_AvailableRenderers)
 			{
-				s_TransparentObjects.push_back(go);
-			}
-			else
-			{
-				s_OpaqueObjects.push_back(go);
+				renderer->ImplSubmit(go);
 			}
 		}
 
@@ -260,11 +261,32 @@ namespace Hazel {
 		}
 	}
 
+	void D3D12Renderer::Submit(D3D12ResourceBatch& batch, Ref<GameObject>& gameObject)
+	{
+        if (gameObject->Mesh != nullptr)
+        {
+            for (auto& renderer : s_AvailableRenderers)
+            {
+                renderer->ImplSubmit(batch, gameObject);
+            }
+        }
+
+        for (auto& c : gameObject->children)
+        {
+            Submit(batch, c);
+        }
+	}
+
 	void D3D12Renderer::RenderSubmitted()
 	{
-		s_CurrentRenderer->ImplRenderSubmitted();
+		for (auto& renderer : s_AvailableRenderers)
+		{
+			renderer->ImplRenderSubmitted();
+		}
+
 		s_TransparentObjects.clear();
 		s_OpaqueObjects.clear();
+		s_DecoupledObjects.clear();
 	}
 
 	void D3D12Renderer::RenderSkybox(uint32_t miplevel)
@@ -604,14 +626,15 @@ namespace Hazel {
 
 		D3D12Renderer::ShaderLibrary = new Hazel::ShaderLibrary(3);
 		D3D12Renderer::TextureLibrary = new Hazel::TextureLibrary();
-
+		D3D12Renderer::TilePool = new Hazel::D3D12TilePool();
 #pragma region Renderer Implementations
 		// Add the two renderer implementations
 		{
 			s_AvailableRenderers.resize(RendererType_Count);
 			s_AvailableRenderers[RendererType_Forward] = new D3D12ForwardRenderer();
 			s_AvailableRenderers[RendererType_Forward]->ImplOnInit();
-			// s_AvailableRenderers[RendererType_TextureSpace] = new Texture space renderer
+			s_AvailableRenderers[RendererType_TextureSpace] = new DecoupledRenderer();
+			s_AvailableRenderers[RendererType_TextureSpace]->ImplOnInit();
 			s_CurrentRenderer = s_AvailableRenderers[RendererType_Forward];
 		}
 #pragma endregion
@@ -716,7 +739,8 @@ namespace Hazel {
 				"assets/shaders/MipGeneration-Array.hlsl",
 				"assets/shaders/EnvironmentPrefilter.hlsl",
 				"assets/shaders/EnvironmentIrradiance.hlsl",
-				"assets/shaders/SPBRDF_LUT.hlsl"
+				"assets/shaders/SPBRDF_LUT.hlsl",
+				"assets/shaders/ClearUAV.hlsl"
 			};
 
 			for (auto& s : Shaders) {
@@ -1206,6 +1230,75 @@ namespace Hazel {
 			s_ResourceDescriptorHeap->Release(a);
 		}
 		s_ResourceDescriptorHeap->Release(srcAllocation);
+	}
+
+	void D3D12Renderer::ClearUAV(ID3D12GraphicsCommandList* cmdlist, Ref<D3D12FeedbackMap>& resource, uint32_t value)
+	{
+		auto shader = ShaderLibrary->GetAs<D3D12Shader>("ClearUAV");
+
+
+		cmdlist->SetComputeRootSignature(shader->GetRootSignature());
+		cmdlist->SetPipelineState(shader->GetPipelineState());
+		ID3D12DescriptorHeap* heaps[] = {
+			s_ResourceDescriptorHeap->GetHeap()
+		};
+		cmdlist->SetDescriptorHeaps(_countof(heaps), heaps);
+		cmdlist->SetComputeRoot32BitConstants(0, 1, &value, 0);
+
+		ID3D12Resource* res = nullptr;
+		glm::ivec3 dims = { 1, 1, 1 };
+
+		if (resource != nullptr)
+		{
+			res = resource->GetResource();
+			dims = resource->GetDimensions();
+		}
+
+		auto dispatch_count = D3D12::RoundToMultiple(dims.x * dims.y, 6);
+
+		cmdlist->Dispatch(dispatch_count, 1, 1);
+		cmdlist->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::UAV(res));
+
+	}
+
+	void D3D12Renderer::UpdateVirtualTextures()
+	{
+		// Readback
+		{
+			D3D12ResourceBatch batch(Context->DeviceResources->Device);
+			auto cmdlist = batch.Begin();
+
+			for (auto& obj : s_DecoupledObjects)
+			{
+				auto tex = obj->DecoupledComponent.VirtualTexture;
+				auto feedback = tex->GetFeedbackMap();
+				feedback->Readback(batch.GetDevice().Get(), batch.GetCommandList().Get());
+			}
+			batch.End(Context->DeviceResources->CommandQueue.Get()).wait();
+		}
+		// Use the readback data, then map the textures
+		{
+            D3D12ResourceBatch batch(Context->DeviceResources->Device);
+            auto cmdlist = batch.Begin();
+			for (auto& obj : s_DecoupledObjects)
+			{
+				auto tex = obj->DecoupledComponent.VirtualTexture;
+				tex->ExtractMipsUsed();
+				TilePool->MapTexture(batch, tex, Context->DeviceResources->CommandQueue);
+			}
+            batch.End(Context->DeviceResources->CommandQueue.Get()).wait();
+		}
+
+	}
+
+	void D3D12Renderer::RenderVirtualTextures()
+	{
+        auto renderer = dynamic_cast<DecoupledRenderer*>(s_AvailableRenderers[RendererType_TextureSpace]);
+		renderer->ImplRenderVirtualTextures();
+	}
+
+	void D3D12Renderer::GenerateVirtualMips()
+	{
 	}
 	
 

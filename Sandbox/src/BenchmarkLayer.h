@@ -59,10 +59,6 @@ struct PatrolComponent
 
 };
 
-struct DecoupledTextureComponent {
-
-};
-
 class BenchmarkLayer : public Hazel::Layer
 {
 public:
@@ -90,7 +86,8 @@ private:
 
 	float m_LastFrameTime;
 	int m_EnvironmentLevel = 0;
-
+	float m_Accumulator = 0.0f;
+	float m_UpdateRate = 0.0f;
 	Hazel::Ref<Hazel::GameObject> m_Selection = nullptr;
 };
 

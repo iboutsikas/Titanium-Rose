@@ -120,7 +120,7 @@ namespace Hazel
             }
         }
 
-    Raycast_Children:
+ Raycast_Children:
         
         for (auto& c : entity->children) {
             if (Raycast(c, ray, hits)) {

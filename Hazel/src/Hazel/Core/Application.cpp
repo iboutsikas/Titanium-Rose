@@ -110,6 +110,7 @@ namespace Hazel {
 	{
 		while (m_Running)
 		{
+			
 			if (!m_Minimized)
 			{
 				D3D12Renderer::NewFrame();
@@ -120,14 +121,14 @@ namespace Hazel {
 						layer->OnUpdate(m_TimeStep);
 				}
 #if USE_IMGUI
-				m_ImGuiLayer->Begin();
-				{
-					HZ_PROFILE_SCOPE("LayerStack OnImGuiRender");
+                m_ImGuiLayer->Begin();
+                {
+                    HZ_PROFILE_SCOPE("LayerStack OnImGuiRender");
 
-					for (Layer* layer : m_LayerStack)
-						layer->OnImGuiRender();
-				}
-				m_ImGuiLayer->End();
+                    for (Layer* layer : m_LayerStack)
+                        layer->OnImGuiRender();
+                }
+                m_ImGuiLayer->End();
 #endif	
 				D3D12Renderer::Present();
 			}

@@ -145,23 +145,6 @@ namespace Hazel {
 		m_RTVDescriptorSize = DeviceResources
 			->Device
 			->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-
-	/*	DeviceResources->SRVDescriptorHeap = DeviceResources->CreateDescriptorHeap(
-			DeviceResources->Device,
-			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-			3,
-			D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
-		);
-		NAME_D3D12_OBJECT(DeviceResources->SRVDescriptorHeap);
-
-		m_SRVDescriptorSize = DeviceResources->Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-		DeviceResources->DSVDescriptorHeap = DeviceResources->CreateDescriptorHeap(
-			DeviceResources->Device,
-			D3D12_DESCRIPTOR_HEAP_TYPE_DSV,
-			1
-		);
-		NAME_D3D12_OBJECT(DeviceResources->DSVDescriptorHeap);*/
 #pragma endregion
 
 		CreateRenderTargetViews();
@@ -181,14 +164,16 @@ namespace Hazel {
 
 		DXGI_ADAPTER_DESC3 desc;
 		theAdapter->GetDesc3(&desc);
-
 		std::wstring description(desc.Description);
-		std::string str(description.begin(), description.end());
-		auto vendorString = VendorIDToString((VendorID)desc.VendorId);
-		HZ_CORE_INFO("DirectX 12 Info:");
-		HZ_CORE_INFO("  Vendor: {0}", vendorString);
-		HZ_CORE_INFO("  Renderer: {0}", str);
-		HZ_CORE_INFO("  Version: Direct3D 12.0");
+
+		RendererCapabilities.Vendor = VendorIDToString((VendorID)desc.VendorId);
+		RendererCapabilities.Device = std::string(description.begin(), description.end());
+		RendererCapabilities.Version = "Direct3D 12.0";
+
+		HZ_CORE_INFO("DirectX Info:");
+		HZ_CORE_INFO("  Vendor: {0}", RendererCapabilities.Vendor);
+		HZ_CORE_INFO("  Renderer: {0}", RendererCapabilities.Device);
+		HZ_CORE_INFO("  Version: {0}", RendererCapabilities.Version);
 	}
 
 	void D3D12Context::SwapBuffers()

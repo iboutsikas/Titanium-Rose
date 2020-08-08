@@ -6,6 +6,10 @@
 #include "Platform/D3D12/D3D12Context.h"
 #include "d3d12.h"
 
+#define DECLARE_SHADER(name)\
+    static constexpr char* ShaderName = name;\
+    static constexpr char* ShaderPath = "assets/shaders/" name ".hlsl";
+
 struct CD3DX12_PIPELINE_STATE_STREAM;
 
 namespace Hazel {

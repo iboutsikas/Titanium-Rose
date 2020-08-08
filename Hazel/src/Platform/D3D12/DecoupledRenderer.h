@@ -3,17 +3,20 @@
 
 namespace Hazel
 {
-    class D3D12ForwardRenderer : public D3D12Renderer
+    class D3D12Shader;
+
+    class DecoupledRenderer : public D3D12Renderer
     {
     public:
-        /*static constexpr uint8_t MaxSupportedLights = 2;*/
+        void ImplRenderVirtualTextures();
+        Ref<D3D12Shader> GetShader();
 
     protected:
         virtual void ImplRenderSubmitted() override;
         virtual void ImplOnInit() override;
-        virtual void ImplSubmit(Ref<GameObject>& gameObject) override;
-        virtual void ImplSubmit(D3D12ResourceBatch& batch, Ref<GameObject>& gameObject) override {};
-        virtual RendererType ImplGetRendererType() override { return RendererType_Forward; }
+        virtual void ImplSubmit(Ref<GameObject>& gameObject) override {};
+        virtual void ImplSubmit(D3D12ResourceBatch& batch, Ref<GameObject>& gameObject) override;
+        virtual RendererType ImplGetRendererType() override { return D3D12Renderer::RendererType_TextureSpace; }
 
 
     private:
@@ -50,6 +53,8 @@ namespace Hazel
             uint32_t HasRoughness;
             float Roughness;
             // ----- 16 bytes -----
+            uint32_t FinestMip;
+            glm::ivec3 _Padding;
         };
 
         struct alignas(16) HPassData {
@@ -57,7 +62,5 @@ namespace Hazel
             glm::vec3 EyePosition;
             uint32_t NumLights;
         };
-
-
     };
 }

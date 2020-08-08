@@ -12,6 +12,7 @@ namespace ImGui {
 	void TransformControl(Hazel::HTransform& transform);
 	void MaterialControl(Hazel::Ref<Hazel::HMaterial>& material);
 	void MeshSelectControl(Hazel::Ref<Hazel::GameObject>& target, std::vector<Hazel::Ref<Hazel::GameObject>>& models);
+    void DecoupledTextureControl(Hazel::DecoupledTextureComponent& component);
 
 	void EntityPanel(Hazel::Ref<Hazel::GameObject>& target);
 

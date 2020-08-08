@@ -75,8 +75,6 @@ namespace Hazel {
 	void D3D12ImGuiLayer::End()
 	{
         ImGuiIO& io = ImGui::GetIO();
-        //Application& app = Application::Get();
-        //io.DisplaySize = ImVec2((float)app.GetWindow().GetWidth(), (float)app.GetWindow().GetHeight());
         auto r = m_Context->DeviceResources.get();
         // Rendering
         ImGui::Render();

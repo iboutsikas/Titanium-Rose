@@ -37,6 +37,7 @@ namespace Hazel
         static ShaderLibrary* ShaderLibrary;
         static TextureLibrary* TextureLibrary;
         static D3D12Context* Context;
+        static D3D12TilePool* TilePool;
 
         static D3D12DescriptorHeap* s_ResourceDescriptorHeap;
         static D3D12DescriptorHeap* s_RenderTargetDescriptorHeap;
@@ -78,13 +79,18 @@ namespace Hazel
         static void AddStaticRenderTarget(Ref<D3D12Texture> texture);
 
         static void Submit(Ref<GameObject>& gameObject);
+        static void Submit(D3D12ResourceBatch& batch, Ref<GameObject>& gameObject);
         static void RenderSubmitted();
         static void RenderSkybox(uint32_t mipLevel = 0);
         static void DoToneMapping();
 
         static void GenerateMips(Ref<D3D12Texture>& texture, uint32_t mostDetailedMip = 0);
+        static void ClearUAV(ID3D12GraphicsCommandList* cmdlist, Ref<D3D12FeedbackMap>& resource, uint32_t value);
+        static void UpdateVirtualTextures();
+        static void RenderVirtualTextures();
+        static void GenerateVirtualMips();
 
-        static RendererType GetCurrentRenderType() { return s_CurrentRenderer->ImplGetRendererType(); }
+        //static RendererType GetCurrentRenderType() { return s_CurrentRenderer->ImplGetRendererType(); }
 
         static std::pair<Ref<D3D12TextureCube>, Ref<D3D12TextureCube>> LoadEnvironmentMap(std::string& path);
         static Ref<FrameBuffer> ResolveFrameBuffer();
@@ -103,9 +109,18 @@ namespace Hazel
         static void Init();
         static void Shutdown();
     protected:
+        static void ReclaimDynamicDescriptors();
+        static void CreateFrameBuffers();
+        static void CreateFrameBuffers(D3D12ResourceBatch& batch);
 
+        virtual void ImplRenderSubmitted() = 0;
+        virtual void ImplOnInit() = 0;
+        virtual void ImplSubmit(Ref<GameObject>& gameObject) = 0;
+        virtual void ImplSubmit(D3D12ResourceBatch& batch, Ref<GameObject>& gameObject) = 0;
+        virtual RendererType ImplGetRendererType() = 0;
+
+    protected:
         
-
         struct CommonData 
         {
             CommonData() : 
@@ -145,6 +160,7 @@ namespace Hazel
 
         static std::vector<Ref<GameObject>> s_OpaqueObjects;
         static std::vector<Ref<GameObject>> s_TransparentObjects;
+        static std::vector<Ref<GameObject>> s_DecoupledObjects;
         static std::vector<D3D12Renderer*> s_AvailableRenderers;
         static std::vector<Ref<FrameBuffer>> s_Framebuffers;
         static Scope<D3D12UploadBuffer<RendererLight>> s_LightsBuffer;
@@ -153,18 +169,6 @@ namespace Hazel
         static D3D12Renderer* s_CurrentRenderer;
         static D3D12VertexBuffer* s_FullscreenQuadVB;
         static D3D12IndexBuffer* s_FullscreenQuadIB;
-
-        static void ReclaimDynamicDescriptors();
-        static void CreateFrameBuffers();
-        static void CreateFrameBuffers(D3D12ResourceBatch& batch);
-
-
-
-
-        virtual void ImplRenderSubmitted() = 0;
-        virtual void ImplOnInit() = 0;
-        virtual void ImplSubmit(Ref<GameObject>& gameObject) {};
-        virtual RendererType ImplGetRendererType() = 0;
     };
 }
 

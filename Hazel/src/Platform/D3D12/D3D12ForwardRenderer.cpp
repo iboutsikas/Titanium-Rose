@@ -159,3 +159,15 @@ void Hazel::D3D12ForwardRenderer::ImplOnInit()
         D3D12Renderer::ShaderLibrary->Add(shader);
     }
 }
+
+void Hazel::D3D12ForwardRenderer::ImplSubmit(Ref<GameObject>& gameObject)
+{
+    if (gameObject->Material->IsTransparent)
+    {
+        s_TransparentObjects.push_back(gameObject);
+    }
+    else
+    {
+        s_OpaqueObjects.push_back(gameObject);
+    }
+}

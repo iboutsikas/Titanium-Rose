@@ -16,6 +16,12 @@
 
 namespace Hazel {
 
+	struct DecoupledTextureComponent
+	{
+		bool UseDecoupledTexture = false;
+		Ref<D3D12VirtualTexture2D> VirtualTexture = nullptr;
+	};
+
 	class GameObject
 	{
 	public:
@@ -23,6 +29,7 @@ namespace Hazel {
 		HTransform Transform;
 		Hazel::Ref<HMesh> Mesh;
 		Hazel::Ref<HMaterial> Material;
+		DecoupledTextureComponent DecoupledComponent;
 
 		std::vector<Hazel::Ref<Hazel::GameObject>> children;
 

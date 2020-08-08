@@ -222,15 +222,31 @@ void BenchmarkLayer::OnUpdate(Hazel::Timestep ts)
     D3D12Renderer::BeginScene(m_Scene);
 
     // "Submit phase"    
+    D3D12ResourceBatch batch(D3D12Renderer::Context->DeviceResources->Device);
+    auto list = batch.Begin();
     for (auto& obj : m_Scene.Entities)
     {
         D3D12Renderer::Submit(obj);
+        if (obj->DecoupledComponent.UseDecoupledTexture) {
+            D3D12Renderer::Submit(batch, obj);
+        }
     }
+    batch.End(D3D12Renderer::Context->DeviceResources->CommandQueue.Get()).wait();
 
     for (auto& light : m_Scene.Lights)
     {
         D3D12Renderer::Submit(light.GameObject);
     }
+
+    m_Accumulator += ts.GetMilliseconds();
+    if (m_Accumulator >= m_UpdateRate)
+    {
+        m_Accumulator = 0.0f;
+        D3D12Renderer::UpdateVirtualTextures();
+        D3D12Renderer::RenderVirtualTextures();
+        D3D12Renderer::GenerateVirtualMips();
+    }
+
     
     D3D12Renderer::RenderSubmitted();
     

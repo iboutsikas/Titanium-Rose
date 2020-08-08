@@ -14,13 +14,14 @@ static std::tuple<glm::vec3, glm::quat, glm::vec3> DecomposeTransform(Hazel::HTr
     glm::vec3 scale, translation, skew;
     glm::vec4 perspective;
     glm::quat orientation;
-	glm::decompose(transform.LocalToWorldMatrix(), scale, orientation, translation, skew, perspective);
+    glm::decompose(transform.LocalToWorldMatrix(), scale, orientation, translation, skew, perspective);
 
     return { translation, orientation, scale };
 }
 
 void ImGui::TransformControl(Hazel::HTransform& transform)
 {
+    int oldColumns = ImGui::GetColumnsCount();
     ImGui::Columns(2);
     // ------ Translation ------
     auto translation = transform.Position();
@@ -35,18 +36,17 @@ void ImGui::TransformControl(Hazel::HTransform& transform)
     if (scale != transform.Scale()) {
         transform.SetScale(scale);
     }
-    ImGui::Columns(1);
+    ImGui::Columns(oldColumns);
 }
 
 void ImGui::MaterialControl(Hazel::Ref<Hazel::HMaterial>& material)
 {
+    int oldColumns = ImGui::GetColumnsCount();
     ImGui::Columns(2);
     // ------ Albedo ------
     ImGui::Separator();
     bool useAlbedo = material->HasAlbedoTexture;
-    bool useDecoupledTexture = false;
     Property("Use albedo texture", useAlbedo);
-    Property("Use decoupled texture", useDecoupledTexture);
 
     if (useAlbedo != material->HasAlbedoTexture) {
         material->HasAlbedoTexture = useAlbedo;
@@ -87,32 +87,70 @@ void ImGui::MaterialControl(Hazel::Ref<Hazel::HMaterial>& material)
 
     ImGui::Property("Emissive", material->EmissiveColor, PropertyFlag::ColorProperty);
 
-    ImGui::Columns(1);
+    ImGui::Columns(oldColumns);
 }
 
 void ImGui::MeshSelectControl(Hazel::Ref<Hazel::GameObject>& target, std::vector<Hazel::Ref<Hazel::GameObject>>& models)
 {
-	Hazel::Ref<Hazel::HMesh> selectedMesh = target->Mesh;
-	if (ImGui::BeginCombo("##combo", target->Name.c_str()))
-	{
-		for (auto& m : models) 
-		{
-			bool is_selected = selectedMesh == m->Mesh;
+    Hazel::Ref<Hazel::HMesh> selectedMesh = target->Mesh;
+    if (ImGui::BeginCombo("##combo", target->Name.c_str()))
+    {
+        for (auto& m : models)
+        {
+            bool is_selected = selectedMesh == m->Mesh;
 
-			if (ImGui::Selectable(m->Name.c_str(), is_selected))
-			{
-				selectedMesh = m->Mesh;
-			}
+            if (ImGui::Selectable(m->Name.c_str(), is_selected))
+            {
+                selectedMesh = m->Mesh;
+            }
 
-			if (is_selected)
-				ImGui::SetItemDefaultFocus();
-		}
-		ImGui::EndCombo();
-	}
+            if (is_selected)
+                ImGui::SetItemDefaultFocus();
+        }
+        ImGui::EndCombo();
+    }
 
-	if (selectedMesh != target->Mesh) {
-		target->Mesh = selectedMesh;
-	}
+    if (selectedMesh != target->Mesh) {
+        target->Mesh = selectedMesh;
+    }
+}
+
+void ImGui::DecoupledTextureControl(Hazel::DecoupledTextureComponent& component)
+{
+    int oldColumns = ImGui::GetColumnsCount();
+    ImGui::Columns(2);
+    //static bool useTexture = false;
+    bool useTexture = component.UseDecoupledTexture;
+    std::string name;
+
+    Property("Use decoupled texture", useTexture);
+    component.UseDecoupledTexture = useTexture;
+
+    // TODO: We could notify somehow here that the texture is no longer used
+    if (!useTexture)
+    {
+        goto ret;
+    }
+
+    name = component.VirtualTexture == nullptr ? "None" : component.VirtualTexture->GetIdentifier();
+
+
+    ImGui::Text("Texture: %s", name.c_str());
+
+    if (component.VirtualTexture == nullptr) goto ret;
+
+    ImGui::NextColumn();
+    if (ImGui::Button("Show")) {
+
+    }
+    auto mips = component.VirtualTexture->GetMipsUsed();
+    ImGui::NextColumn();
+    ImGui::Text("High-res mip: %d", mips.FinestMip);
+    ImGui::NextColumn();
+    ImGui::Text("Low-res mip: %d", mips.CoarsestMip);
+
+ret:
+    ImGui::Columns(oldColumns);
 }
 
 void ImGui::EntityPanel(Hazel::Ref<Hazel::GameObject>& target)
@@ -129,22 +167,26 @@ void ImGui::EntityPanel(Hazel::Ref<Hazel::GameObject>& target)
     {
         TransformControl(target->Transform);
     }
-    
 
     if (target->Material == nullptr) { goto ret; }
-
     auto& mat = target->Material;
-    ImGui::Columns(1);
     if (ImGui::CollapsingHeader("Material", ImGuiTreeNodeFlags_DefaultOpen))
     {
         ImGui::MaterialControl(mat);
     }
 
+    if (ImGui::CollapsingHeader("Material", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGui::MaterialControl(mat);
+    }
 
-    
+    if (ImGui::CollapsingHeader("Decoupled Texture", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGui::DecoupledTextureControl(target->DecoupledComponent);
+    }
+
 
 ret:
-    ImGui::Columns(1);
     ImGui::End();
 }
 

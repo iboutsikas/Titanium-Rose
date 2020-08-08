@@ -15,6 +15,13 @@ namespace Hazel{
 	class D3D12Context
 	{
 	public:
+        struct Capabilities
+        {
+            std::string Vendor;
+            std::string Device;
+            std::string Version;
+        };
+	public:
 		D3D12Context();
 
 		void Init(Window* window);
@@ -40,7 +47,7 @@ namespace Hazel{
 		D3D12_VIEWPORT Viewport;
 		D3D12_RECT	ScissorRect;
 		TComPtr<ID3D12Resource> GetCurrentBackBuffer() { return DeviceResources->BackBuffers[m_CurrentBackbufferIndex]; }
-
+		Capabilities RendererCapabilities;
 	private:
 		Window* m_Window;
 		HWND m_NativeHandle;

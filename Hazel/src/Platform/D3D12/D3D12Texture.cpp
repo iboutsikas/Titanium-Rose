@@ -255,7 +255,10 @@ namespace Hazel {
 						batch.GetDevice(),
 						tiles_x, tiles_y, sizeof(uint32_t)
 					);
+		auto name = texture->GetIdentifier() + "-feedback";
+		std::wstring wname(name.begin(), name.end());
 
+		ret->GetResource()->SetName(wname.c_str());
 
 		return ret;
 	}
