@@ -100,7 +100,8 @@ project "Hazel"
 		}
 		defines {
 			"HZ_BUILD_DLL",
-			"GLFW_INCLUDE_NONE"
+			"GLFW_INCLUDE_NONE",
+			"PROFILE_BUILD"
 		}
 
 	filter "configurations:Debug"
@@ -167,6 +168,10 @@ project "Sandbox"
 
 		postbuildcommands {
 			'{COPY} "../Hazel/vendor/winpixeventruntime/bin/x64/WinPixEventRuntime.dll" "%{cfg.targetdir}"'
+		}
+
+		defines {
+			"PROFILE_BUILD"
 		}
 
 	filter "configurations:Debug"

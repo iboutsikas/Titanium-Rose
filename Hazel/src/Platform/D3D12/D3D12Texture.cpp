@@ -362,7 +362,7 @@ namespace Hazel {
 
 		uint32_t* data = m_FeedbackMap->GetData<uint32_t*>();
 
-		uint32_t finest_mip = 13;
+		uint32_t finest_mip = m_MipLevels;
 		uint32_t coarsest_mip = 0;
 		for (int y = 0; y < dims.y; y++)
 		{
@@ -379,7 +379,7 @@ namespace Hazel {
 				}
 			}
 		}
-		m_CachedMipLevels.FinestMip = finest_mip;
+		m_CachedMipLevels.FinestMip = (finest_mip == m_MipLevels) ? finest_mip - 1 : finest_mip;
 		m_CachedMipLevels.CoarsestMip = (coarsest_mip == m_MipLevels) ? coarsest_mip - 1 : coarsest_mip;
 
 

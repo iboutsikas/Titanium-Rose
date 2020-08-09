@@ -26,6 +26,11 @@ namespace Hazel {
 	{
 	public:
 
+		~GameObject() 
+		{ 
+
+		}
+
 		HTransform Transform;
 		Hazel::Ref<HMesh> Mesh;
 		Hazel::Ref<HMaterial> Material;

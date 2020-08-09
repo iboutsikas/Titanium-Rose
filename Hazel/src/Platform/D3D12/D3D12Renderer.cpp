@@ -18,6 +18,8 @@
 #define MAX_RESOURCES       100
 #define MAX_RENDERTARGETS   50
 
+DECLARE_SHADER(ClearUAV);
+
 struct QuadVertex {
 	glm::vec3 Position;
 };
@@ -90,7 +92,7 @@ namespace Hazel {
 
 		ShaderLibrary->Update();
 
-		ReclaimDynamicDescriptors();
+		//ReclaimDynamicDescriptors();
 		
 		Context->DeviceResources->CommandList->OMSetRenderTargets(1, &Context->CurrentBackBufferView(), true, nullptr);
 
@@ -100,6 +102,10 @@ namespace Hazel {
 		Context->DeviceResources->CommandList->SetDescriptorHeaps(
 			_countof(heaps), heaps
 		);
+
+        s_TransparentObjects.clear();
+        s_OpaqueObjects.clear();
+        s_DecoupledObjects.clear();
 
 	}
 
@@ -245,7 +251,7 @@ namespace Hazel {
 	{
 	}
 
-	void D3D12Renderer::Submit(Hazel::Ref<Hazel::GameObject>& go)
+	void D3D12Renderer::Submit(Hazel::Ref<Hazel::GameObject> go)
 	{
 		if (go->Mesh != nullptr)
 		{
@@ -261,7 +267,7 @@ namespace Hazel {
 		}
 	}
 
-	void D3D12Renderer::Submit(D3D12ResourceBatch& batch, Ref<GameObject>& gameObject)
+	void D3D12Renderer::Submit(D3D12ResourceBatch& batch, Ref<GameObject> gameObject)
 	{
         if (gameObject->Mesh != nullptr)
         {
@@ -279,14 +285,11 @@ namespace Hazel {
 
 	void D3D12Renderer::RenderSubmitted()
 	{
+		//s_AvailableRenderers[RendererType::RendererType_Forward]->ImplRenderSubmitted();
 		for (auto& renderer : s_AvailableRenderers)
 		{
 			renderer->ImplRenderSubmitted();
 		}
-
-		s_TransparentObjects.clear();
-		s_OpaqueObjects.clear();
-		s_DecoupledObjects.clear();
 	}
 
 	void D3D12Renderer::RenderSkybox(uint32_t miplevel)
@@ -740,7 +743,7 @@ namespace Hazel {
 				"assets/shaders/EnvironmentPrefilter.hlsl",
 				"assets/shaders/EnvironmentIrradiance.hlsl",
 				"assets/shaders/SPBRDF_LUT.hlsl",
-				"assets/shaders/ClearUAV.hlsl"
+				ShaderPathClearUAV
 			};
 
 			for (auto& s : Shaders) {
@@ -857,6 +860,9 @@ namespace Hazel {
 	void D3D12Renderer::Shutdown()
 	{
 		Context->WaitForGpu();
+        s_TransparentObjects.clear();
+        s_OpaqueObjects.clear();
+        s_DecoupledObjects.clear();
 		s_LightsBuffer.release();
 		delete s_FullscreenQuadVB;
 		delete s_FullscreenQuadIB;
@@ -955,7 +961,7 @@ namespace Hazel {
 		//cmdList->ResourceBarrier(barriers.size(), barriers.data());
 	}
 
-	void D3D12Renderer::CreateUAV(Ref<D3D12Texture>& texture, uint32_t mip)
+	void D3D12Renderer::CreateUAV(Ref<D3D12Texture> texture, uint32_t mip)
 	{
 		if (!texture->UAVAllocation.Allocated)
 		{
@@ -965,7 +971,7 @@ namespace Hazel {
 		CreateUAV(texture, texture->UAVAllocation, mip);
 	}
 
-	void D3D12Renderer::CreateUAV(Ref<D3D12Texture>& texture, HeapAllocationDescription& description, uint32_t mip)
+	void D3D12Renderer::CreateUAV(Ref<D3D12Texture> texture, HeapAllocationDescription& description, uint32_t mip)
 	{
 		auto desc = texture->GetResource()->GetDesc();
 
@@ -993,7 +999,7 @@ namespace Hazel {
 		);
 	}
 
-	void D3D12Renderer::CreateSRV(Ref<D3D12Texture>& texture, uint32_t mostDetailedMip, uint32_t mips, bool forceArray)
+	void D3D12Renderer::CreateSRV(Ref<D3D12Texture> texture, uint32_t mostDetailedMip, uint32_t mips, bool forceArray)
 	{
 		if (!texture->SRVAllocation.Allocated)
 		{
@@ -1003,7 +1009,7 @@ namespace Hazel {
 		CreateSRV(texture, texture->SRVAllocation, mostDetailedMip, mips, forceArray);
 	}
 
-	void D3D12Renderer::CreateSRV(Ref<D3D12Texture>& texture, HeapAllocationDescription& description, uint32_t mostDetailedMip, uint32_t mips, bool forceArray)
+	void D3D12Renderer::CreateSRV(Ref<D3D12Texture> texture, HeapAllocationDescription& description, uint32_t mostDetailedMip, uint32_t mips, bool forceArray)
 	{
 		auto desc = texture->GetResource()->GetDesc();
 
@@ -1049,7 +1055,7 @@ namespace Hazel {
 		);
 	}
 
-	void D3D12Renderer::CreateRTV(Ref<D3D12Texture>& texture, uint32_t mip)
+	void D3D12Renderer::CreateRTV(Ref<D3D12Texture> texture, uint32_t mip)
 	{
 		if (!texture->RTVAllocation.Allocated)
 		{
@@ -1059,7 +1065,7 @@ namespace Hazel {
 		CreateRTV(texture, texture->RTVAllocation, mip);
 	}
 
-	void D3D12Renderer::CreateRTV(Ref<D3D12Texture>& texture, HeapAllocationDescription& description, uint32_t mip)
+	void D3D12Renderer::CreateRTV(Ref<D3D12Texture> texture, HeapAllocationDescription& description, uint32_t mip)
 	{
 		D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
 		rtvDesc.Format = texture->GetFormat();
@@ -1073,7 +1079,7 @@ namespace Hazel {
 		);
 	}
 
-	void D3D12Renderer::CreateDSV(Ref<D3D12Texture>& texture, HeapAllocationDescription& description)
+	void D3D12Renderer::CreateDSV(Ref<D3D12Texture> texture, HeapAllocationDescription& description)
 	{
 		D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
 		dsvDesc.Format = texture->GetFormat();
@@ -1082,7 +1088,7 @@ namespace Hazel {
 		Context->DeviceResources->Device->CreateDepthStencilView(texture->GetResource(), &dsvDesc, description.CPUHandle);
 	}
 
-	void D3D12Renderer::GenerateMips(Ref<D3D12Texture>& texture, uint32_t mostDetailedMip)
+	void D3D12Renderer::GenerateMips(Ref<D3D12Texture> texture, uint32_t mostDetailedMip)
 	{
 		HeapValidationMark mark(s_ResourceDescriptorHeap);
 
@@ -1146,6 +1152,7 @@ namespace Hazel {
 
 		std::vector<HeapAllocationDescription> heapAllocations;
 
+		uint32_t allocationCounter = 0;
 		for (uint32_t srcMip = mostDetailedMip; srcMip < srcDesc.MipLevels - 1;)
 		{
 			uint32_t srcWidth	= srcDesc.Width >> srcMip;
@@ -1210,16 +1217,17 @@ namespace Hazel {
 
 			cmdList->SetComputeRoot32BitConstants(0, sizeof(passData) / sizeof(uint32_t), &passData, 0);
 			cmdList->SetComputeRootDescriptorTable(1, srcAllocation.GPUHandle);
-			cmdList->SetComputeRootDescriptorTable(2, heapAllocations[srcMip + 0].GPUHandle);
-			cmdList->SetComputeRootDescriptorTable(3, heapAllocations[srcMip + 1].GPUHandle);
-			cmdList->SetComputeRootDescriptorTable(4, heapAllocations[srcMip + 2].GPUHandle);
-			cmdList->SetComputeRootDescriptorTable(5, heapAllocations[srcMip + 3].GPUHandle);
+            cmdList->SetComputeRootDescriptorTable(2, heapAllocations[allocationCounter + 0].GPUHandle);
+            cmdList->SetComputeRootDescriptorTable(3, heapAllocations[allocationCounter + 1].GPUHandle);
+            cmdList->SetComputeRootDescriptorTable(4, heapAllocations[allocationCounter + 2].GPUHandle);
+            cmdList->SetComputeRootDescriptorTable(5, heapAllocations[allocationCounter + 3].GPUHandle);
 
 			auto x_count = D3D12::RoundToMultiple(dstWidth, 8);
 			auto y_count = D3D12::RoundToMultiple(dstHeight, 8);
 			cmdList->Dispatch(x_count, y_count, srcDesc.DepthOrArraySize);
 			cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::UAV(texture->GetResource()));
 			srcMip += mipCount;
+			allocationCounter += 4;
 		}
 
 		PIXEndEvent(cmdList.Get());
@@ -1268,11 +1276,13 @@ namespace Hazel {
 			D3D12ResourceBatch batch(Context->DeviceResources->Device);
 			auto cmdlist = batch.Begin();
 
-			for (auto& obj : s_DecoupledObjects)
+			for (auto obj : s_DecoupledObjects)
 			{
 				auto tex = obj->DecoupledComponent.VirtualTexture;
 				auto feedback = tex->GetFeedbackMap();
 				feedback->Readback(batch.GetDevice().Get(), batch.GetCommandList().Get());
+                auto mips = tex->ExtractMipsUsed();
+
 			}
 			batch.End(Context->DeviceResources->CommandQueue.Get()).wait();
 		}
@@ -1280,11 +1290,15 @@ namespace Hazel {
 		{
             D3D12ResourceBatch batch(Context->DeviceResources->Device);
             auto cmdlist = batch.Begin();
-			for (auto& obj : s_DecoupledObjects)
+			for (auto obj : s_DecoupledObjects)
 			{
 				auto tex = obj->DecoupledComponent.VirtualTexture;
-				tex->ExtractMipsUsed();
+				auto mips = tex->ExtractMipsUsed();
 				TilePool->MapTexture(batch, tex, Context->DeviceResources->CommandQueue);
+
+				auto mip = mips.FinestMip >= tex->GetMipLevels() ? tex->GetMipLevels() - 1 : mips.FinestMip;
+
+				CreateSRV(std::static_pointer_cast<D3D12Texture>(tex), mip);
 			}
             batch.End(Context->DeviceResources->CommandQueue.Get()).wait();
 		}
@@ -1299,6 +1313,47 @@ namespace Hazel {
 
 	void D3D12Renderer::GenerateVirtualMips()
 	{
+		HeapValidationMark mark(s_ResourceDescriptorHeap);
+		for (auto obj : s_DecoupledObjects)
+		{
+			auto vtex = obj->DecoupledComponent.VirtualTexture;
+			auto tex = std::static_pointer_cast<D3D12Texture>(vtex);
+			auto mips = vtex->GetMipsUsed();
+			GenerateMips(tex, mips.FinestMip);
+		}
+	}
+
+	void D3D12Renderer::ClearVirtualMaps()
+	{
+		auto shader = ShaderLibrary->GetAs<D3D12Shader>(ShaderNameClearUAV);
+		ID3D12DescriptorHeap* const heaps[] = {
+			s_ResourceDescriptorHeap->GetHeap()
+		};
+
+		D3D12ResourceBatch batch(Context->DeviceResources->Device, Context->DeviceResources->CommandAllocator);
+		auto cmdlist = batch.Begin();
+
+		PIXBeginEvent(cmdlist.Get(), PIX_COLOR(1, 0, 1), "Clear feedback");
+
+		cmdlist->SetPipelineState(shader->GetPipelineState());
+		cmdlist->SetComputeRootSignature(shader->GetRootSignature());
+		cmdlist->SetDescriptorHeaps(_countof(heaps), heaps);
+		for (auto obj : s_DecoupledObjects)
+		{
+			auto tex = obj->DecoupledComponent.VirtualTexture;
+			auto mips = tex->GetMipLevels();
+			auto fb = tex->GetFeedbackMap();
+			auto dims = fb->GetDimensions();
+
+			cmdlist->SetComputeRoot32BitConstants(0, 1, &mips, 0);
+			cmdlist->SetComputeRootDescriptorTable(1, fb->UAVAllocation.GPUHandle);
+
+			auto dispatch_count = Hazel::D3D12::RoundToMultiple(dims.x * dims.y, 64);
+
+			cmdlist->Dispatch(dispatch_count, 1, 1);
+		}
+		PIXEndEvent(cmdlist.Get());
+		batch.End(Context->DeviceResources->CommandQueue.Get()).wait();
 	}
 	
 

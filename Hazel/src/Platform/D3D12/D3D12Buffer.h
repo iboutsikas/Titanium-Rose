@@ -111,6 +111,10 @@ namespace Hazel {
 
 		inline size_t CalculateOffset(uint32_t numElements) const { return numElements * m_ElementByteSize; }
 
+		inline size_t GetOffset(uint32_t numElements) const {
+			return m_UploadBuffer->GetGPUVirtualAddress() + (numElements * m_ElementByteSize);
+		}
+
 		void CopyData(int elementIndex, const T& data)
 		{
 			auto size = sizeof(T);

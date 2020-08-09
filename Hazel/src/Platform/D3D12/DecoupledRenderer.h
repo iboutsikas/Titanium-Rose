@@ -14,14 +14,14 @@ namespace Hazel
     protected:
         virtual void ImplRenderSubmitted() override;
         virtual void ImplOnInit() override;
-        virtual void ImplSubmit(Ref<GameObject>& gameObject) override {};
-        virtual void ImplSubmit(D3D12ResourceBatch& batch, Ref<GameObject>& gameObject) override;
+        virtual void ImplSubmit(Ref<GameObject> gameObject) override {};
+        virtual void ImplSubmit(D3D12ResourceBatch& batch, Ref<GameObject> gameObject) override;
         virtual RendererType ImplGetRendererType() override { return D3D12Renderer::RendererType_TextureSpace; }
 
 
     private:
         static constexpr uint32_t MaxItemsPerQueue = 25;
-
+        
         enum ShaderIndices
         {
             ShaderIndices_Albedo,
@@ -61,6 +61,25 @@ namespace Hazel
             glm::mat4 ViewProjection;
             glm::vec3 EyePosition;
             uint32_t NumLights;
+        };
+
+        enum ShaderIndicesSimple
+        {
+            ShaderIndicesSimple_Color,
+            ShaderIndicesSimple_FeedbackMap,
+            ShaderIndicesSimple_PerObject,
+            ShaderIndicesSimple_Pass,
+            ShaderIndicesSimple_Count
+        };
+
+        struct alignas(16) HPassDataSimple {
+            glm::mat4 ViewProjection;
+        };
+
+        struct alignas(16) HPerObjectDataSimple {
+            glm::mat4 LocalToWorld;
+            glm::ivec2 FeedbackDims;
+            glm::ivec2 _padding;
         };
     };
 }

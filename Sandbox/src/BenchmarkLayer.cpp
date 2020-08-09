@@ -23,7 +23,7 @@
 static uint32_t STATIC_RESOURCES = 0;
 static constexpr uint32_t MaxItemsPerSubmission = 25;
 static constexpr char* ShaderPath = "assets/shaders/PbrShader.hlsl";
-
+//adasdas
 BenchmarkLayer::BenchmarkLayer()
     : Layer("BenchmarkLayer"), 
     m_ClearColor({0.1f, 0.1f, 0.1f, 1.0f }),
@@ -109,16 +109,15 @@ BenchmarkLayer::BenchmarkLayer()
 #if USE_SPONZA
     auto model = ModelLoader::LoadFromFile(std::string("assets/models/sponza.fbx"), batch);
 #else
-    auto model = ModelLoader::LoadFromFile(std::string("assets/models/bunny_scene.fbx"), batch);
-    model->Transform.SetPosition(glm::vec3(0.0f, 0.0f, 0.0f));
+    ModelLoader::LoadScene(m_Scene, std::string("assets/models/bunny_scene.fbx"), batch);
 #endif
 
-    m_Scene.Entities.push_back(model);
-    m_Scene.Lights.resize(2);
+    m_Scene.Lights.resize(D3D12Renderer::MaxSupportedLights);
     m_Scene.Camera = &m_CameraController.GetCamera();
     m_Scene.Exposure = 1.0f;
 
-    m_PatrolComponents.resize(2);
+    m_PatrolComponents.resize(D3D12Renderer::MaxSupportedLights);
+    uint32_t light_count = 1;
     for (auto& light : m_Scene.Lights)
     {
         light.GameObject = ModelLoader::LoadFromFile(std::string("assets/models/test_sphere2.glb"), batch);
@@ -127,6 +126,8 @@ BenchmarkLayer::BenchmarkLayer()
         light.GameObject->Material->Color = { 1.0f, 1.0f, 1.0f };
         light.GameObject->Transform.SetScale(0.2f, 0.2f, 0.2f);
         light.GameObject->Transform.SetPosition(0.0f, 0.0f, 5.0f);
+        light.GameObject->Name = "Light #" + std::to_string(light_count++);
+        m_Scene.Entities.push_back(light.GameObject);
     }
 
     std::random_device rd;
@@ -200,6 +201,7 @@ void BenchmarkLayer::OnAttach()
 
 void BenchmarkLayer::OnDetach()
 {
+    //m_Scene.~Scene();
 }
 
 void BenchmarkLayer::OnUpdate(Hazel::Timestep ts)
@@ -233,20 +235,30 @@ void BenchmarkLayer::OnUpdate(Hazel::Timestep ts)
     }
     batch.End(D3D12Renderer::Context->DeviceResources->CommandQueue.Get()).wait();
 
-    for (auto& light : m_Scene.Lights)
-    {
-        D3D12Renderer::Submit(light.GameObject);
-    }
+    //for (auto& light : m_Scene.Lights)
+    //{
+    //    D3D12Renderer::Submit(light.GameObject);
+    //}
+
+
+
 
     m_Accumulator += ts.GetMilliseconds();
     if (m_Accumulator >= m_UpdateRate)
     {
+#if 1
+        D3D12Renderer::Context->DeviceResources->CommandAllocator->Reset();
         m_Accumulator = 0.0f;
         D3D12Renderer::UpdateVirtualTextures();
         D3D12Renderer::RenderVirtualTextures();
         D3D12Renderer::GenerateVirtualMips();
-    }
 
+        D3D12Renderer::Context->DeviceResources->CommandAllocator->Reset();
+#endif
+    }
+#if 1
+    D3D12Renderer::ClearVirtualMaps();
+#endif
     
     D3D12Renderer::RenderSubmitted();
     
@@ -267,14 +279,14 @@ void BenchmarkLayer::OnImGuiRender()
     ImGui::Text("Loaded Textures: %d", D3D12Renderer::TextureLibrary->TextureCount());
     ImGui::End();
 
-    ImGui::Begin("Controls");
-    ImGui::ColorEdit4("Clear Color", &m_ClearColor.x);
+    //ImGui::Begin("Controls");
+    //ImGui::ColorEdit4("Clear Color", &m_ClearColor.x);
    
-    auto camera_pos = m_CameraController.GetCamera().GetPosition();
-    ImGui::InputFloat3("Camera Position", &camera_pos.x);
-    if (m_CameraController.GetCamera().GetPosition() != camera_pos)
-        m_CameraController.GetCamera().SetPosition(camera_pos);
-    ImGui::End();
+    //auto camera_pos = m_CameraController.GetCamera().GetPosition();
+    //ImGui::InputFloat3("Camera Position", &camera_pos.x);
+    //if (m_CameraController.GetCamera().GetPosition() != camera_pos)
+    //    m_CameraController.GetCamera().SetPosition(camera_pos);
+    //ImGui::End();
 
 
     ImGui::Begin("Shader Control Center");    
@@ -316,6 +328,7 @@ void BenchmarkLayer::OnImGuiRender()
     ImGui::Columns(2);
     ImGui::AlignTextToFramePadding();
     ImGui::Property("Exposure", m_Scene.Exposure, 0.0f, 5.0f);
+    ImGui::Property("Texture update rate", m_UpdateRate, 0.0f, 0.0f, ImGui::PropertyFlag::InputProperty);
     ImGui::Columns(1);
     ImGui::End();
 
@@ -324,21 +337,21 @@ void BenchmarkLayer::OnImGuiRender()
     ImGui::Begin("Lights");
     for (size_t i = 0; i < m_Scene.Lights.size(); i++)
     {
-        Hazel::Light* light = &m_Scene.Lights[i];
-        PatrolComponent* c = &m_PatrolComponents[i];
+        Hazel::Light& light = m_Scene.Lights[i];
+        PatrolComponent& c = m_PatrolComponents[i];
 
         ImGui::PushID(i);
         std::string label = "Point Light #" + std::to_string(i + 1);
         ImGui::Columns(1);
         if (ImGui::CollapsingHeader(label.c_str(), ImGuiTreeNodeFlags_None))
         {
-            ImGui::TransformControl(light->GameObject->Transform);
-            light->GameObject->Material->EmissiveColor = light->GameObject->Material->Color;
-            ImGui::MaterialControl(light->GameObject->Material);
+            //ImGui::TransformControl(light->GameObject->Transform);
+            light.GameObject->Material->EmissiveColor = light.GameObject->Material->Color;
+            //ImGui::MaterialControl(light->GameObject->Material);
             ImGui::Columns(2);
-            ImGui::Property("Range", light->Range, 1, 50, ImGui::PropertyFlag::None);
-            ImGui::Property("Intensity", light->Intensity, 0.0f, 15.0f, ImGui::PropertyFlag::None);
-            ImGui::Property("Follow path", c->Patrol);
+            //ImGui::Property("Range", light->Range, 1, 50, ImGui::PropertyFlag::None);
+            //ImGui::Property("Intensity", light->Intensity, 0.0f, 15.0f, ImGui::PropertyFlag::None);
+            ImGui::Property("Follow path", c.Patrol);
         }
         ImGui::PopID();
     }

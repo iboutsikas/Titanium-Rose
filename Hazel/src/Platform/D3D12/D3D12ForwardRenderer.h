@@ -11,8 +11,8 @@ namespace Hazel
     protected:
         virtual void ImplRenderSubmitted() override;
         virtual void ImplOnInit() override;
-        virtual void ImplSubmit(Ref<GameObject>& gameObject) override;
-        virtual void ImplSubmit(D3D12ResourceBatch& batch, Ref<GameObject>& gameObject) override {};
+        virtual void ImplSubmit(Ref<GameObject> gameObject) override;
+        virtual void ImplSubmit(D3D12ResourceBatch& batch, Ref<GameObject> gameObject) override {};
         virtual RendererType ImplGetRendererType() override { return RendererType_Forward; }
 
 

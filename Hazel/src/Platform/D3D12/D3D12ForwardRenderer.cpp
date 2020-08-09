@@ -69,7 +69,7 @@ void Hazel::D3D12ForwardRenderer::ImplRenderSubmitted()
                 break;
             }
 
-            auto& go = s_OpaqueObjects[counter];
+            auto go = s_OpaqueObjects[counter];
 
             if (go == nullptr) {
                 continue;
@@ -160,13 +160,13 @@ void Hazel::D3D12ForwardRenderer::ImplOnInit()
     }
 }
 
-void Hazel::D3D12ForwardRenderer::ImplSubmit(Ref<GameObject>& gameObject)
+void Hazel::D3D12ForwardRenderer::ImplSubmit(Ref<GameObject> gameObject)
 {
     if (gameObject->Material->IsTransparent)
     {
         s_TransparentObjects.push_back(gameObject);
     }
-    else
+    else if (!gameObject->DecoupledComponent.UseDecoupledTexture)
     {
         s_OpaqueObjects.push_back(gameObject);
     }

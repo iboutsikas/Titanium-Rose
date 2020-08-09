@@ -6,9 +6,11 @@
 #include "Platform/D3D12/D3D12Context.h"
 #include "d3d12.h"
 
-#define DECLARE_SHADER(name)\
-    static constexpr char* ShaderName = name;\
-    static constexpr char* ShaderPath = "assets/shaders/" name ".hlsl";
+#define DECLARE_SHADER_NAMED(name, variablename)\
+    static constexpr char* ShaderName##variablename = name;\
+    static constexpr char* ShaderPath##variablename = "assets/shaders/" name ".hlsl";
+
+#define DECLARE_SHADER(name) DECLARE_SHADER_NAMED(#name, ##name) 
 
 struct CD3DX12_PIPELINE_STATE_STREAM;
 

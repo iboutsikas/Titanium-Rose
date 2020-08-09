@@ -22,6 +22,7 @@ namespace Hazel
     class Scene
     {
     public:
+        ~Scene();
         std::vector<Ref<GameObject>> Entities;
         std::vector<Light> Lights;
         PerspectiveCamera* Camera;

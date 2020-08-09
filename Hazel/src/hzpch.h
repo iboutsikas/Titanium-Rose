@@ -20,6 +20,8 @@
 
 #ifdef HZ_PLATFORM_WINDOWS
 	#include <Windows.h>
+	//#define USE_PIX
+	//#include <WinPixEventRuntime/pix3.h>
 	//#include <Commdlg.h>
 #ifndef GLFW_EXPOSE_NATIVE_WIN32
 	#include <GLFW/glfw3.h>

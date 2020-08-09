@@ -87,7 +87,7 @@ private:
 	float m_LastFrameTime;
 	int m_EnvironmentLevel = 0;
 	float m_Accumulator = 0.0f;
-	float m_UpdateRate = 0.0f;
+	float m_UpdateRate = 1000.0f/ 30.0f;
 	Hazel::Ref<Hazel::GameObject> m_Selection = nullptr;
 };
 

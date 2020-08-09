@@ -1,5 +1,8 @@
 #include "ImGuiHelpers.h"
 #include "imgui/imgui.h"
+
+#include "Platform/D3D12/D3D12Renderer.h"
+
 #ifndef GLM_ENABLE_EXPERIMENTAL
 #define GLM_ENABLE_EXPERIMENTAL
 #endif
@@ -39,7 +42,7 @@ void ImGui::TransformControl(Hazel::HTransform& transform)
     ImGui::Columns(oldColumns);
 }
 
-void ImGui::MaterialControl(Hazel::Ref<Hazel::HMaterial>& material)
+void ImGui::MaterialControl(Hazel::Ref<Hazel::HMaterial> material)
 {
     int oldColumns = ImGui::GetColumnsCount();
     ImGui::Columns(2);
@@ -90,7 +93,7 @@ void ImGui::MaterialControl(Hazel::Ref<Hazel::HMaterial>& material)
     ImGui::Columns(oldColumns);
 }
 
-void ImGui::MeshSelectControl(Hazel::Ref<Hazel::GameObject>& target, std::vector<Hazel::Ref<Hazel::GameObject>>& models)
+void ImGui::MeshSelectControl(Hazel::Ref<Hazel::GameObject> target, std::vector<Hazel::Ref<Hazel::GameObject>>& models)
 {
     Hazel::Ref<Hazel::HMesh> selectedMesh = target->Mesh;
     if (ImGui::BeginCombo("##combo", target->Name.c_str()))
@@ -117,6 +120,7 @@ void ImGui::MeshSelectControl(Hazel::Ref<Hazel::GameObject>& target, std::vector
 
 void ImGui::DecoupledTextureControl(Hazel::DecoupledTextureComponent& component)
 {
+    static bool showingTexture = false;
     int oldColumns = ImGui::GetColumnsCount();
     ImGui::Columns(2);
     //static bool useTexture = false;
@@ -129,6 +133,7 @@ void ImGui::DecoupledTextureControl(Hazel::DecoupledTextureComponent& component)
     // TODO: We could notify somehow here that the texture is no longer used
     if (!useTexture)
     {
+        showingTexture = false;
         goto ret;
     }
 
@@ -140,8 +145,8 @@ void ImGui::DecoupledTextureControl(Hazel::DecoupledTextureComponent& component)
     if (component.VirtualTexture == nullptr) goto ret;
 
     ImGui::NextColumn();
-    if (ImGui::Button("Show")) {
-
+    if (ImGui::Button(showingTexture ? "Hide": "Show")) {
+        showingTexture = !showingTexture;
     }
     auto mips = component.VirtualTexture->GetMipsUsed();
     ImGui::NextColumn();
@@ -149,13 +154,28 @@ void ImGui::DecoupledTextureControl(Hazel::DecoupledTextureComponent& component)
     ImGui::NextColumn();
     ImGui::Text("Low-res mip: %d", mips.CoarsestMip);
 
+    if (showingTexture)
+    {
+        ImGui::Begin(component.VirtualTexture->GetIdentifier().c_str(), &showingTexture);
+        ImVec2 dims(component.VirtualTexture->GetWidth(), component.VirtualTexture->GetHeight());
+        ImGui::SetWindowSize(ImVec2(dims.x + 50, dims.y + 15));
+        auto mips = component.VirtualTexture->GetMipsUsed();
+
+        //Hazel::D3D12Renderer::CreateSRV(std::static_pointer_cast<Hazel::D3D12Texture>(component.VirtualTexture), 0);
+
+        ImGui::Image((ImTextureID)(component.VirtualTexture->SRVAllocation.GPUHandle.ptr), dims);
+
+        ImGui::End();
+    }
+
 ret:
     ImGui::Columns(oldColumns);
 }
 
-void ImGui::EntityPanel(Hazel::Ref<Hazel::GameObject>& target)
+void ImGui::EntityPanel(Hazel::Ref<Hazel::GameObject> target)
 {
     static constexpr char* emptyString = "";
+
 
     ImGui::Begin("Selection");
     ImGui::Text("Selected entity: %s", target == nullptr ? emptyString : target->Name.c_str());
@@ -163,6 +183,7 @@ void ImGui::EntityPanel(Hazel::Ref<Hazel::GameObject>& target)
     ImGui::AlignTextToFramePadding();
 
     if (target == nullptr) { goto ret; }
+
     if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
     {
         TransformControl(target->Transform);
@@ -170,11 +191,6 @@ void ImGui::EntityPanel(Hazel::Ref<Hazel::GameObject>& target)
 
     if (target->Material == nullptr) { goto ret; }
     auto& mat = target->Material;
-    if (ImGui::CollapsingHeader("Material", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        ImGui::MaterialControl(mat);
-    }
-
     if (ImGui::CollapsingHeader("Material", ImGuiTreeNodeFlags_DefaultOpen))
     {
         ImGui::MaterialControl(mat);
@@ -212,8 +228,14 @@ void ImGui::Property(const std::string& name, float& value, float min, float max
     ImGui::NextColumn();
     ImGui::PushItemWidth(-1);
 
+
     std::string id = "##" + name;
-    ImGui::SliderFloat(id.c_str(), &value, min, max);
+
+    if ((int)flags & (int)PropertyFlag::InputProperty)
+        ImGui::DragFloat(id.c_str(), &value, 0.1f, min, max);
+    else
+        ImGui::SliderFloat(id.c_str(), &value, min, max);
+    
 
     ImGui::PopItemWidth();
     ImGui::NextColumn();

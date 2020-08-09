@@ -137,6 +137,7 @@ namespace Hazel {
     public:
         D3D12VirtualTexture2D(std::string id, uint32_t width, uint32_t height, uint32_t mips = 1);
         D3D12VirtualTexture2D() = delete;
+
         virtual bool IsVirtual() const override { return true; }
 
         virtual MipLevels ExtractMipsUsed() override;

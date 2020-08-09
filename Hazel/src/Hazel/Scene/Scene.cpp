@@ -3,6 +3,14 @@
 
 #include "Platform/D3D12/D3D12Renderer.h"
 
+Hazel::Scene::~Scene()
+{
+    //for (auto& e : Entities)
+    //{
+    //    e->~GameObject();
+    //}
+}
+
 void Hazel::Scene::LoadEnvironment(std::string& filepath)
 {
     auto [env, irradiance] = D3D12Renderer::LoadEnvironmentMap(filepath);

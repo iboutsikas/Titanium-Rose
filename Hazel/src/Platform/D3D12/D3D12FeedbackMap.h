@@ -3,13 +3,16 @@
 #include "glm/vec3.hpp"
 
 #include "Platform/D3D12/ComPtr.h"
+#include "Platform/D3D12/D3D12DescriptorHeap.h"
 
 namespace Hazel
 {
+
 	class D3D12FeedbackMap
 	{
 	public:
 		D3D12FeedbackMap(TComPtr<ID3D12Device2> device, uint32_t width, uint32_t height, uint32_t elementSize);
+		//~D3D12FeedbackMap() { HZ_CORE_WARN("Feedback map destroyed"); }
 
 		void Transition(ID3D12GraphicsCommandList* cmdList, D3D12_RESOURCE_STATES from, D3D12_RESOURCE_STATES to);
 		void Transition(ID3D12GraphicsCommandList* cmdList, D3D12_RESOURCE_STATES to);
@@ -37,6 +40,7 @@ namespace Hazel
 			return reinterpret_cast<T>(m_Data);
 		}
 
+		HeapAllocationDescription UAVAllocation;
 	private:
 		uint32_t m_Width;
 		uint32_t m_Height;

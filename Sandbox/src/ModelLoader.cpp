@@ -17,8 +17,8 @@
 
 Hazel::TextureLibrary* ModelLoader::TextureLibrary = nullptr;
 
-void processNode(aiNode* node, const aiScene* scene, 
-	Hazel::Ref<Hazel::GameObject>& target, 
+void ModelLoader::processNode(aiNode* node, const aiScene* scene,
+	Hazel::Ref<Hazel::GameObject> target, 
 	Hazel::D3D12ResourceBatch& batch,
 	std::vector<Hazel::Ref<Hazel::HMaterial>>& materials)
 {
@@ -133,6 +133,210 @@ void processNode(aiNode* node, const aiScene* scene,
 	}
 }
 
+void ModelLoader::extractMaterials(const aiScene* scene, Hazel::D3D12ResourceBatch& batch, std::vector<Hazel::Ref<Hazel::HMaterial>>& materials)
+{
+    for (size_t i = 0; i < scene->mNumMaterials; i++)
+    {
+        materials[i] = Hazel::CreateRef<Hazel::HMaterial>();
+        aiMaterial* aiMaterial = scene->mMaterials[i];
+
+        aiString name;
+        aiMaterial->Get(AI_MATKEY_NAME, name);
+        HZ_INFO("Material: {}", name.C_Str());
+
+        materials[i]->Name = std::string(name.C_Str());
+
+        aiColor3D diffuseColor = { 1.0f, 1.0f, 1.0f };
+        if (aiMaterial->Get(AI_MATKEY_COLOR_DIFFUSE, diffuseColor) == AI_SUCCESS)
+        {
+            materials[i]->Color = glm::vec3(diffuseColor.r, diffuseColor.g, diffuseColor.b);
+        }
+
+        aiColor3D emissiveColor = { 0.0f, 0.0f, 0.0f };
+        if (aiMaterial->Get(AI_MATKEY_COLOR_EMISSIVE, emissiveColor) == AI_SUCCESS)
+        {
+            materials[i]->EmissiveColor = glm::vec4(emissiveColor.r, emissiveColor.g, emissiveColor.b, 1.0f);
+        }
+
+        float shininess = 1.0f;
+        aiMaterial->Get(AI_MATKEY_SHININESS, shininess);
+
+        float metalness = 0.0f;
+        aiMaterial->Get(AI_MATKEY_REFLECTIVITY, metalness);
+
+        float roughness = 1.0f - glm::sqrt(shininess / 100.0f);
+        aiString texturefile;
+        // Albedo
+        Hazel::Ref<Hazel::D3D12Texture2D> albedoTexture;
+        if (scene->mMaterials[i]->GetTextureCount(aiTextureType_DIFFUSE) > 0)
+        {
+            scene->mMaterials[i]->GetTexture(aiTextureType_DIFFUSE, 0, &texturefile);
+            std::string filename(texturefile.C_Str());
+            std::string filepath = "assets/textures/" + filename;
+
+            HZ_INFO("\tUsing diffuse texture: {}", filename);
+            if (TextureLibrary->Exists(filepath))
+            {
+                albedoTexture = TextureLibrary->GetAs<Hazel::D3D12Texture2D>(filepath);
+            }
+            else
+            {
+                // Load the texture, get it into the Library
+                Hazel::D3D12Texture2D::TextureCreationOptions opts;
+                opts.Flags = D3D12_RESOURCE_FLAG_NONE;
+                opts.Path = filepath;
+                albedoTexture = Hazel::D3D12Texture2D::CreateCommittedTexture(batch, opts);
+                TextureLibrary->Add(albedoTexture);
+            }
+            materials[i]->HasAlbedoTexture = true;
+            materials[i]->Color = glm::vec4(0.0f, 0.0f, 0.0f, 0.0f);
+        }
+        else
+        {
+            // Set this to some dummy texture
+            HZ_WARN("\tNot using diffuse texture");
+            materials[i]->HasAlbedoTexture = false;
+            materials[i]->Color = glm::vec4(diffuseColor.r, diffuseColor.g, diffuseColor.b, 1.0f);
+        }
+        // Set the texture for the material
+        materials[i]->AlbedoTexture = albedoTexture;
+
+        // Normals
+        Hazel::Ref<Hazel::D3D12Texture2D> normalsTexture = nullptr;
+        if (scene->mMaterials[i]->GetTextureCount(aiTextureType_NORMALS) > 0)
+        {
+            scene->mMaterials[i]->GetTexture(aiTextureType_NORMALS, 0, &texturefile);
+            std::string filename(texturefile.C_Str());
+            std::string filepath = "assets/textures/" + filename;
+
+            HZ_INFO("\tUsing diffuse texture: {}", filename);
+            if (TextureLibrary->Exists(filepath))
+            {
+                normalsTexture = TextureLibrary->GetAs<Hazel::D3D12Texture2D>(filepath);
+            }
+            else
+            {
+                Hazel::D3D12Texture2D::TextureCreationOptions opts;
+                opts.Flags = D3D12_RESOURCE_FLAG_NONE;
+                opts.Path = filepath;
+                normalsTexture = Hazel::D3D12Texture2D::CreateCommittedTexture(batch, opts);
+                TextureLibrary->Add(normalsTexture);
+            }
+            materials[i]->HasNormalTexture = true;
+        }
+        else
+        {
+            HZ_WARN("\tNot using normal map");
+            materials[i]->HasNormalTexture = false;
+        }
+        materials[i]->NormalTexture = normalsTexture;
+
+        // Roughness
+        Hazel::Ref<Hazel::D3D12Texture2D> roughnessTexture = nullptr;
+        if (aiMaterial->GetTexture(aiTextureType_SHININESS, 0, &texturefile) == AI_SUCCESS)
+        {
+            std::string filename(texturefile.C_Str());
+            std::string filepath = "assets/textures/" + filename;
+
+            HZ_INFO("\tUsing roughness texture: {}", filename);
+
+            if (TextureLibrary->Exists(filepath))
+            {
+                roughnessTexture = TextureLibrary->GetAs<Hazel::D3D12Texture2D>(filepath);
+            }
+            else
+            {
+                Hazel::D3D12Texture2D::TextureCreationOptions opts;
+                opts.Flags = D3D12_RESOURCE_FLAG_NONE;
+                opts.Path = filepath;
+                roughnessTexture = Hazel::D3D12Texture2D::CreateCommittedTexture(batch, opts);
+                TextureLibrary->Add(roughnessTexture);
+            }
+            materials[i]->HasRoughnessTexture = true;
+        }
+        else
+        {
+            HZ_WARN("\tNot using roughness map");
+            materials[i]->HasRoughnessTexture = false;
+            materials[i]->Roughness = roughness;
+        }
+        materials[i]->RoughnessTexture = roughnessTexture;
+
+        // Matallic
+        bool metallicFound = false;
+        std::string filepath;
+        if (aiMaterial->GetTexture(aiTextureType_METALNESS, 0, &texturefile) == AI_SUCCESS)
+        {
+            std::string filename(texturefile.C_Str());
+            filepath = "assets/textures/" + filename;
+
+            HZ_INFO("\tUsing metallic texture: {}", filename);
+            metallicFound = true;
+
+        }
+        else
+        {
+            for (uint32_t p = 0; p < aiMaterial->mNumProperties; p++)
+            {
+                auto prop = aiMaterial->mProperties[p];
+                std::string key = prop->mKey.data;
+#if 0
+                HZ_TRACE("\t\tProperty: {}", key);
+#endif
+                if (prop->mType == aiPTI_String)
+                {
+                    uint32_t length = *(uint32_t*)prop->mData;
+                    std::string str(prop->mData + 4, length);
+
+                    // The raw property for reflection, ie Metalness. Since 
+                    // it is not mapped to the texture earlier for some reason
+                    if (key == "$raw.ReflectionFactor|file")
+                    {
+                        filepath = "assets/textures/" + str;
+                        metallicFound = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (metallicFound)
+        {
+            Hazel::Ref<Hazel::D3D12Texture2D> metallicTexture = nullptr;
+            HZ_INFO("\tUsing metallic texture: {}", filepath);
+
+            if (TextureLibrary->Exists(filepath))
+            {
+                metallicTexture = TextureLibrary->GetAs<Hazel::D3D12Texture2D>(filepath);
+            }
+            else
+            {
+                Hazel::D3D12Texture2D::TextureCreationOptions opts;
+                opts.Flags = D3D12_RESOURCE_FLAG_NONE;
+                opts.Path = filepath;
+                metallicTexture = Hazel::D3D12Texture2D::CreateCommittedTexture(batch, opts);
+                TextureLibrary->Add(metallicTexture);
+            }
+            materials[i]->HasMatallicTexture = true;
+            materials[i]->MetallicTexture = metallicTexture;
+        }
+        else
+        {
+            HZ_WARN("\tNot using roughness map");
+            materials[i]->HasMatallicTexture = false;
+            materials[i]->Metallic = metalness;
+        }
+
+
+        // Alpha
+        if (scene->mMaterials[i]->GetTextureCount(aiTextureType_OPACITY) > 0)
+        {
+            HZ_INFO("\tMaterial has transparency");
+            materials[i]->IsTransparent = true;
+        }
+    }
+}
+
 Hazel::Ref<Hazel::GameObject> ModelLoader::LoadFromFile(std::string& filepath, Hazel::D3D12ResourceBatch& batch, bool swapHandedness)
 {
 	Hazel::Ref<Hazel::GameObject> rootGO = Hazel::CreateRef<Hazel::GameObject>();
@@ -165,215 +369,51 @@ Hazel::Ref<Hazel::GameObject> ModelLoader::LoadFromFile(std::string& filepath, H
 		HZ_ASSERT(false, "Model loading failed");
 		return nullptr;
 	}
-	std::vector<Hazel::Ref<Hazel::HMaterial>> materials;
-	materials.resize(scene->mNumMaterials);
-	// load Materials
-	for (size_t i = 0; i < scene->mNumMaterials; i++)
-	{
-		materials[i] = Hazel::CreateRef<Hazel::HMaterial>();
-		aiMaterial* aiMaterial = scene->mMaterials[i];
-
-		aiString name;
-		aiMaterial->Get(AI_MATKEY_NAME, name);
-		HZ_INFO("Material: {}", name.C_Str());
-
-		materials[i]->Name = std::string(name.C_Str());
-
-		aiColor3D diffuseColor = { 1.0f, 1.0f, 1.0f };
-		if (aiMaterial->Get(AI_MATKEY_COLOR_DIFFUSE, diffuseColor) == AI_SUCCESS)
-		{
-			materials[i]->Color = glm::vec3(diffuseColor.r, diffuseColor.g, diffuseColor.b);
-		}
-
-		aiColor3D emissiveColor = { 0.0f, 0.0f, 0.0f };
-		if (aiMaterial->Get(AI_MATKEY_COLOR_EMISSIVE, emissiveColor) == AI_SUCCESS)
-		{
-			materials[i]->EmissiveColor = glm::vec4(emissiveColor.r, emissiveColor.g, emissiveColor.b, 1.0f);
-		}
-
-		float shininess = 1.0f;
-		aiMaterial->Get(AI_MATKEY_SHININESS, shininess);
-
-		float metalness = 0.0f;
-		aiMaterial->Get(AI_MATKEY_REFLECTIVITY, metalness);
-
-		float roughness = 1.0f - glm::sqrt(shininess / 100.0f);
-		aiString texturefile;
-		// Albedo
-		Hazel::Ref<Hazel::D3D12Texture2D> albedoTexture;
-		if (scene->mMaterials[i]->GetTextureCount(aiTextureType_DIFFUSE) > 0)
-		{
-			scene->mMaterials[i]->GetTexture(aiTextureType_DIFFUSE, 0, &texturefile);
-			std::string filename(texturefile.C_Str());
-			std::string filepath = "assets/textures/" + filename;
-
-			HZ_INFO("\tUsing diffuse texture: {}", filename);
-			if (TextureLibrary->Exists(filepath))
-			{
-				albedoTexture = TextureLibrary->GetAs<Hazel::D3D12Texture2D>(filepath);
-			}
-			else
-			{
-				// Load the texture, get it into the Library
-				Hazel::D3D12Texture2D::TextureCreationOptions opts;
-				opts.Flags = D3D12_RESOURCE_FLAG_NONE;
-				opts.Path = filepath;
-				albedoTexture = Hazel::D3D12Texture2D::CreateCommittedTexture(batch, opts);
-				TextureLibrary->Add(albedoTexture);
-			}
-			materials[i]->HasAlbedoTexture = true;
-			materials[i]->Color = glm::vec4(0.0f, 0.0f, 0.0f, 0.0f);
-		}
-		else
-		{
-			// Set this to some dummy texture
-			HZ_WARN("\tNot using diffuse texture");
-			materials[i]->HasAlbedoTexture = false;
-			materials[i]->Color = glm::vec4(diffuseColor.r, diffuseColor.g, diffuseColor.b, 1.0f);
-		}
-		// Set the texture for the material
-		materials[i]->AlbedoTexture = albedoTexture;
-
-		// Normals
-		Hazel::Ref<Hazel::D3D12Texture2D> normalsTexture = nullptr;
-		if (scene->mMaterials[i]->GetTextureCount(aiTextureType_NORMALS) > 0)
-		{
-			scene->mMaterials[i]->GetTexture(aiTextureType_NORMALS, 0, &texturefile);
-			std::string filename(texturefile.C_Str());
-			std::string filepath = "assets/textures/" + filename;
-
-			HZ_INFO("\tUsing diffuse texture: {}", filename);
-			if (TextureLibrary->Exists(filepath))
-			{
-				normalsTexture = TextureLibrary->GetAs<Hazel::D3D12Texture2D>(filepath);
-			}
-			else
-			{
-				Hazel::D3D12Texture2D::TextureCreationOptions opts;
-				opts.Flags = D3D12_RESOURCE_FLAG_NONE;
-				opts.Path = filepath;
-				normalsTexture = Hazel::D3D12Texture2D::CreateCommittedTexture(batch, opts);
-				TextureLibrary->Add(normalsTexture);
-			}
-			materials[i]->HasNormalTexture = true;
-		}
-		else
-		{
-			HZ_WARN("\tNot using normal map");
-			materials[i]->HasNormalTexture = false;
-		}
-		materials[i]->NormalTexture = normalsTexture;
-
-		// Roughness
-		Hazel::Ref<Hazel::D3D12Texture2D> roughnessTexture = nullptr;
-		if (aiMaterial->GetTexture(aiTextureType_SHININESS, 0, &texturefile) == AI_SUCCESS)
-		{
-			std::string filename(texturefile.C_Str());
-			std::string filepath = "assets/textures/" + filename;
-
-			HZ_INFO("\tUsing roughness texture: {}", filename);
-
-			if (TextureLibrary->Exists(filepath))
-			{
-				roughnessTexture = TextureLibrary->GetAs<Hazel::D3D12Texture2D>(filepath);
-			}
-			else
-			{
-				Hazel::D3D12Texture2D::TextureCreationOptions opts;
-				opts.Flags = D3D12_RESOURCE_FLAG_NONE;
-				opts.Path = filepath;
-				roughnessTexture = Hazel::D3D12Texture2D::CreateCommittedTexture(batch, opts);
-				TextureLibrary->Add(roughnessTexture);
-			}
-			materials[i]->HasRoughnessTexture = true;
-		}
-		else
-		{
-			HZ_WARN("\tNot using roughness map");
-			materials[i]->HasRoughnessTexture = false;
-			materials[i]->Roughness = roughness;
-		}
-		materials[i]->RoughnessTexture = roughnessTexture;
-
-		// Matallic
-		bool metallicFound = false;
-		std::string filepath;
-		if (aiMaterial->GetTexture(aiTextureType_METALNESS, 0, &texturefile) == AI_SUCCESS)
-		{
-			std::string filename(texturefile.C_Str());
-			filepath = "assets/textures/" + filename;
-
-			HZ_INFO("\tUsing metallic texture: {}", filename);
-			metallicFound = true;
-
-		}
-		else
-		{
-			for (uint32_t p = 0; p < aiMaterial->mNumProperties; p++)
-			{
-				auto prop = aiMaterial->mProperties[p];
-                std::string key = prop->mKey.data;
-#if 0
-                HZ_TRACE("\t\tProperty: {}", key);
-#endif
-				if (prop->mType == aiPTI_String)
-				{
-                    uint32_t length = *(uint32_t*)prop->mData;
-                    std::string str(prop->mData + 4, length);
-
-					// The raw property for reflection, ie Metalness. Since 
-					// it is not mapped to the texture earlier for some reason
-					if (key == "$raw.ReflectionFactor|file")
-					{
-						filepath = "assets/textures/" + str;
-						metallicFound = true;
-						break;
-					}
-				}
-			}
-		}
-
-		if (metallicFound)
-		{
-			Hazel::Ref<Hazel::D3D12Texture2D> metallicTexture = nullptr;
-            HZ_INFO("\tUsing metallic texture: {}", filepath);
-
-            if (TextureLibrary->Exists(filepath))
-            {
-                metallicTexture = TextureLibrary->GetAs<Hazel::D3D12Texture2D>(filepath);
-            }
-            else
-            {
-                Hazel::D3D12Texture2D::TextureCreationOptions opts;
-                opts.Flags = D3D12_RESOURCE_FLAG_NONE;
-                opts.Path = filepath;
-				metallicTexture = Hazel::D3D12Texture2D::CreateCommittedTexture(batch, opts);
-                TextureLibrary->Add(metallicTexture);
-            }
-            materials[i]->HasMatallicTexture = true;
-			materials[i]->MetallicTexture = metallicTexture;
-		}
-        else
-        {
-            HZ_WARN("\tNot using roughness map");
-            materials[i]->HasMatallicTexture = false;
-            materials[i]->Metallic = metalness;
-        }
-
-
-		// Alpha
-		if (scene->mMaterials[i]->GetTextureCount(aiTextureType_OPACITY) > 0)
-		{
-			HZ_INFO("\tMaterial has transparency");
-			materials[i]->IsTransparent = true;
-		}
-	}
-
 	
+    std::vector<Hazel::Ref<Hazel::HMaterial>> materials(scene->mNumMaterials);
 
-	processNode(scene->mRootNode, scene, rootGO, batch, materials);
+    extractMaterials(scene, batch, materials);
 
+    aiNode* node = scene->mRootNode->mNumMeshes == 0 ? scene->mRootNode->mChildren[0] : scene->mRootNode;
 
+	ModelLoader::processNode(node, scene, rootGO, batch, materials);
 
 	return rootGO;
+}
+
+void ModelLoader::LoadScene(Hazel::Scene& scene, std::string& filepath, Hazel::D3D12ResourceBatch& batch, bool swapHandeness)
+{
+    Assimp::Importer importer;
+
+    uint32_t importFlags =
+        aiProcess_Triangulate |
+        aiProcess_CalcTangentSpace |
+        aiProcess_GenUVCoords |
+        aiProcess_GenNormals |
+        aiProcess_TransformUVCoords |
+        aiProcess_ValidateDataStructure;
+
+    if (swapHandeness) {
+        importFlags |= aiProcess_ConvertToLeftHanded;
+    }
+
+    const aiScene* aScene = importer.ReadFile(filepath, importFlags);
+
+    if (aScene == nullptr) {
+        HZ_ERROR("Error loading model {} :\n {}", filepath, importer.GetErrorString());
+        HZ_ASSERT(false, "Model loading failed");
+    }
+    std::vector<Hazel::Ref<Hazel::HMaterial>> materials(aScene->mNumMaterials);
+
+    extractMaterials(aScene, batch, materials);
+
+    for (int c = 0; c < aScene->mRootNode->mNumChildren; c++)
+    {
+        auto child = aScene->mRootNode->mChildren[c];
+        auto childGO = Hazel::CreateRef<Hazel::GameObject>();
+        scene.Entities.push_back(childGO);
+
+        processNode(child, aScene, childGO, batch, materials);
+    }
+
 }
