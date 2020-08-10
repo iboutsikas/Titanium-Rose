@@ -5,6 +5,7 @@
 #include "Platform/D3D12/ComPtr.h"
 #include "Platform/D3D12/D3D12DescriptorHeap.h"
 #include "Platform/D3D12/DeviceResource.h"
+#include "Platform/D3D12/ReadbackBuffer.h"
 
 namespace Hazel
 {
@@ -21,26 +22,16 @@ namespace Hazel
 		inline glm::ivec3 GetDimensions() const { return glm::ivec3(m_Width, m_Height, m_ElementSize); }
 		inline const uint32_t GetElementSize() const { return m_ElementSize; }
 		inline const uint32_t GetSize() const { return m_ActualSize; }
-		inline const bool IsMapped() const { return m_IsMapped; }
 
-		void Map();
-		void Unmap();
-		void Readback(ID3D12Device2* device, ID3D12GraphicsCommandList* cmdList);
+		void Update(ID3D12GraphicsCommandList* cmdList);
 
-		template<typename T,
-			typename = std::is_pointer<T>()>
-			const T GetData() {
-			Map();
-			return reinterpret_cast<T>(m_Data);
-		}
+		uint32_t* GetData() { return m_ReadbackBuffer->Map<uint32_t*>(); }
 
 		HeapAllocationDescription UAVAllocation;
 	private:
 		uint32_t m_ElementSize;
 		uint32_t m_ActualSize;
-		bool m_IsMapped;
-		void* m_Data;
-		TComPtr<ID3D12Resource> m_Readback;
+		Ref<ReadbackBuffer> m_ReadbackBuffer;
 	};
 
 }

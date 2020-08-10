@@ -309,7 +309,7 @@ namespace Hazel {
 
 		auto dims = m_FeedbackMap->GetDimensions();
 
-		uint32_t* data = m_FeedbackMap->GetData<uint32_t*>();
+		uint32_t* data = m_FeedbackMap->GetData();
 
 		uint32_t finest_mip = m_MipLevels;
 		uint32_t coarsest_mip = 0;
