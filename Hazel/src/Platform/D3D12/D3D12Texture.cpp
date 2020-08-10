@@ -11,60 +11,13 @@ namespace Hazel {
 #pragma region D3D12Texture
 	D3D12Texture::D3D12Texture(uint32_t width, uint32_t height, uint32_t depth, 
 		uint32_t mips, bool isCube, D3D12_RESOURCE_STATES initialState, std::string id) :
-		m_Width(width),
-		m_Height(height),
-		m_Depth(depth),
+		DeviceResource(width, height, depth, id, initialState),
 		m_MipLevels(mips),
-		m_IsCube(isCube),
-		m_CurrentState(initialState),
-		m_Identifier(id),
-		m_Resource(nullptr)
+		m_IsCube(isCube)
 	{
 
 	}
 
-	void D3D12Texture::Transition(D3D12ResourceBatch& batch, D3D12_RESOURCE_STATES from, D3D12_RESOURCE_STATES to)
-	{
-		batch.GetCommandList()->ResourceBarrier(1,
-			&CD3DX12_RESOURCE_BARRIER::Transition(
-				m_Resource.Get(),
-				from,
-				to
-			)
-		);
-		m_CurrentState = to;
-	}
-
-	void D3D12Texture::Transition(D3D12ResourceBatch& batch, D3D12_RESOURCE_STATES to)
-	{
-		if (to == m_CurrentState)
-			return;
-		this->Transition(batch, m_CurrentState, to);
-	}
-
-	void D3D12Texture::Transition(ID3D12GraphicsCommandList* commandList, D3D12_RESOURCE_STATES from, D3D12_RESOURCE_STATES to)
-	{
-		commandList->ResourceBarrier(1,
-			&CD3DX12_RESOURCE_BARRIER::Transition(
-				m_Resource.Get(),
-				from,
-				to
-			)
-		);
-		m_CurrentState = to;
-	}
-
-	void D3D12Texture::Transition(ID3D12GraphicsCommandList* commandList, D3D12_RESOURCE_STATES to)
-	{
-		if (to == m_CurrentState)
-			return;
-		this->Transition(commandList, m_CurrentState, to);
-	}
-
-	void D3D12Texture::SetCurrentState(D3D12_RESOURCE_STATES state)
-	{ 
-		m_CurrentState = state;
-	}
 #pragma endregion
 
 #pragma region D3D12Texture2D
@@ -119,9 +72,7 @@ namespace Hazel {
 			IID_PPV_ARGS(ret->m_Resource.GetAddressOf())
 		));
 
-		std::wstring wPath(opts.Name.begin(), opts.Name.end());
-
-		ret->m_Resource->SetName(wPath.c_str());
+		ret->SetName(opts.Name);
 
 		UINT subresourceCount = desc.MipLevels;
 		ret->m_Tilings.resize(subresourceCount);
@@ -176,8 +127,7 @@ namespace Hazel {
 				//opts.MipLevels = 
 				ret = LoadFromImage(img, batch, opts);
 			}
-			std::wstring wPath(opts.Path.begin(), opts.Path.end());
-			ret->m_Resource->SetName(wPath.c_str());
+			ret->SetName(opts.Path);
 		}
 		// We create an in memory texture
 		else if (!opts.Name.empty())
@@ -208,8 +158,8 @@ namespace Hazel {
 				opts.IsDepthStencil ? &CD3DX12_CLEAR_VALUE(opts.Format, 1.0f, 0) : nullptr,
 				IID_PPV_ARGS(ret->m_Resource.GetAddressOf())
 			));
-			std::wstring wName(opts.Name.begin(), opts.Name.end());
-			ret->m_Resource->SetName(wName.c_str());
+
+			ret->SetName(opts.Name);
 		}
 		else
 		{
@@ -256,9 +206,8 @@ namespace Hazel {
 						tiles_x, tiles_y, sizeof(uint32_t)
 					);
 		auto name = texture->GetIdentifier() + "-feedback";
-		std::wstring wname(name.begin(), name.end());
 
-		ret->GetResource()->SetName(wname.c_str());
+		ret->SetName(name);
 
 		return ret;
 	}

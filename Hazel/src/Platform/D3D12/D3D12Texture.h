@@ -9,6 +9,7 @@
 #include "Platform/D3D12/D3D12FeedbackMap.h"
 #include "Platform/D3D12/D3D12ResourceBatch.h"
 #include "Platform/D3D12/D3D12DescriptorHeap.h"
+#include "Platform/D3D12/DeviceResource.h"
 
 const float clrclr[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
@@ -17,7 +18,7 @@ namespace Hazel {
     class D3D12TilePool;
 
 #pragma region Texture
-    class D3D12Texture
+    class D3D12Texture : public DeviceResource
     {
     public:
         struct TextureCreationOptions
@@ -41,41 +42,18 @@ namespace Hazel {
             {}
         };
 
-        uint32_t GetWidth() const { return m_Width; }
-        uint32_t GetHeight() const { return m_Height; }
-        uint32_t GetDepth() const { return m_Depth; }
         bool IsCube() const { return m_IsCube; }
 
-        void Transition(D3D12ResourceBatch& batch, D3D12_RESOURCE_STATES from, D3D12_RESOURCE_STATES to);
-        void Transition(D3D12ResourceBatch& batch, D3D12_RESOURCE_STATES to);
-        void Transition(ID3D12GraphicsCommandList* commandList, D3D12_RESOURCE_STATES from, D3D12_RESOURCE_STATES to);
-        void Transition(ID3D12GraphicsCommandList* commandList, D3D12_RESOURCE_STATES to);
-
-        // Sets the current state WITHOUT performing a transition
-        // Only for use when the transition has been batched.
-        void SetCurrentState(D3D12_RESOURCE_STATES state);
-
-        inline ID3D12Resource* GetResource() const { return m_Resource.Get(); }
         inline uint32_t GetMipLevels() const { return  m_MipLevels; }
         inline bool HasMips() const { return m_MipLevels > 1; }
-        inline std::string GetIdentifier() const { return m_Identifier; }
-        inline DXGI_FORMAT GetFormat() const { return m_Resource->GetDesc().Format; }
+
         HeapAllocationDescription SRVAllocation;
         HeapAllocationDescription UAVAllocation;
         HeapAllocationDescription RTVAllocation;
 
     protected:
-        uint32_t m_Width;
-        uint32_t m_Height;
-        uint32_t m_Depth;
         uint32_t m_MipLevels;
         bool m_IsCube;
-        
-        D3D12_RESOURCE_STATES m_CurrentState;
-
-        std::string m_Identifier;
-
-        TComPtr<ID3D12Resource> m_Resource;
 
         D3D12Texture(uint32_t width, uint32_t height, uint32_t depth, uint32_t mips,
             bool isCube, D3D12_RESOURCE_STATES initialState, std::string id);
