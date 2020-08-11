@@ -6,9 +6,10 @@
 #include "Hazel/Renderer/RendererAPI.h"
 
 #include "Platform/D3D12/D3D12Renderer.h"
+#include "Platform/D3D12/Profiler/Profiler.h"
 
 #include <glfw/glfw3.h>
-
+#include <imgui.h>
 #include <Commdlg.h>
 
 #define USE_IMGUI 1
@@ -113,23 +114,39 @@ namespace Hazel {
 			
 			if (!m_Minimized)
 			{
-				D3D12Renderer::NewFrame();
+                
+				D3D12Renderer::BeginFrame();
 				{
-					HZ_PROFILE_SCOPE("LayerStack OnUpdate");
+                    CPUProfileBlock cpuBlock("Render");
+                    GPUProfileBlock gpuBlock(D3D12Renderer::Context->DeviceResources->CommandList.Get(), "Render Total");
 
-					for (Layer* layer : m_LayerStack)
-						layer->OnUpdate(m_TimeStep);
-				}
+                    {
+                        CPUProfileBlock cpuBlock("LayerStack update");
+                        for (Layer* layer : m_LayerStack)
+                            layer->OnUpdate(m_TimeStep);
+                    }
 #if USE_IMGUI
-                m_ImGuiLayer->Begin();
-                {
-                    HZ_PROFILE_SCOPE("LayerStack OnImGuiRender");
+					{
+                        CPUProfileBlock cpuBlock("ImGui Update");
+                        GPUProfileBlock gpuBlock(D3D12Renderer::Context->DeviceResources->CommandList.Get(), "ImGui Render");
+                        m_ImGuiLayer->Begin();
+                        {
+                            for (Layer* layer : m_LayerStack)
+                                layer->OnImGuiRender();
 
-                    for (Layer* layer : m_LayerStack)
-                        layer->OnImGuiRender();
-                }
-                m_ImGuiLayer->End();
+                            ImGui::Begin("Diagnostics");
+                            Profiler::GlobalProfiler.RenderStats();
+                            //ImGui::Text("Frame Time: %.2f ms (%.2f fps)", m_TimeStep.GetMilliseconds(), 1000.0f / m_TimeStep.GetMilliseconds());
+                            D3D12Renderer::RenderDiagnostics();
+                            ImGui::End();
+                        }
+                        m_ImGuiLayer->End();
+					}
 #endif	
+				}
+        
+				Profiler::GlobalProfiler.EndFrame(m_Window->GetWidth(), m_Window->GetHeight());
+				D3D12Renderer::EndFrame();
 				D3D12Renderer::Present();
 			}
 			m_Window->OnUpdate();

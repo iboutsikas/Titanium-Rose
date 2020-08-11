@@ -26,10 +26,12 @@ namespace Hazel
 
         std::vector<std::future<void>> renderTasks(std::ceil<size_t>(s_DecoupledObjects.size() / MaxItemsPerQueue));
         
+        Context->DeviceResources->CommandAllocator->Reset();
+
         uint32_t counter = 0;
         while (counter < s_DecoupledObjects.size())
         {
-            D3D12ResourceBatch batch(Context->DeviceResources->Device);
+            D3D12ResourceBatch batch(Context->DeviceResources->Device, Context->DeviceResources->CommandAllocator);
             auto cmdlist = batch.Begin();
             
             D3D12UploadBuffer<HPerObjectData> perObjectBuffer(batch, MaxItemsPerQueue, true);
@@ -61,9 +63,10 @@ namespace Hazel
                 if (obj->Mesh == nullptr) {
                     continue;
                 }
-
-                auto& tex = obj->DecoupledComponent.VirtualTexture;
+                auto tex = obj->DecoupledComponent.VirtualTexture;
                 PIXBeginEvent(cmdlist.Get(), PIX_COLOR(200, 0, 0), "Virtual Pass: %s", tex->GetIdentifier().c_str());
+                GPUProfileBlock profileblock(cmdlist.Get(), "Render: " + tex->GetIdentifier());
+                batch.TrackBlock(profileblock);
 
                 tex->Transition(cmdlist.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
                 auto mips = tex->GetMipsUsed();
@@ -76,7 +79,7 @@ namespace Hazel
                 cmdlist->RSSetViewports(1, &vp);
                 cmdlist->RSSetScissorRects(1, &rect);
                 cmdlist->OMSetRenderTargets(1, &tex->RTVAllocation.CPUHandle, true, nullptr);
-                static const float clearColor[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+                static const float clearColor[] = { 1.0f, 0.0f, 0.0f, 0.0f };
                 cmdlist->ClearRenderTargetView(tex->RTVAllocation.CPUHandle, clearColor, 0, nullptr);
 
                 HPerObjectData objectData;
@@ -149,6 +152,8 @@ namespace Hazel
         if (s_DecoupledObjects.empty())
             return;
 
+        GPUProfileBlock passBlock(Context->DeviceResources->CommandList.Get(), "Simple Render");
+
         std::vector<std::future<void>> renderTasks;
 
         uint32_t counter = 0;
@@ -173,7 +178,7 @@ namespace Hazel
             auto cmdlist = batch.Begin();
 
             PIXBeginEvent(cmdlist.Get(), PIX_COLOR(255, 0, 255), "Decoupled Geometry Pass: %d", counter / MaxItemsPerQueue);
-
+            
             D3D12UploadBuffer<HPerObjectDataSimple> perObjectBuffer(batch, MaxItemsPerQueue, true);
 
             cmdlist->SetPipelineState(shader->GetPipelineState());
@@ -202,11 +207,14 @@ namespace Hazel
                     continue;
                 }
 
+                GPUProfileBlock itemBlock(cmdlist.Get(), "SR: " + go->Name);
+                batch.TrackBlock(itemBlock);
+
                 auto tex = go->DecoupledComponent.VirtualTexture;
                 tex->Transition(cmdlist.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
                 auto fm = tex->GetFeedbackMap();
 
-                //CreateSRV(std::static_pointer_cast<D3D12Texture>(tex), 0);
+                CreateSRV(std::static_pointer_cast<D3D12Texture>(tex), 0);
 
                 HPerObjectDataSimple objectData;
                 objectData.LocalToWorld = go->Transform.LocalToWorldMatrix();
@@ -314,7 +322,7 @@ namespace Hazel
             }
             else
             {
-                width = height = 1024;
+                width = height = 2048;
                 mips = D3D12::CalculateMips(width, height);
                 name = gameObject->Material->Name + "-virtual";
             }

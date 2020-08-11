@@ -8,10 +8,12 @@
 #include "Platform/D3D12/DecoupledRenderer.h"
 #include "Platform/D3D12/D3D12Shader.h"
 #include "Platform/D3D12/D3D12TilePool.h"
+#include "Platform/D3D12/Profiler/Profiler.h"
 
 #include "glm/gtc/type_ptr.hpp"
 
 #include <memory>
+#include <ImGui/imgui.h>
 
 #include "WinPixEventRuntime/pix3.h"
 
@@ -25,12 +27,12 @@ struct QuadVertex {
 };
 
 namespace Hazel {
-	D3D12Context*	D3D12Renderer::Context;
-	ShaderLibrary*	D3D12Renderer::ShaderLibrary;
-	TextureLibrary* D3D12Renderer::TextureLibrary;
-	D3D12TilePool*   D3D12Renderer::TilePool;
+    D3D12Context*	D3D12Renderer::Context;
+    ShaderLibrary*	D3D12Renderer::ShaderLibrary;
+    TextureLibrary*	D3D12Renderer::TextureLibrary;
+    D3D12TilePool*	D3D12Renderer::TilePool;
 
-	D3D12DescriptorHeap* D3D12Renderer::s_ResourceDescriptorHeap;
+    D3D12DescriptorHeap* D3D12Renderer::s_ResourceDescriptorHeap;
 	D3D12DescriptorHeap* D3D12Renderer::s_RenderTargetDescriptorHeap;
 	D3D12DescriptorHeap* D3D12Renderer::s_DepthStencilDescriptorHeap;
 	D3D12VertexBuffer* D3D12Renderer::s_FullscreenQuadVB;
@@ -51,10 +53,13 @@ namespace Hazel {
 			{ "UV", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(Hazel::Vertex, UV), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 	};
 
-	uint32_t D3D12Renderer::s_InputLayoutCount = _countof(s_InputLayout);
-	uint32_t D3D12Renderer::s_CurrentFrameBuffer = 0;
+    uint32_t D3D12Renderer::s_InputLayoutCount = _countof(s_InputLayout);
 
-	std::vector<Ref<FrameBuffer>> D3D12Renderer::s_Framebuffers;
+
+    uint32_t D3D12Renderer::s_CurrentFrameBuffer = 0;
+
+
+    std::vector<Ref<FrameBuffer>> D3D12Renderer::s_Framebuffers;
 	std::vector<Ref<GameObject>> D3D12Renderer::s_OpaqueObjects;
 	std::vector<Ref<GameObject>> D3D12Renderer::s_TransparentObjects;
 	std::vector<Ref<GameObject>> D3D12Renderer::s_DecoupledObjects;
@@ -62,7 +67,8 @@ namespace Hazel {
 	std::vector<D3D12Renderer*> D3D12Renderer::s_AvailableRenderers;
 	D3D12Renderer* D3D12Renderer::s_CurrentRenderer = nullptr;
 
-	void D3D12Renderer::PrepareBackBuffer(glm::vec4 clear)
+
+    void D3D12Renderer::PrepareBackBuffer(glm::vec4 clear)
 	{
 		D3D12ResourceBatch batch(Context->DeviceResources->Device, Context->DeviceResources->CommandAllocator);
 		auto cmdList = batch.Begin();
@@ -86,12 +92,12 @@ namespace Hazel {
 		batch.End(Context->DeviceResources->CommandQueue.Get()).wait();
 	}
 
-	void D3D12Renderer::NewFrame()
+    void D3D12Renderer::BeginFrame()
 	{
 		Context->NewFrame();
 
 		ShaderLibrary->Update();
-
+		
 		//ReclaimDynamicDescriptors();
 		
 		Context->DeviceResources->CommandList->OMSetRenderTargets(1, &Context->CurrentBackBufferView(), true, nullptr);
@@ -109,7 +115,27 @@ namespace Hazel {
 
 	}
 
-	void D3D12Renderer::Present()
+    void D3D12Renderer::EndFrame()
+    {
+		auto backBuffer = Context->GetCurrentBackBuffer();
+
+        CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+            backBuffer.Get(),
+            D3D12_RESOURCE_STATE_RENDER_TARGET,
+            D3D12_RESOURCE_STATE_PRESENT
+        );
+
+        Context->DeviceResources->CommandList->ResourceBarrier(1, &barrier);
+
+        D3D12::ThrowIfFailed(Context->DeviceResources->CommandList->Close());
+
+        ID3D12CommandList* const commandLists[] = {
+			Context->DeviceResources->CommandList.Get()
+        };
+		Context->DeviceResources->CommandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
+    }
+
+    void D3D12Renderer::Present()
 	{
 		Context->SwapBuffers();
 	}
@@ -340,6 +366,31 @@ namespace Hazel {
 
 		PIXEndEvent(cmdList.Get());
 		batch.End(Context->DeviceResources->CommandQueue.Get()).wait();
+	}
+
+	void D3D12Renderer::RenderDiagnostics()
+	{
+        ImGui::Text("Loaded Textures: %d", D3D12Renderer::TextureLibrary->TextureCount());
+		auto stats = TilePool->GetStats();
+		//ImGui::Text("Heap pages: %d", stats.size());
+
+		uint32_t level = 0;
+
+		if (ImGui::TreeNode(&level, "Heap pages: %d", stats.size()))
+		{
+			for (auto& s : stats)
+			{
+				level++;
+				if (ImGui::TreeNode(&level, "Page: %d", level))
+				{
+					ImGui::Text("Max Tiles: %d", s.MaxTiles);
+					ImGui::Text("Free Tiles: %d", s.FreeTiles);
+					ImGui::TreePop();
+				}
+			}
+			ImGui::TreePop();
+		}
+
 	}
 
 	void D3D12Renderer::DoToneMapping()
@@ -627,7 +678,9 @@ namespace Hazel {
 		Context = new D3D12Context();
 		Context->Init(&wnd);
 
-		D3D12Renderer::ShaderLibrary = new Hazel::ShaderLibrary(3);
+		Profiler::GlobalProfiler.Initialize();
+
+		D3D12Renderer::ShaderLibrary = new Hazel::ShaderLibrary(D3D12Renderer::FrameLatency);
 		D3D12Renderer::TextureLibrary = new Hazel::TextureLibrary();
 		D3D12Renderer::TilePool = new Hazel::D3D12TilePool();
 #pragma region Renderer Implementations
@@ -814,7 +867,7 @@ namespace Hazel {
 #pragma Frame Buffers
 		{
 			// TODO: Fix this hack
-			s_Framebuffers.resize(Context->DeviceResources->BackBuffers.size());
+			s_Framebuffers.resize(D3D12Renderer::FrameLatency);
 			D3D12ResourceBatch batch(Context->DeviceResources->Device);
 			batch.Begin();
 			CreateFrameBuffers(batch);
@@ -961,7 +1014,27 @@ namespace Hazel {
 		//cmdList->ResourceBarrier(barriers.size(), barriers.data());
 	}
 
-	void D3D12Renderer::CreateUAV(Ref<D3D12Texture> texture, uint32_t mip)
+    void D3D12Renderer::ImplRenderSubmitted()
+    {
+
+    }
+
+    void D3D12Renderer::ImplOnInit()
+    {
+
+    }
+
+    void D3D12Renderer::ImplSubmit(Ref<GameObject> gameObject)
+    {
+
+    }
+
+    void D3D12Renderer::ImplSubmit(D3D12ResourceBatch& batch, Ref<GameObject> gameObject)
+    {
+
+    }
+
+    void D3D12Renderer::CreateUAV(Ref<D3D12Texture> texture, uint32_t mip)
 	{
 		if (!texture->UAVAllocation.Allocated)
 		{
@@ -1271,42 +1344,57 @@ namespace Hazel {
 
 	void D3D12Renderer::UpdateVirtualTextures()
 	{
+		if (s_DecoupledObjects.size() == 0)
+			return;
+
+		Context->DeviceResources->CommandAllocator->Reset();
 		// Readback
 		{
-			D3D12ResourceBatch batch(Context->DeviceResources->Device);
+			D3D12ResourceBatch batch(Context->DeviceResources->Device, Context->DeviceResources->CommandAllocator);
 			auto cmdlist = batch.Begin();
-
+			GPUProfileBlock gpuBlock(cmdlist.Get(), "Virtual Texture Update");
 			for (auto obj : s_DecoupledObjects)
 			{
 				auto tex = obj->DecoupledComponent.VirtualTexture;
+				GPUProfileBlock block(cmdlist.Get(), "Update : " + tex->GetIdentifier());
 				auto feedback = tex->GetFeedbackMap();
-				feedback->Readback(batch.GetDevice().Get(), batch.GetCommandList().Get());
-                auto mips = tex->ExtractMipsUsed();
+				feedback->Update(batch.GetCommandList().Get());
+				auto mips = tex->ExtractMipsUsed();
+                TilePool->MapTexture(batch, tex, Context->DeviceResources->CommandQueue);
+                auto mip = mips.FinestMip >= tex->GetMipLevels() ? tex->GetMipLevels() - 1 : mips.FinestMip;
 
+                CreateSRV(std::static_pointer_cast<D3D12Texture>(tex), mip);
+				batch.TrackBlock(block);
 			}
+			batch.TrackBlock(gpuBlock);
 			batch.End(Context->DeviceResources->CommandQueue.Get()).wait();
 		}
+        Context->DeviceResources->CommandAllocator->Reset();
+
 		// Use the readback data, then map the textures
-		{
-            D3D12ResourceBatch batch(Context->DeviceResources->Device);
-            auto cmdlist = batch.Begin();
-			for (auto obj : s_DecoupledObjects)
-			{
-				auto tex = obj->DecoupledComponent.VirtualTexture;
-				auto mips = tex->ExtractMipsUsed();
-				TilePool->MapTexture(batch, tex, Context->DeviceResources->CommandQueue);
+		//{
+  //          D3D12ResourceBatch batch(Context->DeviceResources->Device);
+  //          auto cmdlist = batch.Begin();
+		//	for (auto obj : s_DecoupledObjects)
+		//	{
+		//		auto tex = obj->DecoupledComponent.VirtualTexture;
+		//		auto mips = tex->ExtractMipsUsed();
+		//		TilePool->MapTexture(batch, tex, Context->DeviceResources->CommandQueue);
 
-				auto mip = mips.FinestMip >= tex->GetMipLevels() ? tex->GetMipLevels() - 1 : mips.FinestMip;
+		//		auto mip = mips.FinestMip >= tex->GetMipLevels() ? tex->GetMipLevels() - 1 : mips.FinestMip;
 
-				CreateSRV(std::static_pointer_cast<D3D12Texture>(tex), mip);
-			}
-            batch.End(Context->DeviceResources->CommandQueue.Get()).wait();
-		}
+		//		CreateSRV(std::static_pointer_cast<D3D12Texture>(tex), mip);
+		//	}
+  //          batch.End(Context->DeviceResources->CommandQueue.Get()).wait();
+		//}
 
 	}
 
 	void D3D12Renderer::RenderVirtualTextures()
 	{
+		if (s_DecoupledObjects.size() == 0)
+			return;
+
         auto renderer = dynamic_cast<DecoupledRenderer*>(s_AvailableRenderers[RendererType_TextureSpace]);
 		renderer->ImplRenderVirtualTextures();
 	}
@@ -1344,6 +1432,11 @@ namespace Hazel {
 			auto mips = tex->GetMipLevels();
 			auto fb = tex->GetFeedbackMap();
 			auto dims = fb->GetDimensions();
+
+			if (mips == 1)
+			{
+				__debugbreak();
+			}
 
 			cmdlist->SetComputeRoot32BitConstants(0, 1, &mips, 0);
 			cmdlist->SetComputeRootDescriptorTable(1, fb->UAVAllocation.GPUHandle);

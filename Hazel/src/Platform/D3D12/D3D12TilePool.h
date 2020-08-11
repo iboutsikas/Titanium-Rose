@@ -9,6 +9,13 @@
 
 namespace Hazel 
 {
+	struct TilePoolStats
+	{
+		uint32_t MaxTiles;
+		uint32_t FreeTiles;
+
+	};
+
 	struct TilePage {
 		uint32_t PopTile();
 		void FreeTile(uint32_t tileNumber);
@@ -24,6 +31,8 @@ namespace Hazel
 		void MapTexture(D3D12ResourceBatch& batch, 
 			Ref<D3D12Texture2D> texture, 
 			TComPtr<ID3D12CommandQueue> commandQueue);
+
+		std::vector<TilePoolStats> GetStats();
 	private:
 
 		/// <summary>

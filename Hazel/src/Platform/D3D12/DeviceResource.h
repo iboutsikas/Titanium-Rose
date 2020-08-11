@@ -2,12 +2,14 @@
 #include "Hazel/Core/Core.h"
 
 #include "Platform/D3D12/ComPtr.h"
-#include "Platform/D3D12/D3D12ResourceBatch.h"
+
 
 #include <d3d12.h>
 
 namespace Hazel
 {
+    class D3D12ResourceBatch; 
+
     class DeviceResource
     {
     public:

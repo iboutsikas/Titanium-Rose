@@ -2,6 +2,7 @@
 
 #include "Platform/D3D12/d3dx12.h"
 #include "Platform/D3D12/DeviceResource.h"
+#include "Platform/D3D12/D3D12ResourceBatch.h"
 
 namespace Hazel
 {

@@ -2,6 +2,7 @@
 #include "Platform/D3D12/D3D12Context.h"
 #include "Platform/D3D12/D3D12Helpers.h"
 #include "Platform/D3D12/ComPtr.h"
+#include "Platform/D3D12/D3D12Renderer.h"
 
 // Need these to expose the HWND from GLFW. Too much work to
 // re-write a new win32 only window.
@@ -17,8 +18,6 @@
 
 #include <string>
 #include "Hazel/Core/Log.h"
-
-#define NUM_FRAMES 3
 
 using namespace Hazel::D3D12;
 
@@ -73,7 +72,7 @@ namespace Hazel {
 		HZ_CORE_ASSERT(window, "Window handle is null!");
 		m_NativeHandle = glfwGetWin32Window(static_cast<GLFWwindow*>(m_Window->GetNativeWindow()));
 		HZ_CORE_ASSERT(m_NativeHandle, "D3D12Context m_NativeHandle is null!");
-		DeviceResources = CreateScope<D3D12DeviceResources>(NUM_FRAMES);
+		DeviceResources = CreateScope<D3D12DeviceResources>(D3D12Renderer::FrameLatency);
 
 
 		auto width = m_Window->GetWidth();
@@ -178,24 +177,6 @@ namespace Hazel {
 
 	void D3D12Context::SwapBuffers()
 	{
-		HZ_PROFILE_FUNCTION();
-		auto backBuffer = DeviceResources->BackBuffers[m_CurrentBackbufferIndex];
-
-		CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
-			backBuffer.Get(),
-			D3D12_RESOURCE_STATE_RENDER_TARGET,
-			D3D12_RESOURCE_STATE_PRESENT
-		);
-
-		DeviceResources->CommandList->ResourceBarrier(1, &barrier);
-
-		ThrowIfFailed(DeviceResources->CommandList->Close());
-
-		ID3D12CommandList* const commandLists[] = {
-			DeviceResources->CommandList.Get()
-		};
-		DeviceResources->CommandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
-
 		UINT syncInterval = m_VSyncEnabled ? 1 : 0;
 		UINT presentFlags = m_TearingSupported && !m_VSyncEnabled ? DXGI_PRESENT_ALLOW_TEARING : 0;
 		ThrowIfFailed(DeviceResources->SwapChain->Present(syncInterval, presentFlags));

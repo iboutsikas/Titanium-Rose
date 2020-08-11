@@ -3,6 +3,7 @@
 #include "Platform/D3D12/d3dx12.h"
 #include "Platform/D3D12/D3D12Helpers.h"
 #include "Platform/D3D12/D3D12ResourceBatch.h"
+#include "Platform/D3D12/Profiler/Profiler.h"
 
 namespace Hazel {
 	D3D12ResourceBatch::D3D12ResourceBatch(TComPtr<ID3D12Device2> device) : 
@@ -105,9 +106,16 @@ namespace Hazel {
 		m_TrackedImages.push_back(image);
 	}
 
+	void D3D12ResourceBatch::TrackBlock(GPUProfileBlock& block)
+	{
+		m_ProfilingBlocks.emplace_back(block);
+	}
+
 	std::future<void> D3D12ResourceBatch::End(ID3D12CommandQueue* commandQueue)
 	{
 		HZ_CORE_ASSERT(m_Finalized != true, "Resource batch has been finalized");
+
+		m_ProfilingBlocks.clear();
 
 		D3D12::ThrowIfFailed(m_CommandList->Close());
 
@@ -128,8 +136,10 @@ namespace Hazel {
 		batch->GpuCompleteEvent = evt;
 		std::swap(m_TrackedObjects, batch->TrackedObjects);
 		std::swap(m_TrackedImages, batch->TrackedImages);
+		//std::swap(m_ProfilingBlocks, batch->ProfilingBlocks);
 
 		std::future<void> ret = std::async(std::launch::async, [batch]() {
+
 			auto wr = WaitForSingleObject(batch->GpuCompleteEvent, INFINITE);
 
 			if (wr != WAIT_OBJECT_0)

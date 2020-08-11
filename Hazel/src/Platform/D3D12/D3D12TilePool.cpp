@@ -392,6 +392,21 @@ namespace Hazel
 #endif
     }
 
+    std::vector<TilePoolStats> D3D12TilePool::GetStats()
+    {
+        std::vector<TilePoolStats> ret;
+
+
+        for (auto page : m_Pages)
+        {
+            TilePoolStats stats;
+            stats.MaxTiles = page->MaxTiles;
+            stats.FreeTiles = page->FreeTiles.size();
+            ret.push_back(stats);
+        }
+        return ret;
+    }
+
     Ref<TilePage> D3D12TilePool::FindAvailablePage(uint32_t tiles)
     {
         Ref<TilePage> ret = nullptr;

@@ -24,8 +24,9 @@ namespace Hazel
     {
     public:
 
-        static constexpr uint8_t MaxSupportedLights = 25;
+        static constexpr uint8_t MaxSupportedLights = 2;
         static constexpr uint8_t MipsPerIteration = 4;
+        static constexpr uint8_t FrameLatency = 3;
 
         enum RendererType 
         {
@@ -56,7 +57,9 @@ namespace Hazel
         /// It deals with pointing to the correct back buffer, etc.
         /// Does not execute any commands on the gpu;
         /// </summary>
-        static void NewFrame();
+        static void BeginFrame();
+
+        static void EndFrame();
 
         /// <summary>
         /// This will swap the back buffers and execute the "main" command list
@@ -82,6 +85,7 @@ namespace Hazel
         static void Submit(D3D12ResourceBatch& batch, Ref<GameObject> gameObject);
         static void RenderSubmitted();
         static void RenderSkybox(uint32_t mipLevel = 0);
+        static void RenderDiagnostics();
         static void DoToneMapping();
 
         static void GenerateMips(Ref<D3D12Texture> texture, uint32_t mostDetailedMip = 0);

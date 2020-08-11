@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <string>
 
 // Platform detection using predefined macros
 #ifdef _WIN32

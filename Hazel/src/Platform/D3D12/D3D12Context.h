@@ -43,6 +43,7 @@ namespace Hazel{
 		inline HWND GetNativeHandle() { return m_NativeHandle; }
 		inline UINT GetRTVDescriptorSize() { return m_RTVDescriptorSize; }
 		inline UINT GetSRVDescriptorSize() { return m_SRVDescriptorSize; }
+		inline UINT	GetCurrentFrameIndex() { return m_CurrentBackbufferIndex; }
 
 		D3D12_VIEWPORT Viewport;
 		D3D12_RECT	ScissorRect;

@@ -243,22 +243,17 @@ void BenchmarkLayer::OnUpdate(Hazel::Timestep ts)
 
 
 
-    m_Accumulator += ts.GetMilliseconds();
+    m_Accumulator++;
     if (m_Accumulator >= m_UpdateRate)
     {
-#if 1
-        D3D12Renderer::Context->DeviceResources->CommandAllocator->Reset();
-        m_Accumulator = 0.0f;
+        m_Accumulator = 0;
         D3D12Renderer::UpdateVirtualTextures();
         D3D12Renderer::RenderVirtualTextures();
         D3D12Renderer::GenerateVirtualMips();
 
-        D3D12Renderer::Context->DeviceResources->CommandAllocator->Reset();
-#endif
     }
-#if 1
+
     D3D12Renderer::ClearVirtualMaps();
-#endif
     
     D3D12Renderer::RenderSubmitted();
     
@@ -273,12 +268,6 @@ void BenchmarkLayer::OnImGuiRender()
 {
     using namespace Hazel;
 #if 1
-
-    ImGui::Begin("Diagnostics");
-    ImGui::Text("Frame Time: %.2f ms (%.2f fps)", m_LastFrameTime, 1000.0f / m_LastFrameTime);
-    ImGui::Text("Loaded Textures: %d", D3D12Renderer::TextureLibrary->TextureCount());
-    ImGui::End();
-
     //ImGui::Begin("Controls");
     //ImGui::ColorEdit4("Clear Color", &m_ClearColor.x);
    
@@ -328,7 +317,7 @@ void BenchmarkLayer::OnImGuiRender()
     ImGui::Columns(2);
     ImGui::AlignTextToFramePadding();
     ImGui::Property("Exposure", m_Scene.Exposure, 0.0f, 5.0f);
-    ImGui::Property("Texture update rate", m_UpdateRate, 0.0f, 0.0f, ImGui::PropertyFlag::InputProperty);
+    ImGui::Property("Texture update rate", m_UpdateRate, 0, 120, ImGui::PropertyFlag::None);
     ImGui::Columns(1);
     ImGui::End();
 
@@ -339,6 +328,7 @@ void BenchmarkLayer::OnImGuiRender()
     {
         Hazel::Light& light = m_Scene.Lights[i];
         PatrolComponent& c = m_PatrolComponents[i];
+        light.GameObject->Material->EmissiveColor = light.GameObject->Material->Color;
 
         ImGui::PushID(i);
         std::string label = "Point Light #" + std::to_string(i + 1);
@@ -346,13 +336,13 @@ void BenchmarkLayer::OnImGuiRender()
         if (ImGui::CollapsingHeader(label.c_str(), ImGuiTreeNodeFlags_None))
         {
             //ImGui::TransformControl(light->GameObject->Transform);
-            light.GameObject->Material->EmissiveColor = light.GameObject->Material->Color;
             //ImGui::MaterialControl(light->GameObject->Material);
             ImGui::Columns(2);
-            //ImGui::Property("Range", light->Range, 1, 50, ImGui::PropertyFlag::None);
-            //ImGui::Property("Intensity", light->Intensity, 0.0f, 15.0f, ImGui::PropertyFlag::None);
+            ImGui::Property("Range", light.Range, 1, 50, ImGui::PropertyFlag::None);
+            ImGui::Property("Intensity", light.Intensity, 0.0f, 15.0f, ImGui::PropertyFlag::None);
             ImGui::Property("Follow path", c.Patrol);
         }
+
         ImGui::PopID();
     }
 

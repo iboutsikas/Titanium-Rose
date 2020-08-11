@@ -5,8 +5,11 @@
 #include "Hazel/Core/Image.h"
 
 #include "Platform/D3D12/ComPtr.h"
+#include "Platform/D3D12/Profiler/Profiler.h"
 
 namespace Hazel {
+
+
     class D3D12ResourceBatch
     {
     public:
@@ -24,6 +27,7 @@ namespace Hazel {
 
         void TrackResource(_In_ ID3D12Resource* resource);
         void TrackImage(_In_ Ref<Image> image);
+        void TrackBlock(_In_ GPUProfileBlock& block);
 
         std::future<void> End(ID3D12CommandQueue* commandQueue);
 
@@ -33,11 +37,13 @@ namespace Hazel {
         TComPtr<ID3D12CommandAllocator> m_CommandAllocator;
         std::vector<TComPtr<ID3D12DeviceChild>> m_TrackedObjects;
         std::vector<Ref<Image>>                 m_TrackedImages;
+        std::vector<GPUProfileBlock>            m_ProfilingBlocks;
         bool m_Finalized;
 
         struct Batch {
             std::vector<TComPtr<ID3D12DeviceChild>> TrackedObjects;
             std::vector<Ref<Image>>                 TrackedImages;
+            std::vector<GPUProfileBlock>            ProfilingBlocks;
             TComPtr<ID3D12GraphicsCommandList>      CommandList;
             TComPtr<ID3D12Fence>  			        Fence;
             HANDLE                                  GpuCompleteEvent;

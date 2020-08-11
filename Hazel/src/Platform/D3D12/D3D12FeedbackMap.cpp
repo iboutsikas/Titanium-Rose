@@ -30,7 +30,7 @@ namespace Hazel
 
 	void D3D12FeedbackMap::Update(ID3D12GraphicsCommandList* cmdList)
 	{
-		m_ReadbackBuffer->Unmap();		
+		//m_ReadbackBuffer->Unmap();		
 		this->Transition(cmdList, D3D12_RESOURCE_STATE_COPY_SOURCE);
 		cmdList->CopyResource(m_ReadbackBuffer->GetResource(), m_Resource.Get());
 		this->Transition(cmdList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);

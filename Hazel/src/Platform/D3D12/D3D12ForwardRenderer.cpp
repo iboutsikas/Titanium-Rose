@@ -11,15 +11,16 @@
 
 #include <future>
 
-#define SHADER_NAME "PbrShader"
+DECLARE_SHADER_NAMED("SurfaceShader-Forward", Surface);
 
 void Hazel::D3D12ForwardRenderer::ImplRenderSubmitted()
 {
 #if 1
     static std::vector<std::future<void>> renderTasks;
+    GPUProfileBlock passBlock(Context->DeviceResources->CommandList.Get(), "Forward Render");
 
     uint32_t counter = 0;
-    auto shader = ShaderLibrary->GetAs<D3D12Shader>(SHADER_NAME);
+    auto shader = ShaderLibrary->GetAs<D3D12Shader>(ShaderNameSurface);
     auto envRad = s_CommonData.Scene->Environment.EnvironmentMap;
     auto envIrr = s_CommonData.Scene->Environment.IrradianceMap;
     auto lut = TextureLibrary->GetAs<D3D12Texture2D>(std::string("spbrdf"));
@@ -78,6 +79,8 @@ void Hazel::D3D12ForwardRenderer::ImplRenderSubmitted()
             if (go->Mesh == nullptr) {
                 continue;
             }
+
+            GPUProfileBlock itemBlock(cmdList.Get(), "Render: " + go->Name);
 
             HPerObjectData objectData;
             objectData.LocalToWorld = go->Transform.LocalToWorldMatrix();
@@ -155,7 +158,7 @@ void Hazel::D3D12ForwardRenderer::ImplOnInit()
         pipelineStateStream.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
         pipelineStateStream.RTVFormats = rtvFormats;
         pipelineStateStream.RasterizerState = CD3DX12_PIPELINE_STATE_STREAM_RASTERIZER(rasterizer);
-        auto shader = Hazel::CreateRef<Hazel::D3D12Shader>("assets/shaders/" SHADER_NAME ".hlsl", pipelineStateStream);
+        auto shader = Hazel::CreateRef<Hazel::D3D12Shader>(std::string(ShaderPathSurface), pipelineStateStream);
         D3D12Renderer::ShaderLibrary->Add(shader);
     }
 }

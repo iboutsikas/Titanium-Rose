@@ -27,29 +27,29 @@ namespace Hazel {
 
 		if (Input::IsKeyPressed(HZ_KEY_A))
 		{
-			cameraPosition -= m_Camera.GetRight() * m_CameraTranslationSpeed * glm::vec3(ts);
+			cameraPosition -= m_Camera.GetRight() * m_CameraTranslationSpeed * glm::vec3(ts.GetSeconds());
 		}
 		else if (Input::IsKeyPressed(HZ_KEY_D))
 		{
-			cameraPosition += m_Camera.GetRight() * m_CameraTranslationSpeed * glm::vec3(ts);
+			cameraPosition += m_Camera.GetRight() * m_CameraTranslationSpeed * glm::vec3(ts.GetSeconds());
 		}
 
 		if (Input::IsKeyPressed(HZ_KEY_W))
 		{
-			cameraPosition += m_Camera.GetForward() * m_CameraTranslationSpeed * glm::vec3(ts);
+			cameraPosition += m_Camera.GetForward() * m_CameraTranslationSpeed * glm::vec3(ts.GetSeconds());
 		}
 		else if (Input::IsKeyPressed(HZ_KEY_S))
 		{
-			cameraPosition -= m_Camera.GetForward() * m_CameraTranslationSpeed * glm::vec3(ts);
+			cameraPosition -= m_Camera.GetForward() * m_CameraTranslationSpeed * glm::vec3(ts.GetSeconds());
 		}
 
 		if (Input::IsKeyPressed(HZ_KEY_SPACE)) 
 		{
-			cameraPosition += m_Camera.GetUp() * m_CameraTranslationSpeed * glm::vec3(ts);
+			cameraPosition += m_Camera.GetUp() * m_CameraTranslationSpeed * glm::vec3(ts.GetSeconds());
 		}
 		else if (Input::IsKeyPressed(HZ_KEY_X))
 		{
-			cameraPosition -= m_Camera.GetUp() * m_CameraTranslationSpeed * glm::vec3(ts);
+			cameraPosition -= m_Camera.GetUp() * m_CameraTranslationSpeed * glm::vec3(ts.GetSeconds());
 		}
 		
 
@@ -74,8 +74,8 @@ namespace Hazel {
 			float deltaY = y - centerY;
 
 
-			float yaw = deltaX * m_CameraRotationSpeed * ts;
-			float pitch = deltaY * m_CameraRotationSpeed * ts;
+			float yaw = deltaX * m_CameraRotationSpeed * ts.GetSeconds();
+			float pitch = deltaY * m_CameraRotationSpeed * ts.GetSeconds();
 			float roll = 0.0f; // maybe implement this in the future?
 			m_LastMouseX = x;
 			m_LastMouseY = y;
