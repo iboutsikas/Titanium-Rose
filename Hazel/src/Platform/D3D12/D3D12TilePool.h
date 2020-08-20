@@ -7,8 +7,23 @@
 #include "Platform/D3D12/D3D12Texture.h"
 #include "Platform/D3D12/D3D12ResourceBatch.h"
 
+
 namespace Hazel 
 {
+	union TileAddress
+	{
+		uint32_t Address;
+		struct {
+			uint16_t Page;
+			uint16_t Tile;
+		};
+
+		bool operator== (const TileAddress& other) const { return this->Address == other.Address; }
+	};
+	
+	static constexpr TileAddress InvalidTileAddress = { uint32_t(-1) };
+		
+
 	struct TilePoolStats
 	{
 		uint32_t MaxTiles;
@@ -17,10 +32,11 @@ namespace Hazel
 	};
 
 	struct TilePage {
-		uint32_t PopTile();
-		void FreeTile(uint32_t tileNumber);
+		uint32_t AllocateTile();
+		void ReleaseTile(uint32_t tileNumber);
 
 		uint32_t MaxTiles = 0;
+		uint16_t PageIndex = 0;
 		std::set<uint32_t> FreeTiles;
 		TComPtr<ID3D12Heap> Heap;
 	};
@@ -51,19 +67,18 @@ namespace Hazel
 		/// <returns>A reference to the newly added page</returns>
 		Ref<TilePage> AddPage(D3D12ResourceBatch& batch, uint32_t size);
 
-		//Ref<D3D12TilePool::TextureAllocationInfo> CreateInitialAllocation()
-
 		struct TileAllocation
 		{
 			bool Mapped = false;
-			uint32_t HeapOffset = 0;
+			//uint32_t HeapOffset = 0;
 			D3D12_TILED_RESOURCE_COORDINATE ResourceCoordinate;
+			TileAddress TileAddress;
 		};
 
 		struct MipAllocationInfo
 		{
-			uint32_t AllocatedTiles = 0;
-			uint32_t NewTiles = 0;
+		/*	uint32_t AllocatedTiles = 0;
+			uint32_t NewTiles = 0;*/
 			Ref<TilePage> AllocatedPage;
 			std::vector<TileAllocation> TileAllocations;
 		};
@@ -72,9 +87,20 @@ namespace Hazel
 		{
 			std::vector<MipAllocationInfo> MipAllocations;
 			bool			PackedMipsMapped = false;
-			uint32_t		PackedMipsOffset = 0;
-			Ref<TilePage>	PackedMipsPage = nullptr;
+			TileAddress		packedMipsAddress;
 		};
+
+        struct UpdateInfo
+        {
+            Ref<TilePage> Page = nullptr;
+
+            std::vector<D3D12_TILED_RESOURCE_COORDINATE> startCoordinates;
+            std::vector<D3D12_TILE_REGION_SIZE> regionSizes;
+            std::vector<D3D12_TILE_RANGE_FLAGS> rangeFlags;
+            std::vector<uint32_t> heapRangeStartOffsets;
+            std::vector<uint32_t> rangeTileCounts;
+            uint32_t tilesUpdated = 0;
+        };
 
 		std::unordered_map<Ref<D3D12VirtualTexture2D>, Ref<TextureAllocationInfo>> m_AllocationMap;
 
