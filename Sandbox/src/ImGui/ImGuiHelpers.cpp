@@ -22,6 +22,7 @@ static std::tuple<glm::vec3, glm::quat, glm::vec3> DecomposeTransform(Hazel::HTr
     return { translation, orientation, scale };
 }
 
+
 void ImGui::TransformControl(Hazel::HTransform& transform)
 {
     int oldColumns = ImGui::GetColumnsCount();
@@ -121,6 +122,12 @@ void ImGui::MeshSelectControl(Hazel::Ref<Hazel::GameObject> target, std::vector<
 void ImGui::DecoupledTextureControl(Hazel::DecoupledTextureComponent& component)
 {
     static bool showingTexture = false;
+    static Hazel::HeapAllocationDescription previewAllocation = Hazel::D3D12Renderer::s_ResourceDescriptorHeap->Allocate(1);;
+    static const char* numberStrings[] = {
+        "0", "1","2", "3", "4", "5", "6", "7", "8",
+        "9", "10", "11", "12", "13", "14", "15", "16"
+    };
+
     int oldColumns = ImGui::GetColumnsCount();
     ImGui::Columns(2);
     //static bool useTexture = false;
@@ -158,12 +165,32 @@ void ImGui::DecoupledTextureControl(Hazel::DecoupledTextureComponent& component)
     {
         ImGui::Begin(component.VirtualTexture->GetIdentifier().c_str(), &showingTexture);
         ImVec2 dims(component.VirtualTexture->GetWidth(), component.VirtualTexture->GetHeight());
-        ImGui::SetWindowSize(ImVec2(dims.x + 50, dims.y + 15));
-        auto mips = component.VirtualTexture->GetMipsUsed();
+        ImGui::Text("Preview Mip:");
+        ImGui::SameLine();
+        static uint32_t selectedMip = mips.FinestMip;
+        static const char* current_item = numberStrings[selectedMip];
+        if (ImGui::BeginCombo("##combo", current_item))
+        {
+            for (int n = 0; n < component.VirtualTexture->GetMipLevels(); ++n)
+            {
+                bool is_selected = (current_item == numberStrings[n]);
 
-        //Hazel::D3D12Renderer::CreateSRV(std::static_pointer_cast<Hazel::D3D12Texture>(component.VirtualTexture), 0);
+                if (ImGui::Selectable(numberStrings[n], is_selected)) {
+                    current_item = numberStrings[n];
+                    selectedMip = n;
+                }
 
-        ImGui::Image((ImTextureID)(component.VirtualTexture->SRVAllocation.GPUHandle.ptr), dims);
+                if (is_selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+        
+        //ImGui::SetWindowSize(ImVec2(dims.x + 50, dims.y + 15));
+
+        Hazel::D3D12Renderer::CreateSRV(std::static_pointer_cast<Hazel::D3D12Texture>(component.VirtualTexture), previewAllocation, selectedMip);
+
+        ImGui::Image((ImTextureID)(previewAllocation.GPUHandle.ptr), dims);
 
         ImGui::End();
     }
