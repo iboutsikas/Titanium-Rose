@@ -5,28 +5,29 @@
 // Constant normal incidence Fresnel factor for all dielectrics.
 static const float3 Fdielectric = 0.04;
 
-Texture2D<float3> AlbedoTexture     : register(t0);
-Texture2D<float3> NormalTexture     : register(t1);
-Texture2D<float> MetalnessTexture   : register(t2);
-Texture2D<float> RoughnessTexture   : register(t3);
-TextureCube EnvRadianceTexture      : register(t4);
-TextureCube EnvIrradianceTExture    : register(t5);
-Texture2D<float2> BRDFLUT           : register(t6);
+Texture2D<float3> AlbedoTexture : register(t0);
+Texture2D<float3> NormalTexture : register(t1);
+Texture2D<float> MetalnessTexture : register(t2);
+Texture2D<float> RoughnessTexture : register(t3);
+TextureCube EnvRadianceTexture : register(t4);
+TextureCube EnvIrradianceTExture : register(t5);
+Texture2D<float2> BRDFLUT : register(t6);
 StructuredBuffer<Light> SceneLights : register(t7);
 
-SamplerState someSampler: register(s0);
-SamplerState brdfSampler: register(s1);
+SamplerState someSampler : register(s0);
+SamplerState brdfSampler : register(s1);
 
 struct PSInput
 {
     float4 position : SV_POSITION;
     float3 normal : NORMAL;
     float3 WorldPosition : POSITION;
-    float2 uv: UV;
+    float2 uv : UV;
     float3x3 TBN : TBN;
 };
 
-cbuffer cbPerObject : register(b0) {
+cbuffer cbPerObject : register(b0)
+{
     matrix LocalToWorld;
     matrix WorldToLocal;
     float3 MaterialColor;
@@ -41,20 +42,20 @@ cbuffer cbPerObject : register(b0) {
     uint3 _padding;
 };
 
-cbuffer cbPass : register(b1) {
-    matrix ViewProjection       : packoffset(c0); 
-    float3 EyePosition          : packoffset(c4.x);
-    uint  NumLights             : packoffset(c4.w);       
+cbuffer cbPass : register(b1)
+{
+    matrix ViewProjection : packoffset(c0);
+    float3 EyePosition : packoffset(c4.x);
+    uint NumLights : packoffset(c4.w);
 };
 
-[RootSignature(PBR_RS2)]
-PSInput VS_Main(VSInput input)
+[RootSignature(PBR_RS2)] 
+PSInput VS_Main(VSInput input) 
 {
     PSInput result;
 
     float2 vUv = input.uv;
     vUv = (vUv * 2.0) - 1.0;
-
 
     float3x3 TBN = float3x3(input.tangent, input.binormal, input.normal);
 
@@ -62,28 +63,31 @@ PSInput VS_Main(VSInput input)
 
     matrix mvp = mul(ViewProjection, LocalToWorld);
     result.position = float4(vUv, 0.0, 1.0);
-    result.normal =  mul((float3x3)LocalToWorld, input.normal);
+    result.normal = mul((float3x3)LocalToWorld, input.normal);
     result.uv = float2(input.uv.x, 1.0 - input.uv.y);
-        
+
     result.WorldPosition = mul(LocalToWorld, float4(input.position, 1.0)).xyz;
 
     return result;
 }
 
-[RootSignature(PBR_RS2)]
+[RootSignature(PBR_RS2)] 
 float4 PS_Main(PSInput input) : SV_TARGET
 {
-   float3 Albedo = HasAlbedo ? AlbedoTexture.Sample(someSampler, input.uv) : MaterialColor;
-   float  Metalness = HasMetallic ? MetalnessTexture.Sample(someSampler, input.uv).r : MaterialMetallic;
-   float  Roughness = HasRoughness ? RoughnessTexture.Sample(someSampler, input.uv).r : MaterialRoughness;
+    float3 Albedo = HasAlbedo ? AlbedoTexture.Sample(someSampler, input.uv) : MaterialColor;
+    float Metalness = HasMetallic ? MetalnessTexture.Sample(someSampler, input.uv).r : MaterialMetallic;
+    float Roughness = HasRoughness ? RoughnessTexture.Sample(someSampler, input.uv).r : MaterialRoughness;
 
     float3 Normal = normalize(input.normal);
-    
-    if (HasNormal) {
+
+    if (HasNormal)
+    {
         float3 N = NormalTexture.Sample(someSampler, input.uv).rgb;
         N = 2.0 * N - 1.0;
         Normal = normalize(mul(N, input.TBN));
     }
+
+    // return float4(input.uv, 0, 1);
 
     float3 FragmentToCamera = normalize(EyePosition - input.WorldPosition);
     float cosLo = max(dot(Normal, FragmentToCamera), 0.0);
@@ -95,17 +99,17 @@ float4 PS_Main(PSInput input) : SV_TARGET
     float3 F0 = lerp(Fdielectric, Albedo, Metalness);
 
     float3 directLighting = 0.0;
-    #if 1
-    for(uint i = 0; i < NumLights; i++)
+#if 1
+    for (uint i = 0; i < NumLights; i++)
     {
         Light l = SceneLights[i];
-        
+
         float3 V = l.Position.xyz - input.WorldPosition;
 
         float d = length(V);
 
-
-        if (d > l.Range) {
+        if (d > l.Range)
+        {
             continue;
         }
 
@@ -141,7 +145,7 @@ float4 PS_Main(PSInput input) : SV_TARGET
         // Total contribution for this light.
         directLighting += (diffuseBRDF + specularBRDF) * l.Color * l.Intensity * cosLi * attenuation * shadowFactor;
     }
-    #endif
+#endif
     // Ambient lighting (IBL).
     float3 ambientLighting;
     {
@@ -175,6 +179,7 @@ float4 PS_Main(PSInput input) : SV_TARGET
         ambientLighting = diffuseIBL + specularIBL;
     }
 
-    return float4(ambientLighting + directLighting, 1.0);
-    // return float4(directLighting + ambientLighting + MaterialEmissive, 1);
+    // return float4(1, 0, 0, 1);
+    // return float4(ambientLighting + MaterialEmissive, 1.0);
+    return float4(directLighting + ambientLighting + MaterialEmissive, 1);
 }

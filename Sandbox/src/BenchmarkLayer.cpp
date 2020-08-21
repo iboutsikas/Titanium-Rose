@@ -216,7 +216,7 @@ void BenchmarkLayer::OnUpdate(Hazel::Timestep ts)
         c.OnUpdate(ts);
     }
 
-    D3D12Renderer::Context->DeviceResources->CommandAllocator->Reset();
+    //D3D12Renderer::Context->DeviceResources->CommandAllocator->Reset();
 
     D3D12Renderer::PrepareBackBuffer(m_ClearColor);
 

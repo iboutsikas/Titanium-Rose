@@ -48,7 +48,47 @@ namespace Hazel
 			Ref<D3D12Texture2D> texture, 
 			TComPtr<ID3D12CommandQueue> commandQueue);
 
+		void ReleaseTexture(Ref<D3D12Texture2D> texture,
+			TComPtr<ID3D12CommandQueue> commandQueue);
+
 		std::vector<TilePoolStats> GetStats();
+
+	private:
+        struct TileAllocation
+        {
+            bool Mapped = false;
+            D3D12_TILED_RESOURCE_COORDINATE ResourceCoordinate;
+            TileAddress TileAddress;
+        };
+
+        struct MipAllocationInfo
+        {
+            std::vector<TileAllocation> TileAllocations;
+        };
+
+        struct TextureAllocationInfo
+        {
+            std::vector<MipAllocationInfo> MipAllocations;
+            bool			PackedMipsMapped = false;
+            TileAddress		PackedMipsAddress;
+
+			~TextureAllocationInfo()
+			{
+			}
+        };
+
+        struct UpdateInfo
+        {
+            Ref<TilePage> Page = nullptr;
+
+            std::vector<D3D12_TILED_RESOURCE_COORDINATE> startCoordinates;
+            std::vector<D3D12_TILE_REGION_SIZE> regionSizes;
+            std::vector<D3D12_TILE_RANGE_FLAGS> rangeFlags;
+            std::vector<uint32_t> heapRangeStartOffsets;
+            std::vector<uint32_t> rangeTileCounts;
+            uint32_t tilesUpdated = 0;
+        };
+
 	private:
 
 		/// <summary>
@@ -67,40 +107,10 @@ namespace Hazel
 		/// <returns>A reference to the newly added page</returns>
 		Ref<TilePage> AddPage(D3D12ResourceBatch& batch, uint32_t size);
 
-		struct TileAllocation
-		{
-			bool Mapped = false;
-			//uint32_t HeapOffset = 0;
-			D3D12_TILED_RESOURCE_COORDINATE ResourceCoordinate;
-			TileAddress TileAddress;
-		};
+		Ref<TextureAllocationInfo> GetTextureInfo(Ref<D3D12VirtualTexture2D> texture);
 
-		struct MipAllocationInfo
-		{
-		/*	uint32_t AllocatedTiles = 0;
-			uint32_t NewTiles = 0;*/
-			Ref<TilePage> AllocatedPage;
-			std::vector<TileAllocation> TileAllocations;
-		};
-		
-		struct TextureAllocationInfo
-		{
-			std::vector<MipAllocationInfo> MipAllocations;
-			bool			PackedMipsMapped = false;
-			TileAddress		packedMipsAddress;
-		};
-
-        struct UpdateInfo
-        {
-            Ref<TilePage> Page = nullptr;
-
-            std::vector<D3D12_TILED_RESOURCE_COORDINATE> startCoordinates;
-            std::vector<D3D12_TILE_REGION_SIZE> regionSizes;
-            std::vector<D3D12_TILE_RANGE_FLAGS> rangeFlags;
-            std::vector<uint32_t> heapRangeStartOffsets;
-            std::vector<uint32_t> rangeTileCounts;
-            uint32_t tilesUpdated = 0;
-        };
+	
+	private:
 
 		std::unordered_map<Ref<D3D12VirtualTexture2D>, Ref<TextureAllocationInfo>> m_AllocationMap;
 

@@ -21,7 +21,7 @@ cbuffer cbPass : register(b1) {
 };
 
 cbuffer cbPerObject : register(b0) {
-    matrix  LocalToWorld;;
+    matrix  LocalToWorld;
     uint2   FeedbackDims;
     uint2   _padding;
 }
@@ -53,13 +53,22 @@ PSInput VS_Main(VSInput input)
 [RootSignature(MyRS1)]
 float4 PS_Main(PSInput input) : SV_TARGET
 {
-    float idealMipLevel = ColorTexture.CalculateLevelOfDetail(g_sampler, input.uv);
+    uint idealMipLevel = ColorTexture.CalculateLevelOfDetail(g_sampler, input.uv);
     
     uint feedbackX = (uint)((float)FeedbackDims.x * input.uv.x) ;
     uint feedbackY = (uint)((float)FeedbackDims.y * input.uv.y);
 
     uint index = feedbackY * FeedbackDims.x + feedbackX;
-    InterlockedMin(FeedbackBuffer[index], 1);
-    // return MipDebugColor(uint(idealMipLevel));
-    return ColorTexture.Sample(g_sampler, input.uv);
+    InterlockedMin(FeedbackBuffer[index], idealMipLevel);
+
+    // return MipDebugColor(idealMipLevel);
+    // return float4(idealMipLevel / 10, 0, 0, 1);
+    // float4 smpl = ColorTexture.SampleLevel(g_sampler, input.uv, 3);
+    float4 smpl = ColorTexture.Sample(g_sampler, input.uv);
+
+
+    // if (smpl.a == 0) {
+    //     return float4(1, 0, 1, 1);
+    // }
+    return smpl;
 }

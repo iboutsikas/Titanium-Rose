@@ -29,7 +29,7 @@ namespace Hazel {
         void TrackImage(_In_ Ref<Image> image);
         void TrackBlock(_In_ GPUProfileBlock& block);
 
-        std::future<void> End(ID3D12CommandQueue* commandQueue);
+        std::shared_future<void> End(ID3D12CommandQueue* commandQueue);
 
     private:
         TComPtr<ID3D12Device2> m_Device;

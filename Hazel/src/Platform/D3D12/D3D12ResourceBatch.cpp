@@ -47,6 +47,10 @@ namespace Hazel {
 				IID_PPV_ARGS(&m_CommandAllocator)
 			));
 		}
+		else
+		{
+			m_CommandAllocator->Reset();
+		}
 		
 
 		D3D12::ThrowIfFailed(m_Device->CreateCommandList(
@@ -111,7 +115,7 @@ namespace Hazel {
 		m_ProfilingBlocks.emplace_back(block);
 	}
 
-	std::future<void> D3D12ResourceBatch::End(ID3D12CommandQueue* commandQueue)
+	std::shared_future<void> D3D12ResourceBatch::End(ID3D12CommandQueue* commandQueue)
 	{
 		HZ_CORE_ASSERT(m_Finalized != true, "Resource batch has been finalized");
 
@@ -138,7 +142,7 @@ namespace Hazel {
 		std::swap(m_TrackedImages, batch->TrackedImages);
 		//std::swap(m_ProfilingBlocks, batch->ProfilingBlocks);
 
-		std::future<void> ret = std::async(std::launch::async, [batch]() {
+		std::shared_future<void> ret = std::async(std::launch::async, [batch]() {
 
 			auto wr = WaitForSingleObject(batch->GpuCompleteEvent, INFINITE);
 

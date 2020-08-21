@@ -16,7 +16,7 @@ DECLARE_SHADER_NAMED("SurfaceShader-Forward", Surface);
 void Hazel::D3D12ForwardRenderer::ImplRenderSubmitted()
 {
 #if 1
-    static std::vector<std::future<void>> renderTasks;
+    static std::vector<std::shared_future<void>> renderTasks;
     GPUProfileBlock passBlock(Context->DeviceResources->CommandList.Get(), "Forward Render");
 
     uint32_t counter = 0;
@@ -128,7 +128,7 @@ void Hazel::D3D12ForwardRenderer::ImplRenderSubmitted()
         batch.TrackResource(perObjectBuffer.Resource());
         batch.TrackResource(passBuffer.Resource());
         PIXEndEvent(cmdList.Get());
-        renderTasks.push_back(batch.End(Context->DeviceResources->CommandQueue.Get()));
+        renderTasks.emplace_back(batch.End(Context->DeviceResources->CommandQueue.Get()));
 
         for (auto& task : renderTasks)
         {

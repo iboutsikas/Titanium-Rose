@@ -1,5 +1,6 @@
 #pragma once
 #include "Platform/D3D12/D3D12Renderer.h"
+#include "Platform/D3D12/D3D12Texture.h"
 
 namespace Hazel
 {
@@ -9,6 +10,8 @@ namespace Hazel
     {
     public:
         void ImplRenderVirtualTextures();
+        void ImplDilateVirtualTextures();
+        
         Ref<D3D12Shader> GetShader();
 
     protected:
@@ -17,7 +20,6 @@ namespace Hazel
         virtual void ImplSubmit(Ref<GameObject> gameObject) override {};
         virtual void ImplSubmit(D3D12ResourceBatch& batch, Ref<GameObject> gameObject) override;
         virtual RendererType ImplGetRendererType() override { return D3D12Renderer::RendererType_TextureSpace; }
-
 
     private:
         static constexpr uint32_t MaxItemsPerQueue = 25;
@@ -81,5 +83,15 @@ namespace Hazel
             glm::ivec2 FeedbackDims;
             glm::ivec2 _padding;
         };
+
+        struct DilateTextureInfo 
+        {
+            Ref<D3D12VirtualTexture2D> Temporary;
+            Ref<D3D12VirtualTexture2D> Target;
+        };
+
+
+    private:
+        std::vector<DilateTextureInfo> m_DilationQueue;
     };
 }

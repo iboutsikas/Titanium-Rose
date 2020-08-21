@@ -1,6 +1,7 @@
 #include "hzpch.h"
 #include "Platform/D3D12/DecoupledRenderer.h"
 #include "Platform/D3D12/D3D12Shader.h"
+#include "Platform/D3D12/D3D12TilePool.h"
 
 #include "winpixeventruntime/pix3.h"
 
@@ -8,10 +9,11 @@ namespace Hazel
 {
     DECLARE_SHADER_NAMED("SurfaceShader-Decoupled", Decoupled);
     DECLARE_SHADER_NAMED("SurfaceShader-Simple", Simple);
+    DECLARE_SHADER(Dilate);
+
     // 
     void DecoupledRenderer::ImplRenderVirtualTextures()
     {
-        HeapValidationMark rtvMark(s_RenderTargetDescriptorHeap);
         HeapValidationMark srvMark(s_ResourceDescriptorHeap);
 
         auto shader = GetShader();
@@ -24,14 +26,12 @@ namespace Hazel
         passData.NumLights = s_CommonData.NumLights;
         passData.EyePosition = s_CommonData.Scene->Camera->GetPosition();
 
-        std::vector<std::future<void>> renderTasks(std::ceil<size_t>(s_DecoupledObjects.size() / MaxItemsPerQueue));
-        
-        Context->DeviceResources->CommandAllocator->Reset();
+        std::vector<std::shared_future<void>> renderTasks;
 
         uint32_t counter = 0;
         while (counter < s_DecoupledObjects.size())
         {
-            D3D12ResourceBatch batch(Context->DeviceResources->Device, Context->DeviceResources->CommandAllocator);
+            D3D12ResourceBatch batch(Context->DeviceResources->Device);
             auto cmdlist = batch.Begin();
             
             D3D12UploadBuffer<HPerObjectData> perObjectBuffer(batch, MaxItemsPerQueue, true);
@@ -71,16 +71,37 @@ namespace Hazel
                 tex->Transition(cmdlist.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
                 auto mips = tex->GetMipsUsed();
 
-                CreateRTV(std::static_pointer_cast<D3D12Texture>(tex), mips.FinestMip);
+                auto targetWidth = tex->GetWidth() >> mips.FinestMip;
+                auto targetHeight = tex->GetHeight() >> mips.FinestMip;
 
-                D3D12_VIEWPORT vp = { 0, 0, tex->GetWidth() >> mips.FinestMip, tex->GetHeight() >> mips.FinestMip, 0, 1 };
-                D3D12_RECT rect = { 0, 0, tex->GetWidth() >> mips.FinestMip, tex->GetHeight() >> mips.FinestMip };
+                D3D12Texture::TextureCreationOptions opts;
+                opts.Width = targetWidth;
+                opts.Height = targetHeight;
+                opts.MipLevels = 1;
+                opts.Format = tex->GetFormat();
+                opts.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+
+                auto temp = D3D12Texture2D::CreateVirtualTexture(batch, opts);
+                temp->Transition(cmdlist.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+                TilePool->MapTexture(batch, temp, Context->DeviceResources->CommandQueue);
+
+                DilateTextureInfo dilateTextureInfo = {};
+                dilateTextureInfo.Target = tex;
+                dilateTextureInfo.Temporary = std::static_pointer_cast<D3D12VirtualTexture2D>(temp);
+
+                CreateRTV(std::static_pointer_cast<D3D12Texture>(temp));
+
+                m_DilationQueue.emplace_back(dilateTextureInfo);
+
+                D3D12_VIEWPORT vp = { 0, 0, targetWidth, targetHeight, 0, 1 };
+                D3D12_RECT rect = { 0, 0, targetWidth, targetHeight };
 
                 cmdlist->RSSetViewports(1, &vp);
                 cmdlist->RSSetScissorRects(1, &rect);
-                cmdlist->OMSetRenderTargets(1, &tex->RTVAllocation.CPUHandle, true, nullptr);
-                static const float clearColor[] = { 1.0f, 0.0f, 0.0f, 0.0f };
-                cmdlist->ClearRenderTargetView(tex->RTVAllocation.CPUHandle, clearColor, 0, nullptr);
+                cmdlist->OMSetRenderTargets(1, &temp->RTVAllocation.CPUHandle, true, nullptr);
+                static const float clearColor[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+                cmdlist->ClearRenderTargetView(temp->RTVAllocation.CPUHandle, clearColor, 0, nullptr);
 
                 HPerObjectData objectData;
                 objectData.LocalToWorld = obj->Transform.LocalToWorldMatrix();
@@ -136,7 +157,67 @@ namespace Hazel
         {
             task.wait();
         }
+
         renderTasks.clear();
+    }
+
+    void DecoupledRenderer::ImplDilateVirtualTextures()
+    {
+        HeapValidationMark srvMark(s_ResourceDescriptorHeap);
+
+        auto shader = ShaderLibrary->GetAs<D3D12Shader>(ShaderNameDilate);
+
+        D3D12ResourceBatch batch(Context->DeviceResources->Device, Context->DeviceResources->CommandAllocator);
+        auto cmdlist = batch.Begin();
+        GPUProfileBlock passBlock(cmdlist.Get(), "Dilate Textures");
+
+        cmdlist->SetComputeRootSignature(shader->GetRootSignature());
+        cmdlist->SetPipelineState(shader->GetPipelineState());
+        ID3D12DescriptorHeap* heaps [] = {
+            s_ResourceDescriptorHeap->GetHeap()
+        };
+        cmdlist->SetDescriptorHeaps(_countof(heaps), heaps);
+
+
+        for (auto& info : m_DilationQueue)
+        {
+            auto width = info.Temporary->GetWidth();
+            auto height = info.Temporary->GetHeight();
+            auto mips = info.Target->GetMipsUsed();
+
+            HZ_CORE_ASSERT(width == (info.Target->GetWidth() >> mips.FinestMip), "Width miss match");
+            HZ_CORE_ASSERT(height == (info.Target->GetHeight() >> mips.FinestMip), "Height miss match");
+
+            info.Temporary->Transition(batch, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+            info.Target->Transition(batch, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+            CreateSRV(std::static_pointer_cast<D3D12Texture>(info.Temporary));
+            CreateUAV(std::static_pointer_cast<D3D12Texture>(info.Target), mips.FinestMip);
+
+            glm::vec4 dims = { width, height, 1.0f / width, 1.0f / height };
+            cmdlist->SetComputeRoot32BitConstants(0, sizeof(dims) / sizeof(float), &dims[0], 0);
+            cmdlist->SetComputeRootDescriptorTable(1, info.Temporary->SRVAllocation.GPUHandle);
+            cmdlist->SetComputeRootDescriptorTable(2, info.Target->UAVAllocation.GPUHandle);
+
+            auto x_count = D3D12::RoundToMultiple(width, 8);
+            auto y_count = D3D12::RoundToMultiple(height, 8);
+            cmdlist->Dispatch(x_count, y_count, 1);
+            cmdlist->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::UAV(info.Target->GetResource()));
+            
+            
+        }
+        batch.TrackBlock(passBlock);
+        batch.End(Context->DeviceResources->CommandQueue.Get());
+
+        // Clean up m_dilationqueue
+        for (auto& info : m_DilationQueue)
+        {
+            s_ResourceDescriptorHeap->Release(info.Temporary->SRVAllocation);
+            s_RenderTargetDescriptorHeap->Release(info.Temporary->RTVAllocation);
+            s_ResourceDescriptorHeap->Release(info.Target->UAVAllocation);
+            TilePool->ReleaseTexture(info.Temporary, Context->DeviceResources->CommandQueue);
+        }
+        m_DilationQueue.clear();
     }
 
     Ref<D3D12Shader> DecoupledRenderer::GetShader()
@@ -154,7 +235,7 @@ namespace Hazel
 
         GPUProfileBlock passBlock(Context->DeviceResources->CommandList.Get(), "Simple Render");
 
-        std::vector<std::future<void>> renderTasks;
+        std::vector<std::shared_future<void>> renderTasks;
 
         uint32_t counter = 0;
 
@@ -259,7 +340,7 @@ namespace Hazel
 
             CD3DX12_RASTERIZER_DESC rasterizer(D3D12_DEFAULT);
             rasterizer.FrontCounterClockwise = TRUE;
-            rasterizer.CullMode = D3D12_CULL_MODE_BACK;
+            rasterizer.CullMode = D3D12_CULL_MODE_NONE;
 
             CD3DX12_PIPELINE_STATE_STREAM pipelineStateStream;
 

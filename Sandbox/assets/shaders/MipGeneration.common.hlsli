@@ -1,5 +1,6 @@
 static const float gamma = 2.2;
 
+
 #define RS\
     "RootFlags(0), " \
     "RootConstants(b0, num32BitConstants = 8), " \
@@ -8,11 +9,11 @@ static const float gamma = 2.2;
     "DescriptorTable(UAV(u1, numDescriptors = 1, flags = DESCRIPTORS_VOLATILE))," \
     "DescriptorTable(UAV(u2, numDescriptors = 1, flags = DESCRIPTORS_VOLATILE))," \
     "DescriptorTable(UAV(u3, numDescriptors = 1, flags = DESCRIPTORS_VOLATILE))," \
-    "StaticSampler(s0, filter = FILTER_MIN_MAG_MIP_LINEAR)"
+    "StaticSampler(s0, filter = FILTER_MIN_MAG_MIP_POINT)"
 
 cbuffer GernerateMipsCB: register(b0)
 {
-    float4  TexelSize;      // width, height, 1 / width, 1 / height
+    float4  TexelSize;      // width, height, 1 / dstwidth, 1 / dstheight
     uint    SrcMipLevel;    // Texture level of source mip
     uint    NumMipLevels;   // Number of OutMips to write: [1-4]
     uint2   __padding;

@@ -121,14 +121,8 @@ namespace Hazel {
         virtual MipLevels ExtractMipsUsed() override;
         virtual MipLevels GetMipsUsed() override;
 
-        struct TileAllocation
-        {
-            bool Mapped;
-            uint32_t HeapOffset;
-            D3D12_TILED_RESOURCE_COORDINATE ResourceCoordinate;
-        };
+        glm::ivec3 GetTileDimensions(uint32_t subresource = 0) const;
 
-        std::vector<std::vector<TileAllocation>>    m_TileAllocations;
         uint32_t								    m_NumTiles;
         D3D12_TILE_SHAPE						    m_TileShape;
         D3D12_PACKED_MIP_INFO					    m_MipInfo;

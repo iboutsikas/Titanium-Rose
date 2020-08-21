@@ -4,7 +4,7 @@
 "RootConstants(b0, num32BitConstants = 1, visibility = SHADER_VISIBILITY_PIXEL), " \
 "DescriptorTable(SRV(t0, numDescriptors = 5, flags = DESCRIPTORS_VOLATILE), visibility = SHADER_VISIBILITY_PIXEL)," \
 "StaticSampler(s0," \
-        "filter = FILTER_MIN_MAG_MIP_LINEAR, "\
+        "filter = FILTER_MIN_MAG_MIP_POINT, "\
         "visibility = SHADER_VISIBILITY_PIXEL)"
 
 cbuffer cbPass : register(b0)

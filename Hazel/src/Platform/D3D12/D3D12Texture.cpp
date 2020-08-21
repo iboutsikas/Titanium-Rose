@@ -81,27 +81,6 @@ namespace Hazel {
 			ret->m_Resource.Get(), &ret->m_NumTiles, &ret->m_MipInfo,
 			&ret->m_TileShape, &subresourceCount, 0, &ret->m_Tilings[0]);
 
-		ret->m_TileAllocations.resize(subresourceCount);
-
-		for (uint32_t i = 0; i < subresourceCount; i++)
-		{
-			auto& allocationVector = ret->m_TileAllocations[i];
-			auto& dims = ret->m_Tilings[i];
-
-			allocationVector.resize((uint64_t)dims.WidthInTiles * dims.HeightInTiles);
-
-			for (uint32_t y = 0; y < dims.HeightInTiles; ++y)
-			{
-				for (uint32_t x = 0; x < dims.WidthInTiles; ++x)
-				{
-					uint32_t index =(y * dims.WidthInTiles + x);
-					allocationVector[index].Mapped = false;
-					allocationVector[index].ResourceCoordinate = CD3DX12_TILED_RESOURCE_COORDINATE(x, y, 0, i);
-				}
-			}
-
-		}
-
 		return ret;
 	}
 
@@ -338,6 +317,12 @@ namespace Hazel {
 	D3D12Texture2D::MipLevels D3D12VirtualTexture2D::GetMipsUsed()
 	{
 		return m_CachedMipLevels;
+	}
+	glm::ivec3 D3D12VirtualTexture2D::GetTileDimensions(uint32_t subresource) const
+	{
+		HZ_CORE_ASSERT(subresource < m_Tilings.size(), "Subresource is out of bounds");
+		auto& t = m_Tilings[subresource];
+		return glm::ivec3(t.WidthInTiles, t.HeightInTiles, t.DepthInTiles);
 	}
 #pragma endregion
 
