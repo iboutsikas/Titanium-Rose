@@ -1,6 +1,7 @@
 #include "hzpch.h"
 #include "Platform/D3D12/D3D12TilePool.h"
 #include "Platform/D3D12/D3D12Helpers.h"
+#include "Platform/D3D12/D3D12Renderer.h"
 
 namespace Hazel
 {
@@ -112,14 +113,13 @@ namespace Hazel
         
         // =================== MAP THE USED MIPS TO THE POOL ==========================
         finalMappedMip = (mips.CoarsestMip >= vTexture->m_MipInfo.NumStandardMips && vTexture->m_MipInfo.NumStandardMips != 0)
-            ? vTexture->m_MipInfo.NumStandardMips - 1 
-            : mips.CoarsestMip;
+            ? vTexture->m_MipInfo.NumStandardMips 
+            : mips.CoarsestMip + 1;
 
-        for (uint32_t i = mips.FinestMip; i <= finalMappedMip; i++)
-        {            
-            if (allocInfo->MipAllocations.size() == 0)
-                continue;
+        //finalMappedMip = vTexture->m_MipInfo.NumStandardMips;
 
+        for (uint32_t i = mips.FinestMip; i < finalMappedMip; i++)
+        {
             uint32_t xx = dims.x >> i;
             uint32_t yy = dims.y >> i;
             auto& mipAllocation = allocInfo->MipAllocations[i];
@@ -168,6 +168,7 @@ namespace Hazel
         }
 
         // =============== NULL MAP THE ONES BETWEEN USED AND PACKED ==================
+#if 1
         for (uint32_t i = finalMappedMip + 1; i < vTexture->m_MipInfo.NumStandardMips; i++)
         {
             uint32_t xx = dims.x >> i;
@@ -199,7 +200,7 @@ namespace Hazel
                 }
             }
         }
-
+#endif
         // ======================== APPLY THE UPDATES ===================
         for (auto& info : updates)
         {
@@ -254,8 +255,7 @@ namespace Hazel
         //======= Release Packed Mips =======
 
         if (allocInfo->PackedMipsMapped) {
-            auto& address = allocInfo->PackedMipsAddress;
-            m_Pages[address.Page]->ReleaseTile(address.Tile);
+            this->ReleaseTile(allocInfo->PackedMipsAddress);
         }
 
         for (auto& allocation : allocInfo->MipAllocations)
@@ -265,12 +265,8 @@ namespace Hazel
                 if (!tile.Mapped)
                     continue;
 
-                auto& tileAddress = tile.TileAddress;
-
-                m_Pages[tileAddress.Page]->ReleaseTile(tileAddress.Tile);
-
+                this->ReleaseTile(tile.TileAddress);
                 tile.Mapped = false;
-
             }
         }
 

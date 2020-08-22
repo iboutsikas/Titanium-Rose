@@ -109,11 +109,15 @@ namespace Hazel
 
 		Ref<TextureAllocationInfo> GetTextureInfo(Ref<D3D12VirtualTexture2D> texture);
 
+		inline void ReleaseTile(TileAddress& address)
+		{
+			m_Pages[address.Page]->ReleaseTile(address.Tile);
+		}
 	
 	private:
+		uint32_t m_FrameCounter;
 
 		std::unordered_map<Ref<D3D12VirtualTexture2D>, Ref<TextureAllocationInfo>> m_AllocationMap;
-
 		std::vector<Ref<TilePage>> m_Pages;
 	};
 }

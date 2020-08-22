@@ -27,7 +27,7 @@ SamplerState Sampler : register( s0 );
 [numthreads(BLOCK_SIZE, BLOCK_SIZE, 1)]
 void CS_Main(uint2 ThreadID: SV_DispatchThreadID, uint GroupIndex: SV_GroupIndex)
 {
-    uint maxSteps = max(uint(TexelSize.x) >> 6, 1);
+    uint maxSteps = max(uint(TexelSize.x) >> 7, 1);
     float minDistance = 10000.0;
     float2 uv = TexelSize.zw * (ThreadID.xy);
 

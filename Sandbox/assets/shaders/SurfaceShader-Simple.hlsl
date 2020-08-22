@@ -14,7 +14,7 @@
                       "filter = FILTER_ANISOTROPIC, "\
                       "visibility = SHADER_VISIBILITY_PIXEL)"
 
-#include "Common.hlsli"
+#include "Surface.common.hlsli"
 
 cbuffer cbPass : register(b1) {
     matrix ViewProjection;
@@ -64,11 +64,6 @@ float4 PS_Main(PSInput input) : SV_TARGET
     // return MipDebugColor(idealMipLevel);
     // return float4(idealMipLevel / 10, 0, 0, 1);
     // float4 smpl = ColorTexture.SampleLevel(g_sampler, input.uv, 3);
-    float4 smpl = ColorTexture.Sample(g_sampler, input.uv);
+    return ColorTexture.Sample(g_sampler, input.uv);
 
-
-    // if (smpl.a == 0) {
-    //     return float4(1, 0, 1, 1);
-    // }
-    return smpl;
 }

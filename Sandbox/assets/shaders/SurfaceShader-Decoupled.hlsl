@@ -1,5 +1,5 @@
 #include "RootSignatures.hlsli"
-#include "Common.hlsli"
+#include "Surface.common.hlsli"
 #include "Environment.common.hlsli"
 
 // Constant normal incidence Fresnel factor for all dielectrics.
