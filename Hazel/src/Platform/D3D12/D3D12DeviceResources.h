@@ -1,6 +1,4 @@
 #pragma once
-
-#include "Hazel/Renderer/GraphicsContext.h"
 #include "Hazel/Core/Window.h"
 
 #include "Platform/D3D12/ComPtr.h"

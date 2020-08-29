@@ -7,7 +7,7 @@
 class Sandbox : public Hazel::Application
 {
 public:
-	Sandbox(): Hazel::Application()
+	Sandbox(const Hazel::Application::ApplicationOptions& opts): Hazel::Application(opts)
 	{
 		//PushLayer(new ExampleLayer());
 	}
@@ -24,5 +24,5 @@ public:
 
 Hazel::Application* Hazel::CreateApplication()
 {
-	return new Sandbox();
+	return new Sandbox({1280, 720, "Titanium Rose"});
 }

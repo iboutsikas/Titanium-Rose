@@ -3,7 +3,6 @@
 
 #include "Hazel/Core/Log.h"
 #include "Hazel/Core/Input.h"
-#include "Hazel/Renderer/RendererAPI.h"
 
 #include "Platform/D3D12/D3D12Renderer.h"
 #include "Platform/D3D12/Profiler/Profiler.h"
@@ -18,18 +17,15 @@ namespace Hazel {
 
 	Application* Application::s_Instance = nullptr;
 
-	Application::Application()
+	Application::Application(const ApplicationOptions& opts)
 	{
 		HZ_PROFILE_FUNCTION();
 
 		HZ_CORE_ASSERT(!s_Instance, "Application already exists!");
 		s_Instance = this;
 
-		m_Window = Window::Create();
+		m_Window = Window::Create(WindowProps(opts.Name, opts.Width, opts.Height));
 		m_Window->SetEventCallback(HZ_BIND_EVENT_FN(Application::OnEvent));
-
-		// TODO: Depracate this. We are no longer using it
-		RendererAPI::SetAPI(RendererAPI::API::D3D12);
 	}
 
 	Application::~Application()

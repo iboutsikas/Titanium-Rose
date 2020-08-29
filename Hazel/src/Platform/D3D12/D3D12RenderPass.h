@@ -2,7 +2,6 @@
 
 #include "Hazel/ComponentSystem/GameObject.h"
 #include "Hazel/Core/Core.h"
-#include "Hazel/Renderer/RenderPass.h"
 #include "Hazel/Renderer/PerspectiveCamera.h"
 
 #include "Platform/D3D12/ComPtr.h"

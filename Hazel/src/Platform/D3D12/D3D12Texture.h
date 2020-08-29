@@ -1,7 +1,6 @@
 ﻿#pragma once
 
 #include "Hazel/Core/Image.h"
-#include "Hazel/Renderer/Texture.h"
 
 #include "d3d12.h"
 #include "Platform/D3D12/ComPtr.h"

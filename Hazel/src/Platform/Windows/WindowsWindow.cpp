@@ -7,7 +7,6 @@
 #include "Hazel/Events/MouseEvent.h"
 #include "Hazel/Events/KeyEvent.h"
 
-#include "Hazel/Renderer/Renderer.h"
 
 namespace Hazel {
 	
@@ -52,15 +51,9 @@ namespace Hazel {
 
 		{
 			HZ_PROFILE_SCOPE("glfwCreateWindow");
-		#if defined(HZ_DEBUG)
-			if (Renderer::GetAPI() == RendererAPI::API::OpenGL)
-				glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
-		#endif
-			// Disable rendering API if we are not using OpenGL
-			if (Renderer::GetAPI() != RendererAPI::API::OpenGL)
-			{
-				glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-			}
+
+			// Disable rendering API if we are not using OpenGL			
+			glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
 			m_Window = glfwCreateWindow((int)props.Width, (int)props.Height, m_Data.Title.c_str(), nullptr, nullptr);
 			++s_GLFWWindowCount;

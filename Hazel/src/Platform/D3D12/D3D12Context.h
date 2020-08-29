@@ -1,7 +1,6 @@
 #pragma once
 #include "Hazel/Core/Window.h"
 #include "Hazel/Core/Core.h"
-#include "Hazel/Renderer/GraphicsContext.h"
 
 #include "Platform/D3D12/D3D12DeviceResources.h"
 #include "Platform/D3D12/D3D12FrameResource.h"

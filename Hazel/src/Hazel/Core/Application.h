@@ -17,7 +17,15 @@ namespace Hazel {
 	class Application
 	{
 	public:
-		Application();
+
+		struct ApplicationOptions
+		{
+			uint32_t Width;
+			uint32_t Height;
+			std::string Name;
+		};
+
+		Application(const ApplicationOptions& opts = { 1280, 720, "Hazel Engine" });
 		virtual ~Application();
 
 		void Init();
