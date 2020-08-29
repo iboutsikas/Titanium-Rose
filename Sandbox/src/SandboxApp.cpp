@@ -24,5 +24,5 @@ public:
 
 Hazel::Application* Hazel::CreateApplication()
 {
-	return new Sandbox({1280, 720, "Titanium Rose"});
+	return new Sandbox({ 1600, 900, "Titanium Rose" });
 }

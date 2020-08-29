@@ -26,7 +26,11 @@ BenchmarkLayer::BenchmarkLayer()
     m_CameraController(glm::vec3(-16.0f, 7.0f, 16.0f), 62.0f, (1280.0f / 720.0f), 0.1f, 1000.0f)
 {
     using namespace Hazel;
-    
+    auto width = Hazel::Application::Get().GetWindow().GetWidth();
+    auto height = Hazel::Application::Get().GetWindow().GetHeight();
+
+    m_CameraController.GetCamera().SetProjection(static_cast<float>(width), static_cast<float>(height), 62.0f, 0.1f, 1000.0f);
+
     D3D12Renderer::SetVCsync(false);
 
     auto& cameraTransform = m_CameraController.GetCamera().GetTransform();
@@ -275,6 +279,8 @@ void BenchmarkLayer::OnEvent(Hazel::Event& e)
     Hazel::EventDispatcher dispatcher(e);
 
     dispatcher.Dispatch<Hazel::MouseButtonPressedEvent>(HZ_BIND_EVENT_FN(BenchmarkLayer::OnMouseButtonPressed));
+
+    m_CameraController.OnEvent(e);
 }
 
 bool BenchmarkLayer::OnMouseButtonPressed(Hazel::MouseButtonPressedEvent& event)
