@@ -8,22 +8,18 @@
 #include "Platform/D3D12/D3D12ResourceBatch.h"
 #include "Platform/D3D12/D3D12Shader.h"
 
-#include "ModelLoader.h"
+#include "Hazel/Mesh/ModelLoader.h"
 #include "Hazel/Renderer/Vertex.h"
 #include "Hazel/Core/Math/Ray.h"
 
 #include "ImGui/imgui.h"
-#include "ImGui/ImGuiHelpers.h"
+#include "Hazel/Vendor/ImGui/ImGuiHelpers.h"
 #include "winpixeventruntime/pix3.h"
 
 
 #include <memory>
 #include <random>
 
-static uint32_t STATIC_RESOURCES = 0;
-static constexpr uint32_t MaxItemsPerSubmission = 25;
-static constexpr char* ShaderPath = "assets/shaders/PbrShader.hlsl";
-//adasdas
 BenchmarkLayer::BenchmarkLayer()
     : Layer("BenchmarkLayer"), 
     m_ClearColor({0.1f, 0.1f, 0.1f, 1.0f }),
@@ -39,88 +35,26 @@ BenchmarkLayer::BenchmarkLayer()
 
     m_Path.resize(4);
 
-#if USE_SPONZA
-    m_Path[0] = { { -122.0f, 15.0f,  42.0f }, &m_Path[1] };
-    m_Path[1] = { {  122.0f, 15.0f,  42.0f }, &m_Path[2] };
-    m_Path[2] = { {  122.0f, 15.0f, -42.0f }, &m_Path[3] };
-    m_Path[3] = { { -122.0f, 15.0f, -42.0f }, &m_Path[0] };
-#else
+
     m_Path[0] = { { -13.0f, 0.0f,  13.0f }, &m_Path[1] };
     m_Path[1] = { {  13.0f, 0.0f,  13.0f }, &m_Path[2] };
     m_Path[2] = { {  13.0f, 0.0f, -13.0f }, &m_Path[3] };
     m_Path[3] = { { -13.0f, 0.0f, -13.0f }, &m_Path[0] };
-#endif
-
-    ModelLoader::TextureLibrary = Hazel::D3D12Renderer::TextureLibrary;
 
     Hazel::D3D12ResourceBatch batch(D3D12Renderer::Context->DeviceResources->Device, D3D12Renderer::Context->DeviceResources->CommandAllocator);
     batch.Begin();
 
-    //{
-    //    Hazel::D3D12Texture2D::TextureCreationOptions opts;
-    //    opts.Name = "White Texture";
-    //    opts.Width = 1;
-    //    opts.Height = 1;
-    //    opts.MipLevels = 1;
-    //    opts.Flags = D3D12_RESOURCE_FLAG_NONE;
-
-    //    uint8_t white[] = { 255, 255, 255, 255 };
-    //    auto t = Hazel::D3D12Texture2D::CreateCommittedTexture(batch, opts);
-    //    t->Transition(batch, D3D12_RESOURCE_STATE_COPY_DEST);
-    //    t->SetData(batch, white, sizeof(white));
-    //    t->Transition(batch, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-    //    D3D12Renderer::TextureLibrary->Add(t);
-    //}
-
-    //{
-    //    Hazel::D3D12Texture2D::TextureCreationOptions opts;
-    //    opts.Name = "Dummy Normal Texture";
-    //    opts.Width = 1;
-    //    opts.Height = 1;
-    //    opts.MipLevels = 1;
-    //    opts.Flags = D3D12_RESOURCE_FLAG_NONE;
-
-    //    uint8_t white[] = { 128, 128, 255 };
-    //    auto t = Hazel::D3D12Texture2D::CreateCommittedTexture(batch, opts);
-    //    t->Transition(batch, D3D12_RESOURCE_STATE_COPY_DEST);
-    //    t->SetData(batch, white, sizeof(white));
-    //    t->Transition(batch, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-    //    D3D12Renderer::TextureLibrary->Add(t);
-    //}
-
-    //{
-    //    Hazel::D3D12Texture2D::TextureCreationOptions opts;
-    //    opts.Name = "Dummy Specular Texture";
-    //    opts.Width = 1;
-    //    opts.Height = 1;
-    //    opts.MipLevels = 1;
-    //    opts.Flags = D3D12_RESOURCE_FLAG_NONE;
-
-    //    uint8_t white[] = { 0, 0, 0 };
-    //    auto t = Hazel::D3D12Texture2D::CreateCommittedTexture(batch, opts);
-    //    t->Transition(batch, D3D12_RESOURCE_STATE_COPY_DEST);
-    //    t->SetData(batch, white, sizeof(white));
-    //    t->Transition(batch, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-    //    D3D12Renderer::TextureLibrary->Add(t);
-    //}
-
-#define USE_SPONZA 0
-
-#if USE_SPONZA
-    auto model = ModelLoader::LoadFromFile(std::string("assets/models/sponza.fbx"), batch);
-#else
     ModelLoader::LoadScene(m_Scene, std::string("assets/models/bunny_scene.fbx"), batch);
-#endif
 
     m_Scene.Lights.resize(D3D12Renderer::MaxSupportedLights);
     m_Scene.Camera = &m_CameraController.GetCamera();
-    m_Scene.Exposure = 1.0f;
+    m_Scene.Exposure = 0.8f;
 
     m_PatrolComponents.resize(D3D12Renderer::MaxSupportedLights);
     uint32_t light_count = 1;
     for (auto& light : m_Scene.Lights)
     {
-        light.GameObject = ModelLoader::LoadFromFile(std::string("assets/models/test_sphere2.glb"), batch);
+        light.GameObject = ModelLoader::LoadFromFile(std::string("assets/models/test_sphere.fbx"), batch);
         light.Range = 15.0f;
         light.Intensity = 1.0f;
         light.GameObject->Material->Color = { 1.0f, 1.0f, 1.0f };
@@ -139,21 +73,15 @@ BenchmarkLayer::BenchmarkLayer()
     for (size_t i = 0; i < m_Scene.Lights.size(); i++)
     {
         if (i == 0) {
-#if USE_SPONZA
-            m_Scene.Lights[i].GameObject->Transform.SetPosition(120.0f, 15.0f, 0.0f);
-#else
+
             m_Scene.Lights[i].GameObject->Transform.SetPosition(7.0f, 0.0f, 0.0f);
-#endif
             m_PatrolComponents[i].Transform = &m_Scene.Lights[i].GameObject->Transform;
             m_PatrolComponents[i].NextWaypoint = &m_Path[2];
             m_PatrolComponents[i].Patrol = false;
         }
         else if (i == 1) {
-#if USE_SPONZA
-            m_Scene.Lights[i].GameObject->Transform.SetPosition(120.0f, 15.0f, 0.0f);
-#else
+
             m_Scene.Lights[i].GameObject->Transform.SetPosition(-7.0f, 0.0f, 0.0f);
-#endif
             //m_Scene.Lights[i].GameObject->Transform.SetPosition(12.0f, 15.0f, 0.0f);
             m_PatrolComponents[i].Transform = &m_Scene.Lights[i].GameObject->Transform;
             m_PatrolComponents[i].NextWaypoint = &m_Path[0];
@@ -174,12 +102,12 @@ BenchmarkLayer::BenchmarkLayer()
 
             m_PatrolComponents[i].Transform = &m_Scene.Lights[i].GameObject->Transform;
             m_PatrolComponents[i].NextWaypoint = &m_Path[path];
-            m_PatrolComponents[i].Patrol = false;
+            m_PatrolComponents[i].Patrol = true;
         }
             
 
     }
-#if 1
+
     for (auto& a : *D3D12Renderer::TextureLibrary)
     {
         auto tex = std::static_pointer_cast<D3D12Texture>(a.second);
@@ -188,7 +116,6 @@ BenchmarkLayer::BenchmarkLayer()
         a.second->Transition(batch, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     }
     
-#endif
     batch.End(D3D12Renderer::Context->DeviceResources->CommandQueue.Get()).wait();
 
     m_Scene.LoadEnvironment(std::string("assets/environments/pink_sunrise_4k.hdr"));
@@ -234,14 +161,6 @@ void BenchmarkLayer::OnUpdate(Hazel::Timestep ts)
         }
     }
     batch.End(D3D12Renderer::Context->DeviceResources->CommandQueue.Get()).wait();
-
-    //for (auto& light : m_Scene.Lights)
-    //{
-    //    D3D12Renderer::Submit(light.GameObject);
-    //}
-
-
-
 
     m_Accumulator++;
     if (m_Accumulator >= m_UpdateRate)
@@ -335,8 +254,6 @@ void BenchmarkLayer::OnImGuiRender()
         ImGui::Columns(1);
         if (ImGui::CollapsingHeader(label.c_str(), ImGuiTreeNodeFlags_None))
         {
-            //ImGui::TransformControl(light->GameObject->Transform);
-            //ImGui::MaterialControl(light->GameObject->Material);
             ImGui::Columns(2);
             ImGui::Property("Range", light.Range, 1, 50, ImGui::PropertyFlag::None);
             ImGui::Property("Intensity", light.Intensity, 0.0f, 15.0f, ImGui::PropertyFlag::None);

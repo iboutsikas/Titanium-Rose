@@ -10,7 +10,7 @@ Texture2D<float3> NormalTexture : register(t1);
 Texture2D<float> MetalnessTexture : register(t2);
 Texture2D<float> RoughnessTexture : register(t3);
 TextureCube EnvRadianceTexture : register(t4);
-TextureCube EnvIrradianceTExture : register(t5);
+TextureCube EnvIrradianceTexture : register(t5);
 Texture2D<float2> BRDFLUT : register(t6);
 StructuredBuffer<Light> SceneLights : register(t7);
 
@@ -150,7 +150,7 @@ float4 PS_Main(PSInput input) : SV_TARGET
     float3 ambientLighting;
     {
         // Sample diffuse irradiance at normal direction.
-        float3 irradiance = EnvIrradianceTExture.Sample(someSampler, Normal).rgb;
+        float3 irradiance = EnvIrradianceTexture.Sample(someSampler, Normal).rgb;
 
         // Calculate Fresnel term for ambient lighting.
         // Since we use pre-filtered cubemap(s) and irradiance is coming from many directions
