@@ -13,6 +13,11 @@
 #include <glm/gtx/matrix_decompose.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+namespace ImGui
+{
+    std::map<Hazel::ComponentID, ImGuiRenderingFn> s_RenderingFnMap;
+}
+
 
 static std::tuple<glm::vec3, glm::quat, glm::vec3> DecomposeTransform(Hazel::HTransform& transform)
 {
@@ -231,8 +236,37 @@ void ImGui::EntityPanel(Hazel::Ref<Hazel::GameObject> target)
     }
 
 
+    for (auto component : target->Components)
+    {
+        auto key = component->GetTypeID();
+        auto it = s_RenderingFnMap.find(key);
+
+        if (it != s_RenderingFnMap.end())
+        {
+            auto func = it->second;
+            func(component);
+        }
+    }
+
+
 ret:
     ImGui::End();
+}
+
+void ImGui::LightComponentPanel(Hazel::Ref<Hazel::Component> component)
+{
+    if (ImGui::CollapsingHeader("Light Component", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        Hazel::Ref<Hazel::LightComponent> light = std::static_pointer_cast<Hazel::LightComponent>(component);
+
+        int oldColumns = ImGui::GetColumnsCount();
+        ImGui::Columns(2);
+        ImGui::Property("Range", light->Range, 1, 50, ImGui::PropertyFlag::None);
+        ImGui::Property("Intensity", light->Intensity, 0.0f, 15.0f, ImGui::PropertyFlag::None);
+        ImGui::Property("Color", light->Color, PropertyFlag::ColorProperty);
+        ImGui::Columns(oldColumns);
+    }
+    
 }
 
 

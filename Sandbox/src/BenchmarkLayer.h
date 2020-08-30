@@ -2,6 +2,7 @@
 
 #include "Hazel.h"
 #include "Hazel/ComponentSystem/GameObject.h"
+#include "Hazel/ComponentSystem/Component.h"
 #include "Hazel/Renderer/PerspectiveCameraController.h"
 #include "Hazel/Scene/Scene.h"
 
@@ -21,21 +22,25 @@ struct Waypoint
 	Waypoint* Next;
 };
 
-struct PatrolComponent
+class PatrolComponent: public Hazel::Component
 {
-	Hazel::HTransform* Transform = nullptr;
+public:
+
+    DEFINE_COMPONENT_ID(PatrolComponent);
+
+
 	bool Patrol = false;
 	Waypoint* NextWaypoint = nullptr;
 	float Speed = 5.0f;
 
-	void OnUpdate(Hazel::Timestep ts)
+	virtual void OnUpdate(Hazel::Timestep ts) override
 	{
-		if (!Patrol || Transform == nullptr || NextWaypoint == nullptr)
+		if (!Patrol || gameObject == nullptr || NextWaypoint == nullptr)
 		{
 			return;
 		}
 
-		glm::vec3 pos = Transform->Position();
+		glm::vec3 pos = gameObject->Transform.Position();
 		glm::vec3 movementVector = NextWaypoint->Position - pos;
 
 		float displacement = Speed * ts.GetSeconds();
@@ -45,10 +50,8 @@ struct PatrolComponent
 			// we move towards nextwaypoint
 			glm::vec3 direction = glm::normalize(movementVector);
 			glm::vec3 target_pos = pos + direction * displacement;
-			//float alpha = ts.GetMilliseconds();
-			//target_pos = glm::lerp(pos, target_pos, ts.GetMilliseconds());
 
-			Transform->SetPosition(target_pos);
+			gameObject->Transform.SetPosition(target_pos);
 		}
 		else
 		{
@@ -82,7 +85,7 @@ private:
 	Hazel::PerspectiveCameraController m_CameraController;
 
 	std::vector<Waypoint> m_Path;
-	std::vector<PatrolComponent> m_PatrolComponents;
+	std::vector<Hazel::Ref<PatrolComponent>> m_PatrolComponents;
 
 	float m_LastFrameTime;
 	int m_EnvironmentLevel = 0;

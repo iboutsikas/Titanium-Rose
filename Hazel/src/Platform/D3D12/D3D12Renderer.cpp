@@ -147,13 +147,13 @@ namespace Hazel {
 
 		for (size_t i = 0; i < scene.Lights.size(); i++)
 		{
-			auto& l = scene.Lights[i];
+			auto l = scene.Lights[i];
 
 			RendererLight rl;
-			rl.Color = l.GameObject->Material->Color;
-			rl.Position = glm::vec4(l.GameObject->Transform.Position(), 1.0f);
-			rl.Range = l.Range;
-			rl.Intensity = l.Intensity;
+			rl.Color = l->Color;
+			rl.Position = glm::vec4(l->gameObject->Transform.Position(), 1.0f);
+			rl.Range = l->Range;
+			rl.Intensity = l->Intensity;
 			s_LightsBuffer->CopyData(i, rl);
 
 			s_CommonData.NumLights++;

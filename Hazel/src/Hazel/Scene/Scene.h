@@ -1,17 +1,13 @@
 #pragma once
 
 #include "Hazel/ComponentSystem/GameObject.h"
+#include "Hazel/ComponentSystem/Component.h"
 #include "Hazel/Renderer/PerspectiveCamera.h"
 #include "Platform/D3D12/D3D12Texture.h"
 
 namespace Hazel
 {
-    struct Light
-    {
-        Ref<GameObject> GameObject;
-        int32_t Range;
-        float Intensity;
-    };
+    
 
     struct Environment
     {
@@ -24,12 +20,13 @@ namespace Hazel
     public:
         ~Scene();
         std::vector<Ref<GameObject>> Entities;
-        std::vector<Light> Lights;
+        std::vector<Ref<LightComponent>> Lights;
         PerspectiveCamera* Camera;
         float Exposure;
         Environment Environment;
 
         void LoadEnvironment(std::string& filepath);
+        void OnUpdate(Timestep ts);
     };
 }
 

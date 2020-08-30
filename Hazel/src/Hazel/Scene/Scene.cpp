@@ -32,3 +32,11 @@ void Hazel::Scene::LoadEnvironment(std::string& filepath)
         Environment.IrradianceMap = irradiance;
     }
 }
+
+void Hazel::Scene::OnUpdate(Timestep ts)
+{
+    for (auto e : Entities)
+    {
+        e->Update(ts);
+    }
+}

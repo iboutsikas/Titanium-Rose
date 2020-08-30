@@ -20,6 +20,22 @@
 #include <memory>
 #include <random>
 
+static void RenderPatrolComponent(Hazel::Ref<Hazel::Component> comp)
+{
+    if (ImGui::CollapsingHeader("Patrol Component", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        Hazel::Ref<PatrolComponent> patrol = std::static_pointer_cast<PatrolComponent>(comp);
+
+        int oldColumns = ImGui::GetColumnsCount();
+        ImGui::Columns(2);
+        ImGui::Property("Patrol", patrol->Patrol);
+        ImGui::Property("Speed", patrol->Speed, -20.0f, 20.0f);
+
+        ImGui::Columns(oldColumns);
+    }
+}
+
+
 BenchmarkLayer::BenchmarkLayer()
     : Layer("BenchmarkLayer"), 
     m_ClearColor({0.1f, 0.1f, 0.1f, 1.0f }),
@@ -50,23 +66,11 @@ BenchmarkLayer::BenchmarkLayer()
 
     ModelLoader::LoadScene(m_Scene, std::string("assets/models/bunny_scene.fbx"), batch);
 
-    m_Scene.Lights.resize(D3D12Renderer::MaxSupportedLights);
+    m_Scene.Lights.reserve(D3D12Renderer::MaxSupportedLights);
     m_Scene.Camera = &m_CameraController.GetCamera();
     m_Scene.Exposure = 0.8f;
 
-    m_PatrolComponents.resize(D3D12Renderer::MaxSupportedLights);
-    uint32_t light_count = 1;
-    for (auto& light : m_Scene.Lights)
-    {
-        light.GameObject = ModelLoader::LoadFromFile(std::string("assets/models/test_sphere.fbx"), batch);
-        light.Range = 15.0f;
-        light.Intensity = 1.0f;
-        light.GameObject->Material->Color = { 1.0f, 1.0f, 1.0f };
-        light.GameObject->Transform.SetScale(0.2f, 0.2f, 0.2f);
-        light.GameObject->Transform.SetPosition(0.0f, 0.0f, 5.0f);
-        light.GameObject->Name = "Light #" + std::to_string(light_count++);
-        m_Scene.Entities.push_back(light.GameObject);
-    }
+    m_PatrolComponents.reserve(D3D12Renderer::MaxSupportedLights);
 
     std::random_device rd;
     std::mt19937 generator;
@@ -74,42 +78,49 @@ BenchmarkLayer::BenchmarkLayer()
     std::uniform_real_distribution<float> colorDistribution(0.0f, std::nextafter(1, DBL_MAX));
     std::uniform_int_distribution<int> pathDistribution(0, m_Path.size() - 1);
 
-    for (size_t i = 0; i < m_Scene.Lights.size(); i++)
+    ImGui::RegisterRenderingFunction<Hazel::LightComponent>(ImGui::LightComponentPanel);
+    ImGui::RegisterRenderingFunction<PatrolComponent>(RenderPatrolComponent);
+
+    for (size_t i = 0; i < D3D12Renderer::MaxSupportedLights; i++)
     {
+        auto go = ModelLoader::LoadFromFile(std::string("assets/models/test_sphere.fbx"), batch);
+        float x = positionDistribution(generator);
+        float z = positionDistribution(generator);
+        go->Transform.SetPosition(x, 0.0f, z);
+        go->Transform.SetScale(0.2f, 0.2f, 0.2f);
+        go->Name = "Light #" + std::to_string(i + 1);
+
+        auto light = go->AddComponent<LightComponent>();
+        light->Range = 15.0f;
+        light->Intensity = 1.0f;
+        float r = colorDistribution(generator);
+        float g = colorDistribution(generator);
+        float b = colorDistribution(generator);
+        light->Color = { r, g, b };
+
+        auto patrol = go->AddComponent<PatrolComponent>();
         if (i == 0) {
 
-            m_Scene.Lights[i].GameObject->Transform.SetPosition(7.0f, 0.0f, 0.0f);
-            m_PatrolComponents[i].Transform = &m_Scene.Lights[i].GameObject->Transform;
-            m_PatrolComponents[i].NextWaypoint = &m_Path[2];
-            m_PatrolComponents[i].Patrol = false;
+            go->Transform.SetPosition(7.0f, 0.0f, 0.0f);
+            patrol->NextWaypoint = &m_Path[2];
+            patrol->Patrol = false;
         }
         else if (i == 1) {
 
-            m_Scene.Lights[i].GameObject->Transform.SetPosition(-7.0f, 0.0f, 0.0f);
-            //m_Scene.Lights[i].GameObject->Transform.SetPosition(12.0f, 15.0f, 0.0f);
-            m_PatrolComponents[i].Transform = &m_Scene.Lights[i].GameObject->Transform;
-            m_PatrolComponents[i].NextWaypoint = &m_Path[0];
-            m_PatrolComponents[i].Patrol = false;
+            go->Transform.SetPosition(-7.0f, 0.0f, 0.0f);
+            patrol->NextWaypoint = &m_Path[0];
+            patrol->Patrol = false;
         }
         else
         {
-            float x = positionDistribution(generator);
-            float z = positionDistribution(generator);
-
-            m_Scene.Lights[i].GameObject->Transform.SetPosition(x, 0.0f, z);
-
-            float r = colorDistribution(generator);
-            float g = colorDistribution(generator);
-            float b = colorDistribution(generator);
-            m_Scene.Lights[i].GameObject->Material->Color = { r, g, b };
             int path = pathDistribution(generator);
-
-            m_PatrolComponents[i].Transform = &m_Scene.Lights[i].GameObject->Transform;
-            m_PatrolComponents[i].NextWaypoint = &m_Path[path];
-            m_PatrolComponents[i].Patrol = true;
+            patrol->NextWaypoint = &m_Path[path];
+            patrol->Patrol = true;
         }
-            
 
+
+        m_Scene.Entities.push_back(go);
+        m_Scene.Lights.push_back(light);
     }
 
     for (auto& a : *D3D12Renderer::TextureLibrary)
@@ -139,15 +150,10 @@ void BenchmarkLayer::OnUpdate(Hazel::Timestep ts)
 {
     using namespace Hazel;
 
-    m_LastFrameTime = ts.GetMilliseconds();
     // Update camera
     m_CameraController.OnUpdate(ts);
-    for (auto& c : m_PatrolComponents)
-    {
-        c.OnUpdate(ts);
-    }
 
-    //D3D12Renderer::Context->DeviceResources->CommandAllocator->Reset();
+    m_Scene.OnUpdate(ts);
 
     D3D12Renderer::PrepareBackBuffer(m_ClearColor);
 
@@ -191,20 +197,11 @@ void BenchmarkLayer::OnImGuiRender()
 {
     using namespace Hazel;
 #if 1
-    //ImGui::Begin("Controls");
-    //ImGui::ColorEdit4("Clear Color", &m_ClearColor.x);
-   
-    //auto camera_pos = m_CameraController.GetCamera().GetPosition();
-    //ImGui::InputFloat3("Camera Position", &camera_pos.x);
-    //if (m_CameraController.GetCamera().GetPosition() != camera_pos)
-    //    m_CameraController.GetCamera().SetPosition(camera_pos);
-    //ImGui::End();
+
 
 
     ImGui::Begin("Shader Control Center");    
     ImGui::Columns(2);
-    //ImGui::AlignTextToFramePadding();
-
     for (const auto& [key, shader] : *D3D12Renderer::ShaderLibrary)
     {
         ImGui::PushID(shader->GetName().c_str());
@@ -242,31 +239,6 @@ void BenchmarkLayer::OnImGuiRender()
     ImGui::Property("Exposure", m_Scene.Exposure, 0.0f, 5.0f);
     ImGui::Property("Texture update rate", m_UpdateRate, 0, 120, ImGui::PropertyFlag::None);
     ImGui::Columns(1);
-    ImGui::End();
-
-
-
-    ImGui::Begin("Lights");
-    for (size_t i = 0; i < m_Scene.Lights.size(); i++)
-    {
-        Hazel::Light& light = m_Scene.Lights[i];
-        PatrolComponent& c = m_PatrolComponents[i];
-        light.GameObject->Material->EmissiveColor = light.GameObject->Material->Color;
-
-        ImGui::PushID(i);
-        std::string label = "Point Light #" + std::to_string(i + 1);
-        ImGui::Columns(1);
-        if (ImGui::CollapsingHeader(label.c_str(), ImGuiTreeNodeFlags_None))
-        {
-            ImGui::Columns(2);
-            ImGui::Property("Range", light.Range, 1, 50, ImGui::PropertyFlag::None);
-            ImGui::Property("Intensity", light.Intensity, 0.0f, 15.0f, ImGui::PropertyFlag::None);
-            ImGui::Property("Follow path", c.Patrol);
-        }
-
-        ImGui::PopID();
-    }
-
     ImGui::End();
 
     ImGui::EntityPanel(m_Selection);

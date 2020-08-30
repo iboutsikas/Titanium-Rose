@@ -3,6 +3,7 @@
 #include "Hazel/ComponentSystem/Transform.h"
 #include "Hazel/Core/Core.h"
 #include "Hazel/ComponentSystem/HMesh.h"
+#include "Hazel/ComponentSystem/Component.h"
 #include "Hazel/Renderer/Material.h"
 #include "Hazel/Renderer/Vertex.h"
 
@@ -16,11 +17,11 @@
 
 namespace Hazel {
 
-	struct DecoupledTextureComponent
-	{
-		bool UseDecoupledTexture = false;
-		Ref<D3D12VirtualTexture2D> VirtualTexture = nullptr;
-	};
+    struct DecoupledTextureComponent
+    {
+        bool UseDecoupledTexture = false;
+        Ref<D3D12VirtualTexture2D> VirtualTexture = nullptr;
+    };
 
 	class GameObject
 	{
@@ -44,6 +45,21 @@ namespace Hazel {
 
 			children.push_back(child);
 			child->SetParent(this);
+		}
+
+		void Update(Timestep ts);
+
+		std::vector<Ref<Component>> Components;
+
+		template <typename TComponent,
+			typename = std::enable_if_t<std::is_base_of_v<Hazel::Component, TComponent>>>
+		Ref<TComponent> AddComponent()
+		{
+			auto component = CreateRef<TComponent>();
+			component->gameObject = this;
+			Components.emplace_back(component);
+
+			return component;
 		}
 
 		std::string Name;
