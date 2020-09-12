@@ -9,6 +9,7 @@ namespace Hazel
     {
     public:
         ReadbackBuffer(uint64_t size);
+        ReadbackBuffer(Ref<DeviceResource> resource);
 
         inline uint32_t GetSize() const { return m_Width * m_Height * m_Depth; }
 

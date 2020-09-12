@@ -22,7 +22,6 @@ namespace Hazel
 			IID_PPV_ARGS(&m_Resource)
 		));
 
-		auto readbackDesc = CD3DX12_RESOURCE_DESC::Buffer(m_ActualSize);
 		m_ReadbackBuffer = CreateRef<ReadbackBuffer>(m_ActualSize);
 
 

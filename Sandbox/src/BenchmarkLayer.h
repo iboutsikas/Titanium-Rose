@@ -73,8 +73,11 @@ public:
 
 	void OnUpdate(Hazel::Timestep ts) override;
 	virtual void OnImGuiRender() override;
+	virtual void OnFrameEnd() override;
 	void OnEvent(Hazel::Event& e) override;
+
 	bool OnMouseButtonPressed(Hazel::MouseButtonPressedEvent& event);
+	bool OnResize(Hazel::WindowResizeEvent& event);
 
 private:
 
@@ -91,6 +94,10 @@ private:
 	int m_EnvironmentLevel = 0;
 	uint32_t m_Accumulator = 0;
 	int32_t m_UpdateRate = 30;
+	uint32_t m_FrameCounter = 0;
+
 	Hazel::Ref<Hazel::GameObject> m_Selection = nullptr;
+	Hazel::Ref<Hazel::FrameBuffer> m_LastFrameBuffer = nullptr;
+	Hazel::Ref<Hazel::ReadbackBuffer> m_ReadbackBuffer = nullptr;
 };
 

@@ -145,6 +145,10 @@ namespace Hazel {
 				D3D12Renderer::EndFrame();
 				D3D12Renderer::Present();
 			}
+
+            for (Layer* layer : m_LayerStack)
+                layer->OnFrameEnd();
+
 			m_Window->OnUpdate();
 
 			float time = (float)glfwGetTime();

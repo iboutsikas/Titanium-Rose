@@ -10,6 +10,58 @@
 
 #include "Hazel/Core/Log.h"
 namespace Hazel::D3D12 {
+        
+    inline float ConvertFromFP16toFP32(uint16_t fp16) 
+    {
+        // gpu fp16 is:
+        // 1 bit sign
+        // 5 bits exponent
+        // 10 bits mantissa
+
+        // We grab the mantissa first, as we might need it for adjustment
+        uint32_t mantissa = static_cast<uint32_t>(fp16 & 0x03ff);
+
+        uint32_t exponent = (fp16 & 0x7c00);
+
+        
+        if (exponent == 0x07c00) 
+        {
+            // Handle INF/NAN
+            exponent = 0x8f;
+        }
+        else if (exponent != 0)
+        {
+            // the half is normalized
+            exponent = (fp16 >> 10) & 0x1f;
+        }
+        else if (mantissa != 0)
+        {
+            // fp16 is denormalized
+            exponent = 1;
+            do 
+            {
+                exponent = exponent - 1;
+                mantissa <<= 1;
+            } while ((mantissa & 0x0400) == 0);
+
+            mantissa &= 0x03ff;
+        }
+        else
+        {
+            // fp16 is 0
+            exponent = static_cast<uint32_t>(-112);
+        }
+
+        exponent = (exponent + 112) << 23;
+
+        mantissa <<= 13;
+
+        uint32_t sign = (fp16 & 0x08000) << 16;
+
+        auto fp32 = sign | exponent | mantissa;
+
+        return reinterpret_cast<float*>(&fp32)[0];
+    }
 
     inline uint32_t CalculateMips(uint32_t width, uint32_t height) {
 

@@ -36,7 +36,7 @@ namespace Hazel
                             newPixels[index * 4 + 0] = pixels[index * 3 + 0];
                             newPixels[index * 4 + 1] = pixels[index * 3 + 1];
                             newPixels[index * 4 + 2] = pixels[index * 3 + 2];
-                            newPixels[index * 4 + 3] = 0.0f;
+                            newPixels[index * 4 + 3] = 1.0f;
                         }
                     }
                     free(pixels);

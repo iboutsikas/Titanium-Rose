@@ -15,10 +15,14 @@
 #include "ImGui/imgui.h"
 #include "Hazel/Vendor/ImGui/ImGuiHelpers.h"
 #include "winpixeventruntime/pix3.h"
-
+#include "stb_image/stb_image_write.h"
 
 #include <memory>
 #include <random>
+#include <thread>
+#include <iomanip>
+#include <ctime>
+#include <sstream>
 
 static void RenderPatrolComponent(Hazel::Ref<Hazel::Component> comp)
 {
@@ -44,6 +48,13 @@ BenchmarkLayer::BenchmarkLayer()
     using namespace Hazel;
     auto width = Hazel::Application::Get().GetWindow().GetWidth();
     auto height = Hazel::Application::Get().GetWindow().GetHeight();
+
+    // TODO: Hardcoded to float. We need a way to get this out of the texture hopefully
+    // 4 floats per pixel
+    m_LastFrameBuffer = D3D12Renderer::ResolveFrameBuffer();
+
+    m_ReadbackBuffer = CreateRef<ReadbackBuffer>(width * height * 4 * sizeof(float));
+
 
     m_CameraController.GetCamera().SetProjection(static_cast<float>(width), static_cast<float>(height), 62.0f, 0.1f, 1000.0f);
 
@@ -77,9 +88,6 @@ BenchmarkLayer::BenchmarkLayer()
     std::uniform_real_distribution<float> positionDistribution(-16.0f, std::nextafter(16, DBL_MAX));
     std::uniform_real_distribution<float> colorDistribution(0.0f, std::nextafter(1, DBL_MAX));
     std::uniform_int_distribution<int> pathDistribution(0, m_Path.size() - 1);
-
-    ImGui::RegisterRenderingFunction<Hazel::LightComponent>(ImGui::LightComponentPanel);
-    ImGui::RegisterRenderingFunction<PatrolComponent>(RenderPatrolComponent);
 
     for (size_t i = 0; i < D3D12Renderer::MaxSupportedLights; i++)
     {
@@ -139,6 +147,8 @@ BenchmarkLayer::BenchmarkLayer()
 
 void BenchmarkLayer::OnAttach()
 {
+    ImGui::RegisterRenderingFunction<Hazel::LightComponent>(ImGui::LightComponentPanel);
+    ImGui::RegisterRenderingFunction<PatrolComponent>(RenderPatrolComponent);
 }
 
 void BenchmarkLayer::OnDetach()
@@ -149,6 +159,8 @@ void BenchmarkLayer::OnDetach()
 void BenchmarkLayer::OnUpdate(Hazel::Timestep ts)
 {
     using namespace Hazel;
+
+    m_LastFrameBuffer = D3D12Renderer::ResolveFrameBuffer();
 
     // Update camera
     m_CameraController.OnUpdate(ts);
@@ -246,11 +258,92 @@ void BenchmarkLayer::OnImGuiRender()
 #endif
 }
 
+void BenchmarkLayer::OnFrameEnd()
+{
+    using namespace Hazel;
+
+    m_FrameCounter++;
+    if (m_FrameCounter >= 15)
+    {
+        m_FrameCounter = 0;
+
+        std::thread write_thread([](Ref<FrameBuffer> framebuffer, Ref<ReadbackBuffer> readback) {
+
+            auto width = framebuffer->ColorResource->GetWidth();
+            auto height = framebuffer->ColorResource->GetHeight();
+
+            D3D12ResourceBatch batch(D3D12Renderer::Context->DeviceResources->Device);
+            auto cmdlist = batch.Begin();
+            framebuffer->ColorResource->Transition(batch, D3D12_RESOURCE_STATE_COPY_SOURCE);
+
+            CD3DX12_TEXTURE_COPY_LOCATION source(framebuffer->ColorResource->GetResource());
+
+            D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = { 0 };
+            footprint.Offset = 0;
+            footprint.Footprint.Format = framebuffer->ColorResource->GetFormat();
+            footprint.Footprint.Width = framebuffer->ColorResource->GetWidth();
+            footprint.Footprint.Height = framebuffer->ColorResource->GetHeight();
+            footprint.Footprint.Depth = framebuffer->ColorResource->GetDepth();
+            footprint.Footprint.RowPitch = width * 4 * sizeof(uint16_t); // The gpu is using half floats
+
+            CD3DX12_TEXTURE_COPY_LOCATION destination(readback->GetResource(), footprint);
+
+            cmdlist->CopyTextureRegion(&destination, 0, 0, 0, &source, nullptr);
+            //cmdlist->CopyBufferRegion(
+            //    readback->GetResource(), 0,
+            //    framebuffer->ColorResource->GetResource(), 0, 
+            //    width * height * 4 * sizeof(float)
+            //);
+            //cmdlist->CopyResource(framebuffer->ColorResource->GetResource(), readback->GetResource());
+
+
+            batch.End(D3D12Renderer::Context->DeviceResources->CommandQueue.Get()).wait();
+
+            
+            
+            // 3 floats per pixel in hdri format
+            float* data = new float[width * height * 4];
+            uint16_t* pixels = readback->Map<uint16_t*>();
+            
+            for (uint32_t h = 0; h < height; h++)
+            {
+                for (uint32_t w = 0; w < width; w++)
+                {
+                    auto index = h * width + w;
+                    data[index * 4 + 0] = D3D12::ConvertFromFP16toFP32(pixels[index * 4 + 0]);
+                    data[index * 4 + 1] = D3D12::ConvertFromFP16toFP32(pixels[index * 4 + 1]);
+                    data[index * 4 + 2] = D3D12::ConvertFromFP16toFP32(pixels[index * 4 + 2]);
+                    data[index * 4 + 3] = D3D12::ConvertFromFP16toFP32(pixels[index * 4 + 3]);
+                }
+            }
+            auto t = std::time(nullptr);
+            auto tm = std::localtime(&t);
+
+            std::ostringstream oss;
+
+            oss << "data/test/";
+            oss << std::put_time(tm, "%d%m%Y-%H%M%S");
+            oss << ".hdr";
+
+            auto filename = oss.str();
+
+            stbi_write_hdr(filename.c_str(), width, height, 4, data);
+
+
+            readback->Unmap();
+            delete[] data;
+        }, m_LastFrameBuffer, m_ReadbackBuffer);
+
+        write_thread.detach();
+    }
+}
+
 void BenchmarkLayer::OnEvent(Hazel::Event& e)
 {
     Hazel::EventDispatcher dispatcher(e);
 
     dispatcher.Dispatch<Hazel::MouseButtonPressedEvent>(HZ_BIND_EVENT_FN(BenchmarkLayer::OnMouseButtonPressed));
+    dispatcher.Dispatch<Hazel::WindowResizeEvent>(HZ_BIND_EVENT_FN(BenchmarkLayer::OnResize));
 
     m_CameraController.OnEvent(e);
 }
@@ -277,8 +370,8 @@ bool BenchmarkLayer::OnMouseButtonPressed(Hazel::MouseButtonPressedEvent& event)
         RaycastHit hit;
 
         if (Ray::Raycast(m_Scene, ray, hit))
-        {
-            HZ_INFO("Raycast hit: {}", hit.GameObject->Name);
+        {/*
+            HZ_INFO("Raycast hit: {}", hit.GameObject->Name);*/
             m_Selection = hit.GameObject;
         }
         else
@@ -287,6 +380,17 @@ bool BenchmarkLayer::OnMouseButtonPressed(Hazel::MouseButtonPressedEvent& event)
         }
     }
 
+    return false;
+}
+
+bool BenchmarkLayer::OnResize(Hazel::WindowResizeEvent& event)
+{
+    using namespace Hazel;
+    auto width = Hazel::Application::Get().GetWindow().GetWidth();
+    auto height = Hazel::Application::Get().GetWindow().GetHeight();
+
+    // TODO: Hard coded to float. We need a way to get this out of the texture hopefully
+    m_ReadbackBuffer = CreateRef<ReadbackBuffer>(width * height * sizeof(float));
     return false;
 }
 
