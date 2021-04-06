@@ -29,6 +29,7 @@ IncludeDir["winpix"] 	= "Hazel/vendor/winpixeventruntime/Include"
 IncludeDir["spdlog"]	= "Hazel/vendor/spdlog/include"
 IncludeDir["assimp"]	= "Hazel/vendor/assimp/include"
 IncludeDir["stbi"] 		= "Hazel/vendor/stb_image"
+IncludeDir["cxxopts"] 	= "Hazel/vendor/cxxopts/include"
 
 
 include "Hazel/vendor/GLFW"
@@ -75,8 +76,8 @@ project "Hazel"
 		"%{IncludeDir.glm}",
 		"%{IncludeDir.spdlog}",
 		"%{IncludeDir.assimp}",
-		"%{IncludeDir.stbi}"
-
+		"%{IncludeDir.stbi}",
+		"%{IncludeDir.cxxopts}"
 	}
 
 	links 

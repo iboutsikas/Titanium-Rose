@@ -10,6 +10,8 @@
 
 #include "Hazel/ImGui/ImGuiLayer.h"
 
+#include "cxxopts/include/cxxopts.hpp"
+
 int main(int argc, char** argv);
 
 namespace Hazel {
@@ -31,8 +33,8 @@ namespace Hazel {
 		void Init();
 
 		void OnEvent(Event& e);
-		virtual void OnInit() = 0;
-
+		virtual void OnInit(cxxopts::ParseResult& options) = 0;
+		virtual void AddApplicationOptions(cxxopts::Options& options) = 0;
 
 		void PushLayer(Layer* layer);
 		void PushOverlay(Layer* layer);
