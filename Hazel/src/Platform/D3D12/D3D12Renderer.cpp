@@ -144,7 +144,7 @@ namespace Hazel {
 	void D3D12Renderer::BeginScene(Scene& scene)
 	{
 		s_CommonData.Scene = &scene;
-
+		s_CommonData.NumLights = 0;
 		for (size_t i = 0; i < scene.Lights.size(); i++)
 		{
 			auto l = scene.Lights[i];

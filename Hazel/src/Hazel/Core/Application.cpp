@@ -11,7 +11,7 @@
 #include <imgui.h>
 #include <Commdlg.h>
 
-#define USE_IMGUI 1
+#define USE_IMGUI 0
 
 namespace Hazel {
 

@@ -53,6 +53,8 @@ namespace Hazel
 
 		std::vector<TilePoolStats> GetStats();
 
+		uint64_t GetTilesUsed(Ref<D3D12VirtualTexture2D> texture);
+
 	private:
         struct TileAllocation
         {
@@ -107,7 +109,7 @@ namespace Hazel
 		/// <returns>A reference to the newly added page</returns>
 		Ref<TilePage> AddPage(D3D12ResourceBatch& batch, uint32_t size);
 
-		Ref<TextureAllocationInfo> GetTextureInfo(Ref<D3D12VirtualTexture2D> texture);
+        Ref<TextureAllocationInfo> GetTextureInfo(Ref<D3D12VirtualTexture2D> texture);
 
 		inline void ReleaseTile(TileAddress& address)
 		{

@@ -302,6 +302,26 @@ namespace Hazel
         return ret;
     }
 
+    uint64_t D3D12TilePool::GetTilesUsed(Ref<D3D12VirtualTexture2D> texture)
+    {
+        Ref<TextureAllocationInfo> textureInfo = this->GetTextureInfo(texture);
+        uint64_t tilesUsed = 0;
+
+        for (auto mip : textureInfo->MipAllocations) {
+            for (auto tile : mip.TileAllocations) {
+                if (tile.Mapped) {
+                    tilesUsed++;
+                }
+            }
+        }
+
+        if (textureInfo->PackedMipsMapped) {
+            tilesUsed++;
+        }
+
+        return tilesUsed;
+    }
+
     Ref<TilePage> D3D12TilePool::FindAvailablePage(uint32_t tiles)
     {
         Ref<TilePage> ret = nullptr;

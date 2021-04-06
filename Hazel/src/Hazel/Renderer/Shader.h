@@ -10,11 +10,11 @@
 namespace Hazel {
 
 	enum class ShaderType {
-		None = 0x00000000,
-		Geometry = 0x00000001,
-		Vertex = 0x00000010,
-		Fragment = 0x00000100,
-		Compute = 0x00001000	
+		None		= 0x00000000,
+		Geometry	= 0x00000001,
+		Vertex		= 0x00000010,
+		Fragment	= 0x00000100,
+		Compute		= 0x00001000	
 	};
 	ENABLE_BITMASK_OPERATORS(ShaderType);
 

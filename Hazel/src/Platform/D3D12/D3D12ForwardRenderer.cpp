@@ -128,15 +128,15 @@ void Hazel::D3D12ForwardRenderer::ImplRenderSubmitted()
         batch.TrackResource(perObjectBuffer.Resource());
         batch.TrackResource(passBuffer.Resource());
         PIXEndEvent(cmdList.Get());
-        renderTasks.emplace_back(batch.End(Context->DeviceResources->CommandQueue.Get()));
-
-        for (auto& task : renderTasks)
-        {
-            task.wait();
-        }
-
-        renderTasks.clear();
+        auto f = batch.End(Context->DeviceResources->CommandQueue.Get());
+        renderTasks.push_back(std::move(f));    
     }
+    for (auto& task : renderTasks)
+    {
+        task.wait();
+    }
+
+    renderTasks.clear();
 #endif
 }
 
@@ -149,7 +149,7 @@ void Hazel::D3D12ForwardRenderer::ImplOnInit()
 
         CD3DX12_RASTERIZER_DESC rasterizer(D3D12_DEFAULT);
         rasterizer.FrontCounterClockwise = TRUE;
-        rasterizer.CullMode = D3D12_CULL_MODE_BACK;
+        rasterizer.CullMode = D3D12_CULL_MODE_NONE;
 
         CD3DX12_PIPELINE_STATE_STREAM pipelineStateStream;
 

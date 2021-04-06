@@ -150,7 +150,8 @@ namespace Hazel
             }
             batch.TrackResource(perObjectBuffer.Resource());
             batch.TrackResource(passBuffer.Resource());
-            renderTasks.push_back(batch.End(Context->DeviceResources->CommandQueue.Get()));
+            auto f = batch.End(Context->DeviceResources->CommandQueue.Get());
+            renderTasks.push_back(std::move(f));
         }
 
         for (auto& task : renderTasks)
@@ -322,7 +323,8 @@ namespace Hazel
             batch.TrackResource(perObjectBuffer.Resource());
             batch.TrackResource(passBuffer.Resource());
             PIXEndEvent(cmdlist.Get());
-            renderTasks.emplace_back(batch.End(Context->DeviceResources->CommandQueue.Get()));
+            auto f = batch.End(Context->DeviceResources->CommandQueue.Get());
+            renderTasks.push_back(std::move(f));
         }
 
         for (auto& task : renderTasks)

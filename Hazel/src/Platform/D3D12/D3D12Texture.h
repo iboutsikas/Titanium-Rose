@@ -10,6 +10,8 @@
 #include "Platform/D3D12/D3D12DescriptorHeap.h"
 #include "Platform/D3D12/DeviceResource.h"
 
+#include <memory>
+
 const float clrclr[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 namespace Hazel {
@@ -45,10 +47,12 @@ namespace Hazel {
 
         inline uint32_t GetMipLevels() const { return  m_MipLevels; }
         inline bool HasMips() const { return m_MipLevels > 1; }
+        inline uint64_t GetGPUSizeInBytes() const { return m_ResourceAllocationInfo.SizeInBytes; }
 
         HeapAllocationDescription SRVAllocation;
         HeapAllocationDescription UAVAllocation;
         HeapAllocationDescription RTVAllocation;
+
 
     protected:
         uint32_t m_MipLevels;
@@ -57,12 +61,14 @@ namespace Hazel {
         D3D12Texture(uint32_t width, uint32_t height, uint32_t depth, uint32_t mips,
             bool isCube, D3D12_RESOURCE_STATES initialState, std::string id);
 
+        D3D12_RESOURCE_ALLOCATION_INFO m_ResourceAllocationInfo;
+
     };
 #pragma endregion
 
 
 #pragma region Texture2D
-    class D3D12Texture2D: public D3D12Texture
+    class D3D12Texture2D: public D3D12Texture, public std::enable_shared_from_this<D3D12Texture2D>
     {
     public:
         struct MipLevels {
@@ -71,6 +77,7 @@ namespace Hazel {
         };
 
         void SetData(D3D12ResourceBatch& batch, void* data, uint32_t size);
+        Ref<D3D12Texture2D> GetSharedPtr() { return this->shared_from_this(); }
 
         inline Ref<D3D12FeedbackMap> GetFeedbackMap() const { return m_FeedbackMap; }
         inline void SetFeedbackMap(Ref<D3D12FeedbackMap> feedbackMap) { m_FeedbackMap = feedbackMap; }
@@ -81,6 +88,8 @@ namespace Hazel {
         // once before calling this. This will return cached data which might be 
         // stale
         virtual MipLevels GetMipsUsed() { return { 0, m_MipLevels - 1 }; }
+
+
 
         static Ref<D3D12Texture2D>		CreateVirtualTexture(D3D12ResourceBatch& batch, TextureCreationOptions& opts);
         static Ref<D3D12Texture2D>		CreateCommittedTexture(D3D12ResourceBatch& batch, TextureCreationOptions& opts);
@@ -121,6 +130,7 @@ namespace Hazel {
         virtual MipLevels GetMipsUsed() override;
 
         glm::ivec3 GetTileDimensions(uint32_t subresource = 0) const;
+        uint64_t GetTileUsage();
 
         uint32_t								    m_NumTiles;
         D3D12_TILE_SHAPE						    m_TileShape;

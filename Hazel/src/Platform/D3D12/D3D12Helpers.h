@@ -65,7 +65,7 @@ namespace Hazel::D3D12 {
 
     inline uint32_t CalculateMips(uint32_t width, uint32_t height) {
 
-        return 1 + std::floor(std::log10((float)std::max<uint32_t>(width, height)) / std::log10(2.0));
+        return 1 + (uint32_t)std::floor(std::log10((float)std::max<uint32_t>(width, height)) / std::log10(2.0));
     }
 
     inline int32_t RoundToMultiple(int32_t number, int32_t multiple) {

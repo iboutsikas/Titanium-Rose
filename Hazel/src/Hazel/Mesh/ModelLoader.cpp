@@ -98,7 +98,6 @@ namespace Hazel
 
             processNode(child, aScene, childGO, batch, materials);
         }
-
     }
 
     void ModelLoader::processNode(aiNode* node, const aiScene* scene,

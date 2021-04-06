@@ -66,6 +66,15 @@ void ImGui::MaterialControl(Hazel::Ref<Hazel::HMaterial> material)
     if (!useAlbedo) {
         ImGui::Property("Albedo Color", material->Color, ImGui::PropertyFlag::ColorProperty);
     }
+    else {
+        float factor = 1.0f / 1024;
+        auto sizeInBytes = material->AlbedoTexture->GetGPUSizeInBytes();
+
+        float sizeInKiB = sizeInBytes * factor;
+        float sizeInMiB = sizeInKiB * factor;
+
+        ImGui::Text("Size: %d bytes (%0.2f Mb)", sizeInBytes, sizeInMiB);
+    }
 
     // ------ Roughness ------
     ImGui::Separator();
@@ -79,6 +88,15 @@ void ImGui::MaterialControl(Hazel::Ref<Hazel::HMaterial> material)
     if (!useRoughness) {
         ImGui::Property("Roughness", material->Roughness, 0.0f, 1.0f, PropertyFlag::None);
     }
+    else {
+        float factor = 1.0f / 1024;
+        auto sizeInBytes = material->RoughnessTexture->GetGPUSizeInBytes();
+
+        float sizeInKiB = sizeInBytes * factor;
+        float sizeInMiB = sizeInKiB * factor;
+
+        ImGui::Text("Size: %d bytes (%0.2f Mb)", sizeInBytes, sizeInMiB);
+    }
 
     // ------ Metallic ------
     ImGui::Separator();
@@ -91,6 +109,15 @@ void ImGui::MaterialControl(Hazel::Ref<Hazel::HMaterial> material)
 
     if (!useMetallic) {
         ImGui::Property("Metallic", material->Metallic, 0.0f, 1.0f, PropertyFlag::None);
+    }
+    else {
+        float factor = 1.0f / 1024;
+        auto sizeInBytes = material->MetallicTexture->GetGPUSizeInBytes();
+
+        float sizeInKiB = sizeInBytes * factor;
+        float sizeInMiB = sizeInKiB * factor;
+
+        ImGui::Text("Size: %d bytes (%0.2f Mb)", sizeInBytes, sizeInMiB);
     }
 
     // ------ Emissive ------
@@ -167,6 +194,22 @@ void ImGui::DecoupledTextureControl(Hazel::DecoupledTextureComponent& component)
     ImGui::Text("High-res mip: %d", mips.FinestMip);
     ImGui::NextColumn();
     ImGui::Text("Low-res mip: %d", mips.CoarsestMip);
+    ImGui::NextColumn();
+    float factor = 1.0f / 1024;
+    auto sizeInBytes = component.VirtualTexture->GetGPUSizeInBytes();
+
+    float sizeInKiB = sizeInBytes * factor;
+    float sizeInMiB = sizeInKiB * factor;
+
+    ImGui::Text("Virtual Size: %d bytes (%0.2f Mb)", sizeInBytes, sizeInMiB);
+    ImGui::NextColumn();
+    auto tilesUsed = component.VirtualTexture->GetTileUsage();
+    // Magic number for D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT
+    sizeInBytes = tilesUsed * 65536;
+    sizeInKiB = sizeInBytes * factor;
+    sizeInMiB = sizeInKiB * factor;
+
+    ImGui::Text("Real Size: %d tiles (%0.2f Mb)", tilesUsed, sizeInMiB);
 
     if (showingTexture)
     {

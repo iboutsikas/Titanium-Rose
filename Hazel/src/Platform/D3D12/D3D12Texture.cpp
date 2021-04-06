@@ -1,9 +1,10 @@
 #include "hzpch.h"
 
 #include "Hazel/Core/Application.h"
-
-#include "Platform/D3D12/D3D12Texture.h"
 #include "Platform/D3D12/D3D12Context.h"
+#include "Platform/D3D12/D3D12Renderer.h"
+#include "Platform/D3D12/D3D12Texture.h"
+#include "Platform/D3D12/D3D12TilePool.h"
 #include "Platform/D3D12/DDSTextureLoader/DDSTextureLoader.h"
 
 
@@ -13,7 +14,8 @@ namespace Hazel {
 		uint32_t mips, bool isCube, D3D12_RESOURCE_STATES initialState, std::string id) :
 		DeviceResource(width, height, depth, id, initialState),
 		m_MipLevels(mips),
-		m_IsCube(isCube)
+		m_IsCube(isCube),
+		m_ResourceAllocationInfo({0})
 	{
 
 	}
@@ -81,6 +83,8 @@ namespace Hazel {
 			ret->m_Resource.Get(), &ret->m_NumTiles, &ret->m_MipInfo,
 			&ret->m_TileShape, &subresourceCount, 0, &ret->m_Tilings[0]);
 
+		ret->m_ResourceAllocationInfo = batch.GetDevice()->GetResourceAllocationInfo(0, 1, &desc);
+
 		return ret;
 	}
 
@@ -139,6 +143,7 @@ namespace Hazel {
 			));
 
 			ret->SetName(opts.Name);
+			ret->m_ResourceAllocationInfo = batch.GetDevice()->GetResourceAllocationInfo(0, 1, &textureDesc);
 		}
 		else
 		{
@@ -223,6 +228,7 @@ namespace Hazel {
 			);
 		ret->m_Resource.Swap(resource);
 		ret->m_CurrentState = D3D12_RESOURCE_STATE_COPY_DEST;
+		ret->m_ResourceAllocationInfo = batch.GetDevice()->GetResourceAllocationInfo(0, 1, &desc);
 		batch.Upload(ret->m_Resource.Get(), 0, subData.data(), subData.size());
 		return ret;
 
@@ -267,7 +273,7 @@ namespace Hazel {
 
 		batch.TrackImage(image);
 		batch.Upload(ret->m_Resource.Get(), 0, &data, 1);
-
+		ret->m_ResourceAllocationInfo = batch.GetDevice()->GetResourceAllocationInfo(0, 1, &desc);
 		return ret;
 	}
 #pragma endregion
@@ -323,6 +329,11 @@ namespace Hazel {
 		HZ_CORE_ASSERT(subresource < m_Tilings.size(), "Subresource is out of bounds");
 		auto& t = m_Tilings[subresource];
 		return glm::ivec3(t.WidthInTiles, t.HeightInTiles, t.DepthInTiles);
+	}
+	uint64_t D3D12VirtualTexture2D::GetTileUsage()
+	{
+		auto ptr = std::static_pointer_cast<D3D12VirtualTexture2D>(this->shared_from_this());
+		return D3D12Renderer::TilePool->GetTilesUsed(ptr);
 	}
 #pragma endregion
 

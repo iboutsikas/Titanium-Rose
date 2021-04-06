@@ -24,7 +24,7 @@ namespace Hazel
     {
     public:
 
-        static constexpr uint8_t MaxSupportedLights = 2;
+        static constexpr uint8_t MaxSupportedLights = 4;
         static constexpr uint8_t MipsPerIteration = 4;
         static constexpr uint8_t FrameLatency = 3;
 
