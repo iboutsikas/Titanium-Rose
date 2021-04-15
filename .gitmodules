@@ -17,3 +17,6 @@
 [submodule "Hazel/vendor/cxxopts"]
 	path = Hazel/vendor/cxxopts
 	url = git@github.com:jarro2783/cxxopts.git
+[submodule "Hazel/vendor/json"]
+	path = Hazel/vendor/json
+	url = git@github.com:nlohmann/json.git
