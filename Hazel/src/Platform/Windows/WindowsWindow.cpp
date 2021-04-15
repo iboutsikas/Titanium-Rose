@@ -31,6 +31,11 @@ namespace Hazel {
 		Shutdown();
 	}
 
+	void WindowsWindow::SetTitle(const char* title)
+	{
+		glfwSetWindowTitle(m_Window, title);
+	}
+
 	void WindowsWindow::Init(const WindowProps& props)
 	{
 		HZ_PROFILE_FUNCTION();
