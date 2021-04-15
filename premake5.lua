@@ -30,6 +30,7 @@ IncludeDir["spdlog"]	= "Hazel/vendor/spdlog/include"
 IncludeDir["assimp"]	= "Hazel/vendor/assimp/include"
 IncludeDir["stbi"] 		= "Hazel/vendor/stb_image"
 IncludeDir["cxxopts"] 	= "Hazel/vendor/cxxopts/include"
+IncludeDir["json"] 		= "Hazel/vendor/json/single_include"
 
 
 include "Hazel/vendor/GLFW"
@@ -77,7 +78,8 @@ project "Hazel"
 		"%{IncludeDir.spdlog}",
 		"%{IncludeDir.assimp}",
 		"%{IncludeDir.stbi}",
-		"%{IncludeDir.cxxopts}"
+		"%{IncludeDir.cxxopts}",
+		"%{IncludeDir.json}"
 	}
 
 	links 
@@ -102,7 +104,7 @@ project "Hazel"
 		defines {
 			"HZ_BUILD_DLL",
 			"GLFW_INCLUDE_NONE",
-			"PROFILE_BUILD"
+			"USE_PIX"
 		}
 
 	filter "configurations:Debug"
@@ -145,7 +147,8 @@ project "Sandbox"
 		"%{IncludeDir.glm}",
 		"%{IncludeDir.spdlog}",
 		"%{IncludeDir.assimp}",
-		"%{IncludeDir.stbi}"
+		"%{IncludeDir.stbi}",
+		"%{IncludeDir.json}"
 	}
 
 	defines
@@ -161,8 +164,8 @@ project "Sandbox"
 
 	filter "system:windows"
 		systemversion "latest"
-		-- libdirs { "Hazel/vendor/winpixeventruntime/bin/x64" }
-		-- links {  "WinPixEventRuntime.lib" }
+		libdirs { "Hazel/vendor/winpixeventruntime/bin/x64" }
+		links {  "WinPixEventRuntime.lib" }
 		includedirs {
 			"%{IncludeDir.winpix}"
 		}
