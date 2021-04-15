@@ -42,13 +42,9 @@ std::map<std::string, ExperimentSetup> experiments = {
     { "DynamicMattePlastic", { "DynamicMattePlastic", "assets/models/matte_plastic.fbx"} },
 };
 
-#define ENABLE_PATROL               1
-#define ENABLE_DECOUPLED_TEXTURE    1
-#define ENABLE_CAPTURE              false
-#define UPDATE_RATE                 15
 
 SingleBunnyLayer::SingleBunnyLayer(CreationOptions& opts)
-    : BenchmarkLayer(opts.MaterialName, opts), m_CreationOptions(opts)
+    : BenchmarkLayer(opts.ExperimentGroup, opts), m_CreationOptions(opts)
 {
     using namespace Hazel;
 
@@ -56,7 +52,7 @@ SingleBunnyLayer::SingleBunnyLayer(CreationOptions& opts)
 
     std::string suffix = opts.ExperimentName;
 
-    if (opts.EnablePatrol) {
+    if (opts.EnableDecoupled) {
         suffix.append("/decoupled/");
     }
     else {
@@ -65,7 +61,7 @@ SingleBunnyLayer::SingleBunnyLayer(CreationOptions& opts)
 
     AppendCapturePath(suffix);
 
-    D3D12Renderer::SetVCsync(true);
+    D3D12Renderer::SetVCsync(false);
 
     RabbitWaypoints[0].Next = &RabbitWaypoints[1];
     RabbitWaypoints[1].Next = &RabbitWaypoints[0];
@@ -73,19 +69,15 @@ SingleBunnyLayer::SingleBunnyLayer(CreationOptions& opts)
     PedestalWaypoints[0].Next = &PedestalWaypoints[1];
     PedestalWaypoints[1].Next = &PedestalWaypoints[0];
     
-    D3D12ResourceBatch batch(D3D12Renderer::Context->DeviceResources->Device, D3D12Renderer::Context->DeviceResources->CommandAllocator);
-    batch.Begin();
+    auto r = D3D12Renderer::Context->DeviceResources.get();
+    auto fr = D3D12Renderer::Context->CurrentFrameResource;
 
-    auto experimentSetup = experiments.find(opts.MaterialName);
-    if (experimentSetup == experiments.end()) {
-        HZ_ERROR("Unable to find experiment: " + opts.MaterialName);
-        ::PostQuitMessage(1);
-    }
+    D3D12ResourceBatch batch(r->Device, r->WorkerCommandList);
+    batch.Begin(r->CommandAllocator);
 
-    auto& experiment = experimentSetup->second;
     //ModelLoader::LoadScene(m_Scene, std::string("assets/models/space_fabric_bunny.fbx"), batch);
     //ModelLoader::LoadScene(m_Scene, std::string("assets/models/single_scene.fbx"), batch);
-    ModelLoader::LoadScene(m_Scene, experiment.ScenePath, batch);
+    ModelLoader::LoadScene(m_Scene, opts.Scene, batch);
 
 
     for (auto e : m_Scene.Entities) {
@@ -173,8 +165,7 @@ SingleBunnyLayer::SingleBunnyLayer(CreationOptions& opts)
         a.second->Transition(batch, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     }
 
-    batch.End(D3D12Renderer::Context->DeviceResources->CommandQueue.Get()).wait();
+    batch.EndAndWait(D3D12Renderer::Context->DeviceResources->CommandQueue);
 
     m_Scene.LoadEnvironment(std::string("assets/environments/pink_sunrise_4k.hdr"));
-
 }

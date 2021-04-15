@@ -19,6 +19,7 @@
 #include <string>
 #include "Hazel/Core/Log.h"
 
+#include "WinPixEventRuntime/pix3.h"
 using namespace Hazel::D3D12;
 
 std::string static inline VendorIDToString(VendorID id) {
@@ -106,12 +107,23 @@ namespace Hazel {
 		);
 		NAME_D3D12_OBJECT(DeviceResources->CommandAllocator);
 
-		DeviceResources->CommandList = DeviceResources->CreateCommandList(
+		DeviceResources->MainCommandList = CreateRef<D3D12CommandList>(
 			DeviceResources->Device,
-			DeviceResources->CommandAllocator,
 			D3D12_COMMAND_LIST_TYPE_DIRECT
 		);
-		NAME_D3D12_OBJECT(DeviceResources->CommandList);
+		DeviceResources->MainCommandList->SetName("DeviceResources->MainCommandList");
+
+        DeviceResources->WorkerCommandList = CreateRef<D3D12CommandList>(
+            DeviceResources->Device,
+            D3D12_COMMAND_LIST_TYPE_DIRECT
+        );
+		DeviceResources->WorkerCommandList->SetName("DeviceResources->WorkerCommandList");
+
+        DeviceResources->DecoupledCommandList = CreateRef<D3D12CommandList>(
+            DeviceResources->Device,
+            D3D12_COMMAND_LIST_TYPE_DIRECT
+        );
+        DeviceResources->DecoupledCommandList->SetName("DeviceResources->DecoupledCommandList");
 #pragma endregion
 
 #pragma region The Swap Chain
@@ -228,7 +240,6 @@ namespace Hazel {
 		m_CurrentBackbufferIndex = DeviceResources->SwapChain->GetCurrentBackBufferIndex();
 	}
 
-
 	void D3D12Context::CleanupRenderTargetViews()
 	{
 		//ThrowIfFailed(DeviceResources->CommandList->Reset(
@@ -281,6 +292,7 @@ namespace Hazel {
 
 		//NAME_D3D12_OBJECT(DeviceResources->DepthStencilBuffer);
 	}
+	
 	void D3D12Context::WaitForGpu()
 	{
 		m_FenceValue = DeviceResources->Signal(
@@ -294,6 +306,7 @@ namespace Hazel {
 			m_FenceValue
 		);
 	}
+	
 	void D3D12Context::ResizeSwapChain()
 	{
 		auto width = m_Window->GetWidth();
@@ -319,13 +332,16 @@ namespace Hazel {
 		HZ_PROFILE_FUNCTION();
 		NextFrameResource();
 		// Get from resource
-		auto commandAllocator = CurrentFrameResource->CommandAllocator;
+		auto fr = CurrentFrameResource;
 
-		ThrowIfFailed(commandAllocator->Reset());
-		ThrowIfFailed(DeviceResources->CommandList->Reset(
-			commandAllocator.Get(),
-			nullptr)
-		);
+		ThrowIfFailed(DeviceResources->CommandAllocator->Reset());
+
+		if (DeviceResources->MainCommandList->IsClosed())
+			DeviceResources->MainCommandList->Reset(fr->CommandAllocator);
+		if (DeviceResources->DecoupledCommandList->IsClosed())
+			DeviceResources->DecoupledCommandList->Reset(fr->CommandAllocator2);
+		//if (DeviceResources->WorkerCommandList->IsClosed())
+		//	DeviceResources->WorkerCommandList->Reset(DeviceResources->CommandAllocator);
 	}
 
 	D3D12_CPU_DESCRIPTOR_HANDLE D3D12Context::CurrentBackBufferView() const
@@ -337,17 +353,12 @@ namespace Hazel {
 		);
 	}
 
-	//D3D12_CPU_DESCRIPTOR_HANDLE D3D12Context::DepthStencilView() const
-	//{
-	//	return DeviceResources->DSVDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
-	//}
-
 	void D3D12Context::PerformInitializationTransitions()
 	{
 		auto commandAllocator = DeviceResources->CommandAllocator;
 
 		commandAllocator->Reset();
-		DeviceResources->CommandList->Reset(commandAllocator.Get(), nullptr);
+		DeviceResources->MainCommandList->Reset(commandAllocator);
 
 		// Transitions go here
 		{
@@ -357,16 +368,10 @@ namespace Hazel {
 				D3D12_RESOURCE_STATE_DEPTH_WRITE
 			);
 
-			DeviceResources->CommandList->ResourceBarrier(1, &dsBarrier);
+			DeviceResources->MainCommandList->Get()->ResourceBarrier(1, &dsBarrier);
 		}
 
-		ThrowIfFailed(DeviceResources->CommandList->Close());
-
-		ID3D12CommandList* const commandLists[] = {
-			DeviceResources->CommandList.Get()
-		};
-		DeviceResources->CommandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
-
+		DeviceResources->MainCommandList->Execute(DeviceResources->CommandQueue);
 		WaitForGpu();
 	}
 
@@ -375,13 +380,14 @@ namespace Hazel {
 		m_CurrentBackbufferIndex = DeviceResources->SwapChain->GetCurrentBackBufferIndex();
 
 		CurrentFrameResource = FrameResources[m_CurrentBackbufferIndex].get();
-
+		// Wait until this frame resource catches up
 		if (CurrentFrameResource->FenceValue != 0) {
 			DeviceResources->WaitForFenceValue(
 				DeviceResources->Fence,
 				CurrentFrameResource->FenceValue
 			);
 		}
+		CurrentFrameResource->PrepareForNewFrame();
 	}
 
 	void D3D12Context::BuildFrameResources()
@@ -389,16 +395,28 @@ namespace Hazel {
 		auto count = DeviceResources->SwapChainBufferCount;
 		FrameResources.reserve(count);
 
+#if HZ_DEBUG
+		std::wstringstream ss;
+#endif
+
 		for (int i = 0; i < count; i++)
 		{
 			FrameResources.push_back(CreateScope<D3D12FrameResource>(
 				DeviceResources->Device,
 				1
 				));
-
-#ifdef HZ_DEBUG
-			NAME_D3D12_OBJECT_WITH_INDEX(FrameResources[i]->CommandAllocator, i);
+			
+#if HZ_DEBUG
+			ss.clear();
+            ss << "FrameResources[" << i << "]->CommandAllocator";
+			FrameResources[i]->CommandAllocator->SetName(ss.str().c_str());
+			ss.clear();
+			ss << "FrameResources[" << i << "]->CommandAllocator2";
+            FrameResources[i]->CommandAllocator2->SetName(ss.str().c_str());
 #endif
 		}
+
+		m_CurrentBackbufferIndex = 0;
+		CurrentFrameResource = FrameResources[m_CurrentBackbufferIndex].get();
 	}
 }

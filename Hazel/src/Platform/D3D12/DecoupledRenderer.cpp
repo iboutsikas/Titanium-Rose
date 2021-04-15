@@ -27,13 +27,22 @@ namespace Hazel
         passData.EyePosition = s_CommonData.Scene->Camera->GetPosition();
 
         std::vector<std::shared_future<void>> renderTasks;
-
         uint32_t counter = 0;
+
+        auto r = Context->DeviceResources.get();
+
         while (counter < s_DecoupledObjects.size())
         {
-            D3D12ResourceBatch batch(Context->DeviceResources->Device);
-            auto cmdlist = batch.Begin();
+            D3D12ResourceBatch batch(r->Device, r->DecoupledCommandList, true);
+            Ref<D3D12CommandList> commandList = batch.Begin(Context->CurrentFrameResource->CommandAllocator2);
+            auto cmdlist = commandList->Get();
             
+            CPUProfileBlock cpuBlock("Virtual Pass::Render");
+            batch.TrackBlock(cpuBlock);
+            GPUProfileBlock gpuBlock(commandList, "Virtual Pass::Render");
+            batch.TrackBlock(gpuBlock);
+
+
             D3D12UploadBuffer<HPerObjectData> perObjectBuffer(batch, MaxItemsPerQueue, true);
             D3D12UploadBuffer<HPassData> passBuffer(batch, 1, true);
             passBuffer.CopyData(0, passData);
@@ -64,11 +73,11 @@ namespace Hazel
                     continue;
                 }
                 auto tex = obj->DecoupledComponent.VirtualTexture;
-                PIXBeginEvent(cmdlist.Get(), PIX_COLOR(200, 0, 0), "Virtual Pass: %s", tex->GetIdentifier().c_str());
-                GPUProfileBlock profileblock(cmdlist.Get(), "Render: " + tex->GetIdentifier());
-                batch.TrackBlock(profileblock);
 
-                tex->Transition(cmdlist.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+                CPUProfileBlock cpuBlock("Virtual Pass::Render::" + tex->GetIdentifier());
+                GPUProfileBlock gpuBlock(commandList, "Virtual Pass::Render::" + tex->GetIdentifier());
+
+                tex->Transition(cmdlist, D3D12_RESOURCE_STATE_RENDER_TARGET);
                 auto mips = tex->GetMipsUsed();
 
                 auto targetWidth = tex->GetWidth() >> mips.FinestMip;
@@ -82,8 +91,7 @@ namespace Hazel
                 opts.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 
                 auto temp = D3D12Texture2D::CreateVirtualTexture(batch, opts);
-                temp->Transition(cmdlist.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
-
+                temp->Transition(cmdlist, D3D12_RESOURCE_STATE_RENDER_TARGET);
                 TilePool->MapTexture(batch, temp, Context->DeviceResources->CommandQueue);
 
                 DilateTextureInfo dilateTextureInfo = {};
@@ -144,14 +152,14 @@ namespace Hazel
                 );
 
                 cmdlist->DrawIndexedInstanced(obj->Mesh->indexBuffer->GetCount(), 1, 0, 0, 0);
-                tex->Transition(cmdlist.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+                tex->Transition(cmdlist, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
                 counter++;
-                PIXEndEvent(cmdlist.Get());
             }
             batch.TrackResource(perObjectBuffer.Resource());
             batch.TrackResource(passBuffer.Resource());
-            auto f = batch.End(Context->DeviceResources->CommandQueue.Get());
-            renderTasks.push_back(std::move(f));
+            renderTasks.push_back(std::move(
+                batch.EndAsync(Context->DeviceResources->CommandQueue)
+            ));
         }
 
         for (auto& task : renderTasks)
@@ -167,10 +175,17 @@ namespace Hazel
         HeapValidationMark srvMark(s_ResourceDescriptorHeap);
 
         auto shader = ShaderLibrary->GetAs<D3D12Shader>(ShaderNameDilate);
+        auto r = Context->DeviceResources.get();
 
-        D3D12ResourceBatch batch(Context->DeviceResources->Device, Context->DeviceResources->CommandAllocator);
-        auto cmdlist = batch.Begin();
-        GPUProfileBlock passBlock(cmdlist.Get(), "Dilate Textures");
+        D3D12ResourceBatch batch(r->Device, r->DecoupledCommandList);
+        auto myCmdList = batch.Begin(Context->CurrentFrameResource->CommandAllocator2);
+        auto cmdlist = myCmdList->Get();
+        
+        CPUProfileBlock cpuBlock("Virtual Pass::Dilate");
+        batch.TrackBlock(cpuBlock);
+        GPUProfileBlock gpuBlock(myCmdList, "Virtual Pass::Dilate");
+        batch.TrackBlock(gpuBlock);
+
 
         cmdlist->SetComputeRootSignature(shader->GetRootSignature());
         cmdlist->SetPipelineState(shader->GetPipelineState());
@@ -189,6 +204,9 @@ namespace Hazel
             HZ_CORE_ASSERT(width == (info.Target->GetWidth() >> mips.FinestMip), "Width miss match");
             HZ_CORE_ASSERT(height == (info.Target->GetHeight() >> mips.FinestMip), "Height miss match");
 
+            CPUProfileBlock cpuBlock("Virtual Pass::Dilate::" + info.Target->GetIdentifier());
+            GPUProfileBlock gpuBlock(myCmdList, "Virtual Pass::Dilate::" + info.Target->GetIdentifier());
+
             info.Temporary->Transition(batch, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
             info.Target->Transition(batch, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
@@ -204,11 +222,8 @@ namespace Hazel
             auto y_count = D3D12::RoundToMultiple(height, 8);
             cmdlist->Dispatch(x_count, y_count, 1);
             cmdlist->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::UAV(info.Target->GetResource()));
-            
-            
         }
-        batch.TrackBlock(passBlock);
-        batch.End(Context->DeviceResources->CommandQueue.Get());
+        batch.EndAndWait(Context->DeviceResources->CommandQueue);
 
         // Clean up m_dilationqueue
         for (auto& info : m_DilationQueue)
@@ -218,7 +233,6 @@ namespace Hazel
             s_ResourceDescriptorHeap->Release(info.Target->UAVAllocation);
             TilePool->ReleaseTexture(info.Temporary, Context->DeviceResources->CommandQueue);
         }
-        m_DilationQueue.clear();
     }
 
     Ref<D3D12Shader> DecoupledRenderer::GetShader()
@@ -228,15 +242,11 @@ namespace Hazel
 
     void DecoupledRenderer::ImplRenderSubmitted()
     {
-        //HeapValidationMark rtvMark(s_RenderTargetDescriptorHeap);
-        //HeapValidationMark srvMark(s_ResourceDescriptorHeap);
-
+        return;
         if (s_DecoupledObjects.empty())
             return;
 
-        GPUProfileBlock passBlock(Context->DeviceResources->CommandList.Get(), "Simple Render");
-
-        std::vector<std::shared_future<void>> renderTasks;
+        std::vector<std::future<void>> renderTasks;
 
         uint32_t counter = 0;
 
@@ -253,14 +263,20 @@ namespace Hazel
         D3D12UploadBuffer<HPassDataSimple> passBuffer(1, true);
         passBuffer.CopyData(0, passData);
 
+        
+        auto r = Context->DeviceResources.get();
 
         while (counter < s_DecoupledObjects.size())
         {
-            D3D12ResourceBatch batch(Context->DeviceResources->Device);
-            auto cmdlist = batch.Begin();
+            D3D12ResourceBatch batch(r->Device, r->MainCommandList, true);
+            auto myCmdList = batch.Begin(Context->CurrentFrameResource->CommandAllocator);
+            auto cmdlist = myCmdList->Get();
 
-            PIXBeginEvent(cmdlist.Get(), PIX_COLOR(255, 0, 255), "Decoupled Geometry Pass: %d", counter / MaxItemsPerQueue);
-            
+            CPUProfileBlock cpuBlock("Simple pass::");
+            batch.TrackBlock(cpuBlock);
+            GPUProfileBlock gpuBlock(myCmdList, "Simple pass::");
+            batch.TrackBlock(gpuBlock);
+                        
             D3D12UploadBuffer<HPerObjectDataSimple> perObjectBuffer(batch, MaxItemsPerQueue, true);
 
             cmdlist->SetPipelineState(shader->GetPipelineState());
@@ -289,11 +305,11 @@ namespace Hazel
                     continue;
                 }
 
-                GPUProfileBlock itemBlock(cmdlist.Get(), "SR: " + go->Name);
-                batch.TrackBlock(itemBlock);
+                CPUProfileBlock cpuBlock("Simple pass::" + go->Name);
+                GPUProfileBlock gpuBlock(myCmdList, "Simple pass::" + go->Name);
 
                 auto tex = go->DecoupledComponent.VirtualTexture;
-                tex->Transition(cmdlist.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+                tex->Transition(cmdlist, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
                 auto fm = tex->GetFeedbackMap();
 
                 CreateSRV(std::static_pointer_cast<D3D12Texture>(tex), 0);
@@ -319,12 +335,11 @@ namespace Hazel
                 ++counter;
             }
 
-
             batch.TrackResource(perObjectBuffer.Resource());
             batch.TrackResource(passBuffer.Resource());
-            PIXEndEvent(cmdlist.Get());
-            auto f = batch.End(Context->DeviceResources->CommandQueue.Get());
-            renderTasks.push_back(std::move(f));
+            renderTasks.push_back(std::move(
+                batch.EndAsync(Context->DeviceResources->CommandQueue)
+            ));
         }
 
         for (auto& task : renderTasks)
@@ -381,6 +396,15 @@ namespace Hazel
             auto shader = Hazel::CreateRef<D3D12Shader>(ShaderPathSimple, pipelineStateStream);
             D3D12Renderer::ShaderLibrary->Add(shader);
         }
+    }
+
+    void DecoupledRenderer::ImplOnFrameEnd()
+    {
+        for (auto& info : m_DilationQueue)
+        {
+            TilePool->RemoveTexture(info.Temporary);
+        }
+        m_DilationQueue.clear();
     }
 
     void DecoupledRenderer::ImplSubmit(D3D12ResourceBatch& batch, Ref<GameObject> gameObject)

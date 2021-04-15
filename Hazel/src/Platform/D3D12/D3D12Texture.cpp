@@ -271,7 +271,7 @@ namespace Hazel {
 		data.RowPitch = (uint64_t)image->GetWidth() * image->BytesPerPixel();
 		data.SlicePitch = data.RowPitch * image->GetHeight();
 
-		batch.TrackImage(image);
+		//batch.TrackImage(image);
 		batch.Upload(ret->m_Resource.Get(), 0, &data, 1);
 		ret->m_ResourceAllocationInfo = batch.GetDevice()->GetResourceAllocationInfo(0, 1, &desc);
 		return ret;
@@ -286,6 +286,12 @@ namespace Hazel {
 		m_MipInfo({}),
 		m_CachedMipLevels({0, mips - 1})
 	{
+	}
+
+	D3D12VirtualTexture2D::~D3D12VirtualTexture2D()
+	{
+	/*	auto thing = this->shared_from_this();
+		D3D12Renderer::TilePool->ReleaseTexture(thing, D3D12Renderer::Context->DeviceResources->CommandQueue);*/
 	}
 
 	D3D12Texture2D::MipLevels D3D12VirtualTexture2D::ExtractMipsUsed()

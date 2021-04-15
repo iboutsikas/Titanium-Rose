@@ -43,6 +43,8 @@ namespace Hazel {
             {}
         };
 
+        virtual ~D3D12Texture() = default;
+
         bool IsCube() const { return m_IsCube; }
 
         inline uint32_t GetMipLevels() const { return  m_MipLevels; }
@@ -68,7 +70,7 @@ namespace Hazel {
 
 
 #pragma region Texture2D
-    class D3D12Texture2D: public D3D12Texture, public std::enable_shared_from_this<D3D12Texture2D>
+    class D3D12Texture2D: public D3D12Texture
     {
     public:
         struct MipLevels {
@@ -76,8 +78,10 @@ namespace Hazel {
             uint32_t CoarsestMip;
         };
 
+        virtual ~D3D12Texture2D() = default;
+
         void SetData(D3D12ResourceBatch& batch, void* data, uint32_t size);
-        Ref<D3D12Texture2D> GetSharedPtr() { return this->shared_from_this(); }
+        //Ref<D3D12Texture2D> GetSharedPtr() { return this->shared_from_this(); }
 
         inline Ref<D3D12FeedbackMap> GetFeedbackMap() const { return m_FeedbackMap; }
         inline void SetFeedbackMap(Ref<D3D12FeedbackMap> feedbackMap) { m_FeedbackMap = feedbackMap; }
@@ -118,11 +122,12 @@ namespace Hazel {
         friend class D3D12Texture2D;
     };
 
-    class D3D12VirtualTexture2D : public D3D12Texture2D
+    class D3D12VirtualTexture2D : public D3D12Texture2D, public std::enable_shared_from_this< D3D12VirtualTexture2D>
     {
     public:
         D3D12VirtualTexture2D(std::string id, uint32_t width, uint32_t height, uint32_t mips = 1);
         D3D12VirtualTexture2D() = delete;
+        virtual ~D3D12VirtualTexture2D();
 
         virtual bool IsVirtual() const override { return true; }
 

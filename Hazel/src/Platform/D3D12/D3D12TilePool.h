@@ -7,6 +7,10 @@
 #include "Platform/D3D12/D3D12Texture.h"
 #include "Platform/D3D12/D3D12ResourceBatch.h"
 
+namespace std {
+    
+}
+
 
 namespace Hazel 
 {
@@ -32,13 +36,34 @@ namespace Hazel
 	};
 
 	struct TilePage {
+
+		TilePage(uint32_t maxTiles, uint16_t pageIndex)
+			: FreeTiles2(nullptr), 
+			m_MaxTiles(maxTiles), 
+			PageIndex(pageIndex),
+			m_FreeTiles(maxTiles)
+		{
+			FreeTiles2 = new uint8_t[maxTiles];
+			memset(FreeTiles2, 0, maxTiles);
+		}
+
+		~TilePage()
+		{
+			delete[] FreeTiles2;
+		}
+
 		uint32_t AllocateTile();
+		inline uint32_t NumFreeTiles() const { return m_FreeTiles; }
+		inline uint32_t Size() const { return m_MaxTiles; }
 		void ReleaseTile(uint32_t tileNumber);
 
-		uint32_t MaxTiles = 0;
 		uint16_t PageIndex = 0;
-		std::set<uint32_t> FreeTiles;
+		//std::set<uint32_t> FreeTiles;
 		TComPtr<ID3D12Heap> Heap;
+	private:
+		uint8_t* FreeTiles2;
+		uint32_t m_MaxTiles;
+		uint32_t m_FreeTiles;
 	};
 
 	class D3D12TilePool
@@ -50,10 +75,13 @@ namespace Hazel
 
 		void ReleaseTexture(Ref<D3D12Texture2D> texture,
 			TComPtr<ID3D12CommandQueue> commandQueue);
+		
+		void RemoveTexture(Ref<D3D12VirtualTexture2D> texture);
 
 		std::vector<TilePoolStats> GetStats();
 
 		uint64_t GetTilesUsed(Ref<D3D12VirtualTexture2D> texture);
+
 
 	private:
         struct TileAllocation
@@ -91,6 +119,13 @@ namespace Hazel
             uint32_t tilesUpdated = 0;
         };
 
+        struct CustomKeyHash {
+            std::size_t operator()(const Hazel::Ref<Hazel::D3D12VirtualTexture2D> k) const {
+                return std::hash<Hazel::D3D12VirtualTexture2D*>()(k.get());
+            }
+        };
+		
+
 	private:
 
 		/// <summary>
@@ -119,7 +154,7 @@ namespace Hazel
 	private:
 		uint32_t m_FrameCounter;
 
-		std::unordered_map<Ref<D3D12VirtualTexture2D>, Ref<TextureAllocationInfo>> m_AllocationMap;
+		std::unordered_map<Ref<D3D12VirtualTexture2D>, Ref<TextureAllocationInfo>, CustomKeyHash> m_AllocationMap;
 		std::vector<Ref<TilePage>> m_Pages;
 	};
 }

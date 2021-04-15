@@ -73,9 +73,14 @@ void BenchmarkLayer::OnAttach()
     ImGui::RegisterRenderingFunction<Hazel::LightComponent>(ImGui::LightComponentPanel);
     ImGui::RegisterRenderingFunction<PatrolComponent>(RenderPatrolComponent);
 
-    if (m_EnableCapture) {
+    if (m_EnableCapture || m_CreationOptions.CaptureTiming) {
         std::filesystem::create_directories(m_CaptureFolder.c_str());
     }
+
+    std::ostringstream oss;
+    oss << m_DebugName << '-' << "Decoupled update rate: " << m_CreationOptions.UpdateRate;
+
+    Hazel::Application::Get().GetWindow().SetTitle(oss.str().c_str());
 }
 
 void BenchmarkLayer::OnDetach()
@@ -85,6 +90,8 @@ void BenchmarkLayer::OnDetach()
     {
         task.wait();
     }
+
+    Hazel::Profiler::GlobalProfiler.DumpDatabases(m_CaptureFolder + "timings.json");
 }
 
 void BenchmarkLayer::OnUpdate(Hazel::Timestep ts)
@@ -92,17 +99,32 @@ void BenchmarkLayer::OnUpdate(Hazel::Timestep ts)
     using namespace Hazel;
 
     m_LastFrameBuffer = D3D12Renderer::ResolveFrameBuffer();
-
-    m_CameraController.OnUpdate(ts);
-    m_Scene.OnUpdate(ts);
+    
+    {
+        CPUProfileBlock cpuBlock("Camera update");
+        m_CameraController.OnUpdate(ts);
+    }
+    {
+        CPUProfileBlock cpuBlock("Scene update");
+        m_Scene.OnUpdate(ts);
+    }
 
     D3D12Renderer::PrepareBackBuffer(m_ClearColor);
 
 
     D3D12Renderer::BeginScene(m_Scene);
     // "Submit phase"    
-    D3D12ResourceBatch batch(D3D12Renderer::Context->DeviceResources->Device);
-    auto list = batch.Begin();
+    auto r = D3D12Renderer::Context->DeviceResources.get();
+    auto fr = D3D12Renderer::Context->CurrentFrameResource;
+
+    D3D12ResourceBatch batch(r->Device, r->WorkerCommandList);
+    batch.Begin(r->CommandAllocator);
+
+    CPUProfileBlock cpuBlock("Submit Phase");
+    batch.TrackBlock(cpuBlock);
+    GPUProfileBlock gpuBlock(r->WorkerCommandList, "Submit Phase");
+    batch.TrackBlock(gpuBlock);
+
     for (auto& obj : m_Scene.Entities)
     {
         D3D12Renderer::Submit(obj);
@@ -110,23 +132,30 @@ void BenchmarkLayer::OnUpdate(Hazel::Timestep ts)
             D3D12Renderer::Submit(batch, obj);
         }
     }
-    batch.End(D3D12Renderer::Context->DeviceResources->CommandQueue.Get()).wait();
+    batch.EndAndWait(D3D12Renderer::Context->DeviceResources->CommandQueue);
 
-
-    m_RefreshCounter++;
-    if (m_RefreshCounter >= m_CreationOptions.CaptureRate)
+    if (m_CreationOptions.UpdateRate == 0 || (m_FrameCounter % m_CreationOptions.UpdateRate) == 0)
     {
-        m_RefreshCounter = 0;
-        D3D12Renderer::UpdateVirtualTextures();
-        D3D12Renderer::RenderVirtualTextures();
-        D3D12Renderer::GenerateVirtualMips();
-        OnRefresh();
+        //auto commandList = D3D12Renderer::Context->DeviceResources->DecoupledCommandList;
+        //commandList->BeginEvent("Virtual Pass");
+        //D3D12Renderer::UpdateVirtualTextures();
+        //D3D12Renderer::RenderVirtualTextures();
+        //D3D12Renderer::GenerateVirtualMips();
+        //OnRefresh();
+        //
+        //if (commandList->IsClosed())
+        //    commandList->Reset(D3D12Renderer::Context->CurrentFrameResource->CommandAllocator2);
+        //commandList->EndEvent();
     }
 
-    D3D12Renderer::ClearVirtualMaps();
+    //D3D12Renderer::ClearVirtualMaps();
     
     D3D12Renderer::RenderSubmitted();
-    
+    auto commandList = D3D12Renderer::Context->DeviceResources->MainCommandList;
+
+    if (commandList->IsClosed())
+        commandList->Reset(D3D12Renderer::Context->CurrentFrameResource->CommandAllocator);
+
     D3D12Renderer::RenderSkybox(m_EnvironmentLevel);
     D3D12Renderer::DoToneMapping();
 
@@ -137,7 +166,7 @@ void BenchmarkLayer::OnUpdate(Hazel::Timestep ts)
 void BenchmarkLayer::OnImGuiRender()
 {
     using namespace Hazel;
-#if 1
+#if 0
     ImGui::Begin("Shader Control Center");    
     ImGui::Columns(2);
     for (const auto& [key, shader] : *D3D12Renderer::ShaderLibrary)
@@ -189,6 +218,7 @@ void BenchmarkLayer::OnFrameEnd()
 
     m_CaptureCounter++;
     m_FrameCounter++;
+
     if (m_CaptureCounter >= m_CreationOptions.CaptureRate)
     {
         m_CaptureCounter = 0;
@@ -199,9 +229,12 @@ void BenchmarkLayer::OnFrameEnd()
                 return task.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
             }), m_CaptureTasks.end());
         auto frames = m_CapturedFrames.load();
+        bool shouldTerminate = (m_EnableCapture && m_CapturedFrames > m_CreationOptions.CaptureLimit) ||
+                                (m_CreationOptions.CaptureTiming && m_FrameCounter > m_CreationOptions.CaptureLimit);
+
         if (m_EnableCapture && m_CapturedFrames <= m_CreationOptions.CaptureLimit)
             CaptureLastFramebuffer();
-        else if (m_EnableCapture && m_CapturedFrames > m_CreationOptions.CaptureLimit) {
+        else if (shouldTerminate) {
             HZ_INFO("Terminating capture session");
             ::PostQuitMessage(0);
         }
@@ -221,7 +254,7 @@ void BenchmarkLayer::OnEvent(Hazel::Event& e)
 bool BenchmarkLayer::OnMouseButtonPressed(Hazel::MouseButtonPressedEvent& event)
 {
     using namespace Hazel;
-
+#if 0
     auto [mx, my] = Input::GetMousePosition();
     //ImGui::IsAnyWindowHovered();
 
@@ -249,7 +282,7 @@ bool BenchmarkLayer::OnMouseButtonPressed(Hazel::MouseButtonPressedEvent& event)
             m_Selection = nullptr;
         }
     }
-
+#endif
     return false;
 }
 
@@ -277,8 +310,13 @@ void BenchmarkLayer::CaptureLastFramebuffer()
         auto width = framebuffer->ColorResource->GetWidth();
         auto height = framebuffer->ColorResource->GetHeight();
 
-        D3D12ResourceBatch batch(D3D12Renderer::Context->DeviceResources->Device);
-        auto cmdlist = batch.Begin();
+        auto r = D3D12Renderer::Context->DeviceResources.get();
+        auto fr = D3D12Renderer::Context->CurrentFrameResource;
+
+        D3D12ResourceBatch batch(r->Device, r->WorkerCommandList);
+        auto myCmdList = batch.Begin(r->CommandAllocator);
+        auto cmdlist = myCmdList->Get();
+
         framebuffer->ColorResource->Transition(batch, D3D12_RESOURCE_STATE_COPY_SOURCE);
 
         CD3DX12_TEXTURE_COPY_LOCATION source(framebuffer->ColorResource->GetResource());
@@ -294,7 +332,7 @@ void BenchmarkLayer::CaptureLastFramebuffer()
         CD3DX12_TEXTURE_COPY_LOCATION destination(readback->GetResource(), footprint);
 
         cmdlist->CopyTextureRegion(&destination, 0, 0, 0, &source, nullptr);
-        batch.End(D3D12Renderer::Context->DeviceResources->CommandQueue.Get()).wait();
+        batch.EndAndWait(D3D12Renderer::Context->DeviceResources->CommandQueue);
 
         // 3 floats per pixel in hdr format
         float* data = new float[width * height * 3];

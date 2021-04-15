@@ -2,6 +2,7 @@
 #include "Hazel/Core/Window.h"
 
 #include "Platform/D3D12/ComPtr.h"
+#include "Platform/D3D12/D3D12CommandList.h"
 #include "Platform/D3D12/D3D12Helpers.h"
 
 #include <vector>
@@ -11,6 +12,7 @@
 #include <d3dcompiler.h>
 // D3D12 extension library.
 #include "d3dx12.h"
+
 
 
 
@@ -28,13 +30,16 @@ namespace Hazel {
     public:
 
         D3D12DeviceResources(UINT bufferCount);
+        ~D3D12DeviceResources();
 
         TComPtr<ID3D12Device2>                  Device;
         TComPtr<ID3D12CommandQueue>             CommandQueue;
         TComPtr<IDXGISwapChain4>                SwapChain;
         std::vector<TComPtr<ID3D12Resource>>    BackBuffers;
         TComPtr<ID3D12Resource>                 DepthStencilBuffer;
-        TComPtr<ID3D12GraphicsCommandList>      CommandList;
+        Ref<D3D12CommandList>                   MainCommandList;
+        Ref<D3D12CommandList>                   DecoupledCommandList;
+        Ref<D3D12CommandList>                   WorkerCommandList;
         TComPtr<ID3D12CommandAllocator>         CommandAllocator;
         TComPtr<ID3D12DescriptorHeap>           RTVDescriptorHeap;
         //TComPtr<ID3D12DescriptorHeap>           SRVDescriptorHeap;

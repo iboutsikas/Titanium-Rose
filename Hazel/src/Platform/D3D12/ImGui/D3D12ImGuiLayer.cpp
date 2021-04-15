@@ -78,11 +78,11 @@ namespace Hazel {
         auto r = m_Context->DeviceResources.get();
         // Rendering
         ImGui::Render();
-        ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), r->CommandList.Get());
+        ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), r->MainCommandList->GetRawPtr());
         if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
         {
             ImGui::UpdatePlatformWindows();
-            ImGui::RenderPlatformWindowsDefault(NULL, (void*)r->CommandList.Get());
+            ImGui::RenderPlatformWindowsDefault(NULL, (void*)(r->MainCommandList->GetRawPtr()));
         }
 	}
 

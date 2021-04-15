@@ -5,6 +5,10 @@
 #include "Platform/D3D12/Profiler/Profiler.h"
 
 #include "ImGui/imgui.h"
+#include "nlohmann/json.hpp"
+
+#include <fstream>
+#include "WinPixEventRuntime/pix3.h"
 
 namespace Hazel
 {
@@ -41,9 +45,9 @@ namespace Hazel
         desc.NodeMask = 0;
         desc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
         D3D12Renderer::Context->DeviceResources
-            ->Device->CreateQueryHeap(&desc, IID_PPV_ARGS(queryHeap.GetAddressOf()));
+            ->Device->CreateQueryHeap(&desc, IID_PPV_ARGS(m_QueryHeap.GetAddressOf()));
         // MaxProfiles for every Frame, and 2 timestamps one for start and one for end
-        readbackBuffer = CreateScope<ReadbackBuffer>(MaxProfiles * D3D12Renderer::FrameLatency * 2 * sizeof(uint64_t));
+        m_ReadbackBuffer = CreateScope<ReadbackBuffer>(MaxProfiles * D3D12Renderer::FrameLatency * 2 * sizeof(uint64_t));
 
         m_GPUProfiles.resize(MaxProfiles);
         m_CPUProfiles.resize(MaxProfiles);
@@ -51,14 +55,14 @@ namespace Hazel
 
     void Profiler::Shutdown()
     {
-        queryHeap.Reset();
-        readbackBuffer.reset();
+        m_QueryHeap.Reset();
+        m_ReadbackBuffer.reset();
         m_GPUProfiles.clear();
         m_CPUProfiles.clear();
         m_GPUCount = m_CPUCount = 0;
     }
 
-    uint64_t Profiler::StartProfile(ID3D12GraphicsCommandList* cmdlist, const std::string& name)
+    uint64_t Profiler::StartProfile(Ref<D3D12CommandList> cmdlist, const std::string& name)
     {
         HZ_CORE_ASSERT(!name.empty(), "Profile name is empty");
 
@@ -88,26 +92,27 @@ namespace Hazel
         datum.Active = true;
 
         const uint32_t startQueryIdx = uint32_t(idx * 2);
-        cmdlist->EndQuery(queryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, startQueryIdx);
-
+        cmdlist->BeginEvent(name.c_str(), PIX_COLOR_INDEX(idx));
+        cmdlist->Get()->EndQuery(m_QueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, startQueryIdx);
         datum.QueryStarted = true;
         return idx;
     }
 
-    void Profiler::EndProfile(ID3D12GraphicsCommandList* cmdlist, uint64_t idx)
+    void Profiler::EndProfile(Ref<D3D12CommandList> cmdlist, uint64_t idx)
     {
         HZ_CORE_ASSERT(idx < m_GPUCount, "Index is out of bounds");
 
         auto& datum = m_GPUProfiles[idx];
         const uint32_t startIdx = uint32_t(idx * 2);
         const uint32_t endIdx = startIdx + 1;
-        cmdlist->EndQuery(queryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, endIdx);
+        cmdlist->Get()->EndQuery(m_QueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, endIdx);
+        cmdlist->EndEvent();
 
         auto frameIndex = D3D12Renderer::Context->GetCurrentFrameIndex();
         
+        
         const uint64_t dest = ((frameIndex * MaxProfiles * 2) + startIdx) * sizeof(uint64_t);
-        cmdlist->ResolveQueryData(queryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, startIdx, 2, readbackBuffer->GetResource(), dest);
-
+        cmdlist->Get()->ResolveQueryData(m_QueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, startIdx, 2, m_ReadbackBuffer->GetResource(), dest);
         datum.QueryStarted = false;
         datum.QueryFinished = true;
     }
@@ -162,13 +167,22 @@ namespace Hazel
         datum.QueryFinished = true;
     }
 
-    void Profiler::EndFrame(uint32_t displayWidth, uint32_t displayHeight)
+    void Profiler::EndCPUFrame()
+    {
+        // Update all the CPU profiles
+        for (uint64_t p = 0; p < m_CPUCount; ++p)
+        {
+            UpdateProfile(m_CPUProfiles[p], p, 0.0, nullptr);
+        }
+    }
+
+    void Profiler::EndGPUFrame()
     {
         uint64_t gpuFrequency = 0;
         uint64_t* data = nullptr;
 
         D3D12Renderer::Context->DeviceResources->CommandQueue->GetTimestampFrequency(&gpuFrequency);
-        uint64_t* queryData = readbackBuffer->Map<uint64_t*>();
+        uint64_t* queryData = m_ReadbackBuffer->Map<uint64_t*>();
 
         data = queryData + (D3D12Renderer::Context->GetCurrentFrameIndex() * MaxProfiles * 2);
 
@@ -177,13 +191,9 @@ namespace Hazel
         {
             UpdateProfile(m_GPUProfiles[p], p, gpuFrequency, data);
         }
-        // Update all the CPU profiles
-        for (uint64_t p = 0; p < m_CPUCount; ++p)
-        {
-            UpdateProfile(m_CPUProfiles[p], p, gpuFrequency, nullptr);
-        }
-
-        readbackBuffer->Unmap();
+        
+        m_FrameCount++;
+        m_ReadbackBuffer->Unmap();
     }
 
     void Profiler::RenderStats()
@@ -205,25 +215,90 @@ namespace Hazel
 
     }
 
+    void Profiler::DumpDatabases(std::string& path)
+    {
+        using json = nlohmann::json;
+        // Bounce early if we cannot write the file anyway
+        std::fstream file(path, std::fstream::out);
+        if (!file.is_open()) {
+            HZ_CORE_ERROR("Unable to write timing data");
+            return;
+        }
+
+        json output;
+        auto cpuTimings = json::object();
+
+        for (const auto& [category, list] : m_CPUDatabase)
+        {
+            auto categoryArray = json::array();
+            for (const auto& item : list) {
+                categoryArray.push_back(item);
+            }
+            cpuTimings[category] = categoryArray;
+        }
+
+        output["cpu"] = cpuTimings;
+
+
+        auto gpuTimings = json::object();
+
+        for (const auto& [category, list] : m_GPUDatabase)
+        {
+            auto categoryArray = json::array();
+            for (const auto& item : list) {
+                categoryArray.push_back(item);
+            }
+            gpuTimings[category] = categoryArray;
+        }
+
+        output["gpu"] = gpuTimings;
+        
+        file << output.dump(2);
+        file.close();
+    }
+
+#define TOGGLE 0
+
     void Profiler::UpdateProfile(ProfileData& profile, uint64_t index, uint64_t gpuFrequency, const uint64_t* frameQueryData)
     {
         profile.QueryFinished = false;
-
+        
         double time = 0.0;
         if (profile.CPUProfile)
         {
             time = double(profile.EndTime - profile.StartTime) * 0.001;
+#if TOGGLE
+            auto& dataList = m_CPUDatabase[profile.Name];
+            dataList.emplace_back(SerializedProfileData{ 
+                profile.StartTime, 
+                profile.EndTime, 
+                m_FrameCount,
+                time
+            });
+#endif
         }
         else if (frameQueryData != nullptr)
         {
-            auto startTimeStamp = frameQueryData[index * 2];
-            auto endTimeStamp   = frameQueryData[index * 2 + 1];
+            auto startTimeStamp = profile.StartTime = frameQueryData[index * 2];
+            auto endTimeStamp   = profile.EndTime = frameQueryData[index * 2 + 1];
 
             if (endTimeStamp > startTimeStamp)
             {
                 uint64_t delta = endTimeStamp - startTimeStamp;
                 double freq = double(gpuFrequency);
-                time = (delta / freq) * 1000.0;
+                // delta / freq gives us time elapsed in seconds. We multiply by 1000
+                // to convert to ms, as the rest of the computations use ms
+                time = (delta / freq) * 1000.0; 
+
+#if TOGGLE
+                auto& dataList = m_GPUDatabase[profile.Name];
+                dataList.emplace_back(SerializedProfileData{
+                    profile.StartTime,
+                    profile.EndTime,
+                    m_FrameCount,
+                    time
+                });
+#endif
             }
         }
 
@@ -257,21 +332,33 @@ namespace Hazel
     }
 
     //====================================Profile Block=============================================
+    ProfileBlock::ProfileBlock(bool shouldEnd, uint64_t index)
+        : m_ShouldEnd(shouldEnd), m_Index(index)
+    {
 
-    GPUProfileBlock::GPUProfileBlock(ID3D12GraphicsCommandList* cmdlist, const std::string& name)
-        : m_Cmdlist(cmdlist)
+    }
+
+    GPUProfileBlock::GPUProfileBlock()
+        :ProfileBlock(false), m_Cmdlist(nullptr)
+    {
+
+    }
+
+    GPUProfileBlock::GPUProfileBlock(Ref<D3D12CommandList> cmdlist, const std::string& name)
+        : ProfileBlock(true), m_Cmdlist(cmdlist)
     {
         m_Index = Profiler::GlobalProfiler.StartProfile(cmdlist, name);
     }
 
-    GPUProfileBlock::GPUProfileBlock(const GPUProfileBlock& other)
-        : m_Index(other.m_Index), m_Cmdlist(other.m_Cmdlist), m_ShouldEnd(false)
-    {     
-        //HZ_CORE_WARN("GPU profile copy constructor. Should not be called");
-    }
+    // GPUProfileBlock::GPUProfileBlock(const GPUProfileBlock& other)
+    //    : ProfileBlock(true, other.m_Index), m_Cmdlist(other.m_Cmdlist)
+    // {     
+    //    //HZ_CORE_WARN("GPU profile copy constructor. Should not be called");
+    //    other.m_ShouldEnd = false;
+    // }
 
-    GPUProfileBlock::GPUProfileBlock(GPUProfileBlock& other)
-        : m_Index(other.m_Index), m_Cmdlist(other.m_Cmdlist), m_ShouldEnd(true)
+    GPUProfileBlock::GPUProfileBlock(GPUProfileBlock&& other)
+        : ProfileBlock(true, other.m_Index), m_Cmdlist(other.m_Cmdlist)
     {
         //HZ_CORE_WARN("GPU profile move constructor");
         other.m_ShouldEnd = false;
@@ -283,14 +370,33 @@ namespace Hazel
             Profiler::GlobalProfiler.EndProfile(m_Cmdlist, m_Index);
     }
 
+    CPUProfileBlock::CPUProfileBlock()
+        : ProfileBlock(false)
+    {
+
+    }
+
     CPUProfileBlock::CPUProfileBlock(const std::string& name)
+        : ProfileBlock(true)
     {
         m_Index = Profiler::GlobalProfiler.StartCPUProfile(name);
     }
 
+    //CPUProfileBlock::CPUProfileBlock(const CPUProfileBlock& other)
+    //    : ProfileBlock(false, other.m_Index)
+    //{
+    //}
+
+    CPUProfileBlock::CPUProfileBlock(CPUProfileBlock&& other)
+        : ProfileBlock(true, other.m_Index)
+    {
+        other.m_ShouldEnd = false;
+    }
+
     CPUProfileBlock::~CPUProfileBlock()
     {
-        Profiler::GlobalProfiler.EndCPUProfile(m_Index);
+        if (m_ShouldEnd)
+            Profiler::GlobalProfiler.EndCPUProfile(m_Index);
     }
 
 }

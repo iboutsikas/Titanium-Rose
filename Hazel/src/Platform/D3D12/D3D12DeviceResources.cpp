@@ -14,6 +14,10 @@ namespace Hazel {
         BackBuffers.resize(SwapChainBufferCount);
     }
 
+    D3D12DeviceResources::~D3D12DeviceResources()
+    {
+    }
+
     void D3D12DeviceResources::EnableDebugLayer()
     {
 #if defined(HZ_DEBUG) && !defined(HZ_NO_D3D12_DEBUG_LAYER)

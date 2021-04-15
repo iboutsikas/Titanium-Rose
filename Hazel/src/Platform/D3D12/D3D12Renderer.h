@@ -122,6 +122,7 @@ namespace Hazel
         virtual void ImplOnInit() = 0;
         virtual void ImplSubmit(Ref<GameObject> gameObject) = 0;
         virtual void ImplSubmit(D3D12ResourceBatch& batch, Ref<GameObject> gameObject) = 0;
+        virtual void ImplOnFrameEnd() {};
         virtual RendererType ImplGetRendererType() = 0;
 
     protected:

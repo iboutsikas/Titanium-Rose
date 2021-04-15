@@ -32,7 +32,7 @@ namespace Hazel
     void DeviceResource::Transition(D3D12ResourceBatch& batch, D3D12_RESOURCE_STATES from, D3D12_RESOURCE_STATES to)
     {
         HZ_CORE_ASSERT(m_Resource != nullptr, "Tried to create transition for null resource");
-        batch.GetCommandList()->ResourceBarrier(1,
+        batch.GetCommandList()->Get()->ResourceBarrier(1,
             &CD3DX12_RESOURCE_BARRIER::Transition(
                 m_Resource.Get(),
                 from,
@@ -49,7 +49,7 @@ namespace Hazel
         this->Transition(batch, m_CurrentState, to);
     }
 
-    void DeviceResource::Transition(ID3D12GraphicsCommandList* commandList, D3D12_RESOURCE_STATES from, D3D12_RESOURCE_STATES to)
+    void DeviceResource::Transition(TComPtr<ID3D12GraphicsCommandList> commandList, D3D12_RESOURCE_STATES from, D3D12_RESOURCE_STATES to)
     {
         HZ_CORE_ASSERT(m_Resource != nullptr, "Tried to create transition for null resource");
         commandList->ResourceBarrier(1,
@@ -62,7 +62,7 @@ namespace Hazel
         m_CurrentState = to;
     }
 
-    void DeviceResource::Transition(ID3D12GraphicsCommandList* commandList, D3D12_RESOURCE_STATES to)
+    void DeviceResource::Transition(TComPtr<ID3D12GraphicsCommandList> commandList, D3D12_RESOURCE_STATES to)
     {
         if (to == m_CurrentState)
             return;

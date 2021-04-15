@@ -16,9 +16,10 @@ class BenchmarkLayer : public Hazel::Layer
 public:
 
 	struct CreationOptions {
-        int32_t UpdateRate = 0;
+        int32_t UpdateRate = -1;
         uint32_t CaptureRate = 0;
-        uint32_t CaptureLimit = 0;
+        int32_t CaptureLimit = -1;
+		bool CaptureTiming = false;
 	};
 
 	BenchmarkLayer(const std::string& name, CreationOptions options = {});
@@ -52,7 +53,6 @@ protected:
 
     int m_EnvironmentLevel = 0;
 	float m_LastFrameTime;
-    uint32_t m_RefreshCounter = 0;
 
 	bool m_EnableCapture = true;
     uint32_t m_CaptureCounter = 0;

@@ -23,7 +23,7 @@ namespace Hazel
 		inline const uint32_t GetElementSize() const { return m_ElementSize; }
 		inline const uint32_t GetSize() const { return m_ActualSize; }
 
-		void Update(ID3D12GraphicsCommandList* cmdList);
+		void Update(TComPtr<ID3D12GraphicsCommandList> cmdList);
 
 		uint32_t* GetData() { return m_ReadbackBuffer->Map<uint32_t*>(); }
 

@@ -46,7 +46,6 @@ namespace Hazel {
 		:m_Count(count)
 	{
 		auto device = batch.GetDevice();
-		auto commandList = batch.GetCommandList();
 		auto size = sizeof(uint32_t) * count;
 
 		D3D12::ThrowIfFailed(device->CreateCommittedResource(

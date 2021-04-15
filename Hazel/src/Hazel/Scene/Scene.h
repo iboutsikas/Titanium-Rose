@@ -18,6 +18,8 @@ namespace Hazel
     class Scene
     {
     public:
+        Scene() = default;
+        Scene(float exposure) : Exposure(exposure) {}
         ~Scene();
         std::vector<Ref<GameObject>> Entities;
         std::vector<Ref<LightComponent>> Lights;

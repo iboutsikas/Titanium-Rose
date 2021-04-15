@@ -10,15 +10,16 @@
 #include "winpixeventruntime/pix3.h"
 
 #include <future>
+#include <sstream>
 
 DECLARE_SHADER_NAMED("SurfaceShader-Forward", Surface);
+#define STRINGIFY(x) #x
+#define TOSTRING(x) STRINGIFY(x)
 
 void Hazel::D3D12ForwardRenderer::ImplRenderSubmitted()
 {
 #if 1
-    static std::vector<std::shared_future<void>> renderTasks;
-    GPUProfileBlock passBlock(Context->DeviceResources->CommandList.Get(), "Forward Render");
-
+    static std::vector<std::future<void>> renderTasks;
     uint32_t counter = 0;
     auto shader = ShaderLibrary->GetAs<D3D12Shader>(ShaderNameSurface);
     auto envRad = s_CommonData.Scene->Environment.EnvironmentMap;
@@ -32,15 +33,29 @@ void Hazel::D3D12ForwardRenderer::ImplRenderSubmitted()
 
     auto framebuffer = ResolveFrameBuffer();
 
+    auto myCmdList = Context->DeviceResources->MainCommandList;
+
+    if (myCmdList->IsClosed()) {
+        myCmdList->Reset(Context->CurrentFrameResource->CommandAllocator);
+    }
+
     while (counter < s_OpaqueObjects.size())
     {
-        D3D12ResourceBatch batch(Context->DeviceResources->Device);
-        auto cmdList = batch.Begin();
+        D3D12ResourceBatch batch(Context->DeviceResources->Device, Context->DeviceResources->MainCommandList, true);
+        auto commandList = batch.Begin(Context->CurrentFrameResource->CommandAllocator);
+        auto cmdList = commandList->Get();
 
-        PIXBeginEvent(cmdList.Get(), PIX_COLOR(255, 0, 255), "Geometry Pass: %d", counter / MaxItemsPerQueue);
+        CPUProfileBlock cpuBlock("Forward Pass::Render");
+        batch.TrackBlock(cpuBlock);
+        GPUProfileBlock gpuBlock(commandList, "Forward Pass::Render");
+        batch.TrackBlock(gpuBlock);
 
         D3D12UploadBuffer<HPerObjectData> perObjectBuffer(batch, MaxItemsPerQueue, true);
         D3D12UploadBuffer<HPassData> passBuffer(batch, 1, true);
+#if HZ_DEBUG
+        perObjectBuffer.Resource()->SetName(L"perObjectBuffer - " __FILE__ ":" TOSTRING(__LINE__));
+        passBuffer.Resource()->SetName(L"passBuffer - " __FILE__ ":" TOSTRING(__LINE__));
+#endif
         passBuffer.CopyData(0, passData);
 
         cmdList->SetPipelineState(shader->GetPipelineState());
@@ -80,7 +95,10 @@ void Hazel::D3D12ForwardRenderer::ImplRenderSubmitted()
                 continue;
             }
 
-            GPUProfileBlock itemBlock(cmdList.Get(), "Render: " + go->Name);
+             CPUProfileBlock cpuBlock("Forward Pass::Render::" + go->Name);
+             //batch.TrackBlock(cpuBlock);
+             GPUProfileBlock itemBlock(commandList, "Forward Pass::Render::" + go->Name);
+             //batch.TrackBlock(itemBlock);
 
             HPerObjectData objectData;
             objectData.LocalToWorld = go->Transform.LocalToWorldMatrix();
@@ -123,13 +141,14 @@ void Hazel::D3D12ForwardRenderer::ImplRenderSubmitted()
 
             cmdList->DrawIndexedInstanced(go->Mesh->indexBuffer->GetCount(), 1, 0, 0, 0);
 
-            ++counter;
+            ++counter;            
         }
         batch.TrackResource(perObjectBuffer.Resource());
         batch.TrackResource(passBuffer.Resource());
-        PIXEndEvent(cmdList.Get());
-        auto f = batch.End(Context->DeviceResources->CommandQueue.Get());
-        renderTasks.push_back(std::move(f));    
+
+        renderTasks.push_back(std::move(
+            batch.EndAsync(Context->DeviceResources->CommandQueue)
+        ));
     }
     for (auto& task : renderTasks)
     {

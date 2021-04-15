@@ -138,7 +138,7 @@ namespace Hazel
                         continue;
                     }
 
-                    if (currentPage->FreeTiles.size() == 0) {
+                    if (currentPage->NumFreeTiles() == 0) {
                         currentPage = FindAvailablePage(1);
                         if (currentPage == nullptr) {
                             currentPage = this->AddPage(batch, 4096 * 2048 * 4);
@@ -285,18 +285,23 @@ namespace Hazel
             D3D12_TILE_MAPPING_FLAG_NONE
         );
 
+        //this->m_AllocationMap.erase(vTexture);
+    }
+
+    void D3D12TilePool::RemoveTexture(Ref<D3D12VirtualTexture2D> texture)
+    {
+        m_AllocationMap.erase(texture);
     }
 
     std::vector<TilePoolStats> D3D12TilePool::GetStats()
     {
         std::vector<TilePoolStats> ret;
 
-
         for (auto page : m_Pages)
         {
             TilePoolStats stats;
-            stats.MaxTiles = page->MaxTiles;
-            stats.FreeTiles = page->FreeTiles.size();
+            stats.MaxTiles = page->Size();
+            stats.FreeTiles = page->NumFreeTiles();
             ret.push_back(stats);
         }
         return ret;
@@ -327,7 +332,7 @@ namespace Hazel
         Ref<TilePage> ret = nullptr;
         for (auto p : m_Pages)
         {
-            if (p->FreeTiles.size() >= tiles)
+            if (p->NumFreeTiles() >= tiles)
             {
                 ret = p;
                 break;
@@ -338,7 +343,6 @@ namespace Hazel
 
     Ref<TilePage> D3D12TilePool::AddPage(D3D12ResourceBatch& batch, uint32_t size)
     {
-        Ref<TilePage> newPage = CreateRef<TilePage>();
 
         D3D12_HEAP_DESC heapDesc = CD3DX12_HEAP_DESC(size, D3D12_HEAP_TYPE_DEFAULT);
         TComPtr<ID3D12Heap> heap = nullptr;
@@ -347,15 +351,8 @@ namespace Hazel
 
         uint32_t numTiles = size / D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
 
+        Ref<TilePage> newPage = CreateRef<TilePage>(numTiles, m_Pages.size());
         newPage->Heap = heap;
-        newPage->MaxTiles = numTiles;
-
-        for (size_t i = 0; i < numTiles; i++)
-        {
-            newPage->FreeTiles.insert(i);
-        }
-        newPage->PageIndex = m_Pages.size();
-
         m_Pages.push_back(newPage);
         return newPage;
     }
@@ -378,10 +375,9 @@ namespace Hazel
                 auto& tiling = texture->m_Tilings[i];
                 uint32_t size = tiling.WidthInTiles * tiling.HeightInTiles * tiling.DepthInTiles;
                 a.TileAllocations.resize(size);
-                for (auto& ma : a.TileAllocations)
+                for (auto&&  ma : a.TileAllocations)
                 {
                     ma.Mapped = false;
-
                 }
             }
         }
@@ -396,15 +392,24 @@ namespace Hazel
 
     uint32_t TilePage::AllocateTile()
     {
-        auto iter = this->FreeTiles.begin();
-        auto tileNumber = *iter;
-        this->FreeTiles.erase(iter);
-        return tileNumber;
+        HZ_CORE_ASSERT(m_FreeTiles > 0, "There are no free tiles on this page");
+
+        for (uint32_t i = 0; i < m_MaxTiles; i++)
+        {
+            if (FreeTiles2[i] == 1)
+                continue;
+
+            FreeTiles2[i] = 1;
+            --m_FreeTiles;
+            return i;
+        }
     }
 
     void TilePage::ReleaseTile(uint32_t tile)
     {
-        HZ_CORE_ASSERT(tile < MaxTiles, "Tile is outside the available tile range");
-        this->FreeTiles.insert(tile);
+        HZ_CORE_ASSERT(tile < m_MaxTiles, "Tile is outside the available tile range");
+        HZ_CORE_ASSERT(FreeTiles2[tile] == 1, "Trying to free an already freed tile");
+        FreeTiles2[tile] = 0;
+        ++m_FreeTiles;
     }
 }

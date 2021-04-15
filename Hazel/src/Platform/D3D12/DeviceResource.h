@@ -3,7 +3,6 @@
 
 #include "Platform/D3D12/ComPtr.h"
 
-
 #include <d3d12.h>
 
 namespace Hazel
@@ -29,8 +28,8 @@ namespace Hazel
 
         void Transition(D3D12ResourceBatch& batch, D3D12_RESOURCE_STATES from, D3D12_RESOURCE_STATES to);
         void Transition(D3D12ResourceBatch& batch, D3D12_RESOURCE_STATES to);
-        void Transition(ID3D12GraphicsCommandList* commandList, D3D12_RESOURCE_STATES from, D3D12_RESOURCE_STATES to);
-        void Transition(ID3D12GraphicsCommandList* commandList, D3D12_RESOURCE_STATES to);
+        void Transition(TComPtr<ID3D12GraphicsCommandList> commandList, D3D12_RESOURCE_STATES from, D3D12_RESOURCE_STATES to);
+        void Transition(TComPtr<ID3D12GraphicsCommandList> commandList, D3D12_RESOURCE_STATES to);
         D3D12_RESOURCE_BARRIER CreateTransition(D3D12_RESOURCE_STATES to);
 
         void SetName(std::string name);

@@ -17,9 +17,11 @@ namespace Hazel
     protected:
         virtual void ImplRenderSubmitted() override;
         virtual void ImplOnInit() override;
+        virtual void ImplOnFrameEnd() override;
         virtual void ImplSubmit(Ref<GameObject> gameObject) override {};
         virtual void ImplSubmit(D3D12ResourceBatch& batch, Ref<GameObject> gameObject) override;
         virtual RendererType ImplGetRendererType() override { return D3D12Renderer::RendererType_TextureSpace; }
+
 
     private:
         static constexpr uint32_t MaxItemsPerQueue = 25;
