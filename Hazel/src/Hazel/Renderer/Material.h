@@ -27,10 +27,10 @@ namespace Hazel {
 		bool HasMatallicTexture;
 		bool IsTransparent;
 
-		Hazel::Ref<Hazel::D3D12Texture2D> AlbedoTexture;
-		Hazel::Ref<Hazel::D3D12Texture2D> NormalTexture;
-		Hazel::Ref<Hazel::D3D12Texture2D> RoughnessTexture;
-		Hazel::Ref<Hazel::D3D12Texture2D> MetallicTexture;
+		Hazel::Ref<Hazel::Texture2D> AlbedoTexture;
+		Hazel::Ref<Hazel::Texture2D> NormalTexture;
+		Hazel::Ref<Hazel::Texture2D> RoughnessTexture;
+		Hazel::Ref<Hazel::Texture2D> MetallicTexture;
 		std::string Name;
 	};
 #if 0

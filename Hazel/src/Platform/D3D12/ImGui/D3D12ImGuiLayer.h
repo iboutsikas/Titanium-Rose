@@ -5,6 +5,8 @@
 #include "Platform/D3D12/D3D12Context.h"
 #include "Platform/D3D12/D3D12DescriptorHeap.h"
 
+#include "Platform/D3D12/CommandContext.h"
+
 namespace Hazel {
 	
 	class D3D12ImGuiLayer : public ImGuiLayer {
@@ -14,8 +16,8 @@ namespace Hazel {
 
 		virtual void OnAttach() override;
 		virtual void OnDetach() override;
-		virtual void Begin() override;
-		virtual void End() override;
+		virtual void Begin(GraphicsContext& context) override;
+		virtual void End(GraphicsContext& context) override;
 
 		static LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 	private:

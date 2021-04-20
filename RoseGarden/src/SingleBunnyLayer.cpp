@@ -68,16 +68,11 @@ SingleBunnyLayer::SingleBunnyLayer(CreationOptions& opts)
 
     PedestalWaypoints[0].Next = &PedestalWaypoints[1];
     PedestalWaypoints[1].Next = &PedestalWaypoints[0];
-    
-    auto r = D3D12Renderer::Context->DeviceResources.get();
-    auto fr = D3D12Renderer::Context->CurrentFrameResource;
-
-    D3D12ResourceBatch batch(r->Device, r->WorkerCommandList);
-    batch.Begin(r->CommandAllocator);
+      
 
     //ModelLoader::LoadScene(m_Scene, std::string("assets/models/space_fabric_bunny.fbx"), batch);
     //ModelLoader::LoadScene(m_Scene, std::string("assets/models/single_scene.fbx"), batch);
-    ModelLoader::LoadScene(m_Scene, opts.Scene, batch);
+    ModelLoader::LoadScene(m_Scene, opts.Scene);
 
 
     for (auto e : m_Scene.Entities) {
@@ -101,7 +96,7 @@ SingleBunnyLayer::SingleBunnyLayer(CreationOptions& opts)
 
     // Light 1
     {
-        auto go = ModelLoader::LoadFromFile(std::string("assets/models/test_sphere.fbx"), batch);
+        auto go = ModelLoader::LoadFromFile(std::string("assets/models/test_sphere.fbx"));
         go->Transform.SetPosition(-14.5, 7, 13);
         go->Transform.SetScale(0.3f, 0.3f, 0.3f);
         go->Name = "Scene Light #1";
@@ -115,7 +110,7 @@ SingleBunnyLayer::SingleBunnyLayer(CreationOptions& opts)
     
     // Light 2
     {
-        auto go = ModelLoader::LoadFromFile(std::string("assets/models/test_sphere.fbx"), batch);
+        auto go = ModelLoader::LoadFromFile(std::string("assets/models/test_sphere.fbx"));
         go->Transform.SetPosition(14.5, 7, 13);
         go->Transform.SetScale(0.3f, 0.3f, 0.3f);
         go->Name = "Scene Light #2";
@@ -129,7 +124,7 @@ SingleBunnyLayer::SingleBunnyLayer(CreationOptions& opts)
 
     // Light 3
     {
-        auto go = ModelLoader::LoadFromFile(std::string("assets/models/test_sphere.fbx"), batch);
+        auto go = ModelLoader::LoadFromFile(std::string("assets/models/test_sphere.fbx"));
         go->Transform.SetPosition(14.5, 7, -13);
         go->Transform.SetScale(0.3f, 0.3f, 0.3f);
         go->Name = "Scene Light #3";
@@ -143,7 +138,7 @@ SingleBunnyLayer::SingleBunnyLayer(CreationOptions& opts)
 
     // Light 4
     {
-        auto go = ModelLoader::LoadFromFile(std::string("assets/models/test_sphere.fbx"), batch);
+        auto go = ModelLoader::LoadFromFile(std::string("assets/models/test_sphere.fbx"));
         go->Transform.SetPosition(-14.5, 7, -13);
         go->Transform.SetScale(0.3f, 0.3f, 0.3f);
         go->Name = "Scene Light #4";
@@ -157,15 +152,15 @@ SingleBunnyLayer::SingleBunnyLayer(CreationOptions& opts)
 
 
 
+    GraphicsContext& gfxContext = GraphicsContext::Begin();
     for (auto& a : *D3D12Renderer::TextureLibrary)
     {
-        auto tex = std::static_pointer_cast<D3D12Texture>(a.second);
+        auto tex = std::static_pointer_cast<Texture>(a.second);
 
         D3D12Renderer::AddStaticResource(tex);
-        a.second->Transition(batch, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        gfxContext.TransitionResource(*a.second, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     }
-
-    batch.EndAndWait(D3D12Renderer::Context->DeviceResources->CommandQueue);
+    gfxContext.Finish(true);
 
     m_Scene.LoadEnvironment(std::string("assets/environments/pink_sunrise_4k.hdr"));
 }

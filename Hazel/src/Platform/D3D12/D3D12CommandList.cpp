@@ -1,6 +1,7 @@
 #include "hzpch.h"
 #include "Platform/D3D12/D3D12CommandList.h"
 #include "Platform/D3D12/D3D12Helpers.h"
+#include "Platform/D3D12/D3D12Renderer.h"
 
 namespace Hazel {
     D3D12CommandList::D3D12CommandList(TComPtr<ID3D12Device2> inDevice, TComPtr<ID3D12CommandAllocator> commandAllocator, D3D12_COMMAND_LIST_TYPE type)
@@ -54,7 +55,7 @@ namespace Hazel {
         m_IsClosed = true;
     }
 
-    void D3D12CommandList::Execute(TComPtr<ID3D12CommandQueue> commandQueue)
+    uint64_t D3D12CommandList::Execute(TComPtr<ID3D12CommandQueue> commandQueue)
     {
         this->Close();
 
@@ -63,30 +64,29 @@ namespace Hazel {
         };
 
         commandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
+        return this->IncrementFence(commandQueue);
     }
 
     void D3D12CommandList::ExecuteAndWait(TComPtr<ID3D12CommandQueue> commandQueue)
     {
         this->Execute(commandQueue);
+        this->Wait(commandQueue);
+    }
 
+    void D3D12CommandList::Wait(TComPtr<ID3D12CommandQueue> commandQueue, uint64_t fenceValue)
+    {
+        if (fenceValue == uint64_t(-1))
+            fenceValue = m_FenceValue;
+
+        HANDLE evt = CreateEventEx(nullptr, nullptr, 0, EVENT_ALL_ACCESS);
+        HZ_CORE_ASSERT(evt, "Fence event was null");
         
-        m_FenceValue++;
-        auto completedValue = m_Fence->GetCompletedValue();
-        
-        D3D12::ThrowIfFailed(commandQueue->Signal(m_Fence.Get(), m_FenceValue));
-        if (completedValue < m_FenceValue) {
-            HANDLE evt = CreateEventEx(nullptr, nullptr, 0, EVENT_ALL_ACCESS);
-            HZ_CORE_ASSERT(evt, "Fence event was null");
-
-            D3D12::ThrowIfFailed(m_Fence->SetEventOnCompletion(m_FenceValue, evt));
-
-            ::WaitForSingleObject(evt, INFINITE);
-#if HZ_DEBUG
-            auto dbgValue = m_Fence->GetCompletedValue();
-            HZ_CORE_ASSERT(dbgValue >= m_FenceValue, "Expected fence value to be greater than the current one");
+        D3D12::ThrowIfFailed(m_Fence->SetEventOnCompletion(fenceValue, evt));
+        ::WaitForSingleObject(evt, INFINITE);
+#ifdef HZ_DEBUG
+        auto dbg = m_Fence->GetCompletedValue();
 #endif
-            CloseHandle(evt);
-        }
+        CloseHandle(evt);
     }
         
     HANDLE D3D12CommandList::AddFenceEvent(TComPtr<ID3D12CommandQueue> commandQueue)
@@ -97,6 +97,23 @@ namespace Hazel {
         HZ_CORE_ASSERT(evt, "Fence event was null");
         D3D12::ThrowIfFailed(m_Fence->SetEventOnCompletion(m_FenceValue, evt));
         return evt;
+    }
+
+    uint64_t D3D12CommandList::IncrementFence(TComPtr<ID3D12CommandQueue> commandQueue)
+    {
+        m_FenceValue++;
+        D3D12::ThrowIfFailed(commandQueue->Signal(m_Fence.Get(), m_FenceValue));
+        return m_FenceValue;
+    }
+
+    void D3D12CommandList::ClearTracked()
+    {
+        m_TrackedResources.clear();
+        for (int i = 0; i < m_TrackedAllocations.size(); i++) {
+            auto d = m_TrackedAllocations[i];
+            D3D12Renderer::s_ResourceDescriptorHeap->Release(d);
+        }
+        m_TrackedAllocations.clear();
     }
 
     void D3D12CommandList::SetName(std::string name)

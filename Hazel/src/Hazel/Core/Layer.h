@@ -4,6 +4,8 @@
 #include "Hazel/Core/Timestep.h"
 #include "Hazel/Events/Event.h"
 
+#include "Platform/D3D12/CommandContext.h"
+
 namespace Hazel {
 
 	class Layer
@@ -15,7 +17,8 @@ namespace Hazel {
 		virtual void OnAttach() {}
 		virtual void OnDetach() {}
 		virtual void OnUpdate(Timestep ts) {}
-		virtual void OnImGuiRender() {}
+		virtual void OnRender(Timestep ts, GraphicsContext& gfxContext) {}
+		virtual void OnImGuiRender(GraphicsContext& uiContext) {}
 		virtual void OnEvent(Event& event) {}
 		virtual void OnFrameEnd() {}
 

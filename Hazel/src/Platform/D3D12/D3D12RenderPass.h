@@ -28,7 +28,7 @@ namespace Hazel {
 
 		virtual void Process(D3D12Context* ctx, Hazel::GameObject* sceneRoot, Hazel::PerspectiveCamera& camera) = 0;
 	
-		virtual void SetInput(uint32_t index, Hazel::Ref<D3D12Texture2D> input) 
+		virtual void SetInput(uint32_t index, Hazel::Ref<Texture2D> input) 
 		{
 			if (index < PassInputCount) {
 				m_Inputs[index] = input;
@@ -51,7 +51,7 @@ namespace Hazel {
 			);
 		}
 
-		virtual Hazel::Ref<D3D12Texture2D> GetInput(uint32_t index) const 
+		virtual Hazel::Ref<Texture2D> GetInput(uint32_t index) const 
 		{
 			if (index < PassInputCount) {
 				return m_Inputs[index];
@@ -60,7 +60,7 @@ namespace Hazel {
 			return nullptr;
 		}
 
-		virtual void SetOutput(uint32_t index, Hazel::Ref<D3D12Texture2D> output) 
+		virtual void SetOutput(uint32_t index, Hazel::Ref<Texture2D> output) 
 		{
 			if (index < PassOutputCount) {
 				m_Outputs[index] = output;
@@ -70,7 +70,7 @@ namespace Hazel {
 			}
 		};
 
-		virtual Hazel::Ref<D3D12Texture2D> GetOutput(uint32_t index) const
+		virtual Hazel::Ref<Texture2D> GetOutput(uint32_t index) const
 		{
 			if (index < PassOutputCount) {
 				return m_Outputs[index];
@@ -93,8 +93,8 @@ namespace Hazel {
 	protected:
 
 		Hazel::Ref<Hazel::D3D12Shader> m_Shader;
-		Hazel::Ref<Hazel::D3D12Texture2D> m_Inputs[TNumInputs];
-		Hazel::Ref<Hazel::D3D12Texture2D> m_Outputs[TNumOutputs];
+		Hazel::Ref<Hazel::Texture2D> m_Inputs[TNumInputs];
+		Hazel::Ref<Hazel::Texture2D> m_Outputs[TNumOutputs];
 		Hazel::TComPtr<ID3D12DescriptorHeap> m_SRVHeap;
 		Hazel::D3D12Context* m_Context;
 	};

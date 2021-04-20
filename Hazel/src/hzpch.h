@@ -29,3 +29,6 @@
 	#include <GLFW/glfw3native.h>
 #endif // !GLFW_EXPOSE_NATIVE_WIN32
 #endif
+
+#define STRINGIFY(x) #x
+#define TOSTRING(x) STRINGIFY(x)

@@ -11,7 +11,7 @@ namespace Hazel {
 	{
 	}
 
-	ImGuiLayer* ImGuiLayer::Create()
+	ImGuiLayer* ImGuiLayer::Initialize()
 	{
 		return new D3D12ImGuiLayer(D3D12Renderer::Context);
 	}

@@ -6,7 +6,7 @@
 #include "Platform/D3D12/D3D12Buffer.h"
 namespace Hazel {
 
-	Ref<VertexBuffer> VertexBuffer::Create(float* vertices, uint32_t size)
+	Ref<VertexBuffer> VertexBuffer::Initialize(float* vertices, uint32_t size)
 	{
 		//switch (Renderer::GetAPI())
 		//{
@@ -19,7 +19,7 @@ namespace Hazel {
 		return nullptr;
 	}
 
-	Ref<IndexBuffer> IndexBuffer::Create(uint32_t* indices, uint32_t count)
+	Ref<IndexBuffer> IndexBuffer::Initialize(uint32_t* indices, uint32_t count)
 	{
 		//switch (Renderer::GetAPI())
 		//{

@@ -20,7 +20,7 @@ namespace Hazel {
     struct DecoupledTextureComponent
     {
         bool UseDecoupledTexture = false;
-        Ref<D3D12VirtualTexture2D> VirtualTexture = nullptr;
+        Ref<VirtualTexture2D> VirtualTexture = nullptr;
     };
 
 	class GameObject

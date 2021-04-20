@@ -6,6 +6,8 @@
 #include "Hazel/Events/KeyEvent.h"
 #include "Hazel/Events/MouseEvent.h"
 
+#include "Platform/D3D12/CommandContext.h"
+
 namespace Hazel {
 
 	class ImGuiLayer : public Layer
@@ -14,10 +16,10 @@ namespace Hazel {
 		ImGuiLayer();
 		~ImGuiLayer() = default;
 
-		virtual void Begin() = 0;
-		virtual void End() = 0;
+		virtual void Begin(GraphicsContext& context) = 0;
+		virtual void End(GraphicsContext& context) = 0;
 
-		static ImGuiLayer* Create();
+		static ImGuiLayer* Initialize();
 	protected:
 		float m_Time = 0.0f;
 	};

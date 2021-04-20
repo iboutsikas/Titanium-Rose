@@ -72,7 +72,14 @@ namespace Hazel::D3D12 {
         return(number + multiple - 1) / multiple;
     }
 
-    inline uint32_t CalculateConstantBufferSize(uint32_t byteSize)
+    template<typename T>
+    __forceinline T AlignUpMasked(T byteSize, size_t mask)
+    {
+        return (T)(((size_t)byteSize + mask) & ~mask);
+    }
+
+    template<typename T>
+    __forceinline T AlignUp(T byteSize, size_t alignment = 256)
     {
         // Constant buffers must be a multiple of the minimum hardware
         // allocation size (usually 256 bytes).  So round up to nearest
@@ -85,7 +92,7 @@ namespace Hazel::D3D12 {
         // 0x022B & 0xff00
         // 0x0200
         // 512
-        return (byteSize + 255) & ~255;
+        return AlignUpMasked(byteSize, alignment - 1);
     }
 
     inline void ThrowIfFailed(HRESULT hr)

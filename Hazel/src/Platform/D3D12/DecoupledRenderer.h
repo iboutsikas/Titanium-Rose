@@ -1,6 +1,7 @@
 #pragma once
 #include "Platform/D3D12/D3D12Renderer.h"
 #include "Platform/D3D12/D3D12Texture.h"
+#include "Platform/D3D12/CommandContext.h"
 
 namespace Hazel
 {
@@ -9,10 +10,11 @@ namespace Hazel
     class DecoupledRenderer : public D3D12Renderer
     {
     public:
-        void ImplRenderVirtualTextures();
-        void ImplDilateVirtualTextures();
+        void ImplRenderVirtualTextures(GraphicsContext& gfxContext);
+        void ImplDilateVirtualTextures(GraphicsContext& gfxContext);
         
         Ref<D3D12Shader> GetShader();
+        void ClearDialationQueue();
 
     protected:
         virtual void ImplRenderSubmitted() override;
@@ -88,8 +90,8 @@ namespace Hazel
 
         struct DilateTextureInfo 
         {
-            Ref<D3D12VirtualTexture2D> Temporary;
-            Ref<D3D12VirtualTexture2D> Target;
+            Ref<VirtualTexture2D> Temporary;
+            Ref<VirtualTexture2D> Target;
         };
 
 

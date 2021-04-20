@@ -29,7 +29,9 @@ public:
 	virtual void OnDetach() override;
 
 	void OnUpdate(Hazel::Timestep ts) override;
-	virtual void OnImGuiRender() override;
+	void OnRender(Hazel::Timestep ts, Hazel::GraphicsContext& gfxContext) override;
+
+	virtual void OnImGuiRender(Hazel::GraphicsContext& uiContext) override;
 	virtual void OnFrameEnd() override;
 	void OnEvent(Hazel::Event& e) override;
 

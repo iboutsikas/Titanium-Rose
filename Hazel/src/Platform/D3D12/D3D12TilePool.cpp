@@ -2,23 +2,24 @@
 #include "Platform/D3D12/D3D12TilePool.h"
 #include "Platform/D3D12/D3D12Helpers.h"
 #include "Platform/D3D12/D3D12Renderer.h"
+#include "Platform/D3D12/CommandQueue.h"
 
 namespace Hazel
 {
     //static constexpr TileAddress InvalidTileAddress = { uint32_t(-1) };
 
-    void D3D12TilePool::MapTexture(D3D12ResourceBatch& batch, Ref<D3D12Texture2D> texture, TComPtr<ID3D12CommandQueue> commandQueue)
+    void D3D12TilePool::MapTexture(Ref<Texture2D> texture)
     {
         if (!texture->IsVirtual())
         {
             return;
         }
 
-        Ref<D3D12VirtualTexture2D> vTexture = std::dynamic_pointer_cast<D3D12VirtualTexture2D>(texture);
+        Ref<VirtualTexture2D> vTexture = std::dynamic_pointer_cast<VirtualTexture2D>(texture);
 
         HZ_CORE_ASSERT(vTexture->m_MipInfo.NumTilesForPackedMips <= 1, "Currently we only support packed mips on 1 tile");
 
-        Ref<TextureAllocationInfo> allocInfo = GetTextureInfo(vTexture);
+        TextureAllocationInfo& allocInfo = GetTextureInfo(*vTexture);
 
         std::vector<UpdateInfo> updates(m_Pages.size());
         for (uint32_t u = 0; u < updates.size(); u++)
@@ -27,7 +28,7 @@ namespace Hazel
         }
         Ref<TilePage> currentPage = FindAvailablePage(1);
 
-        D3D12Texture2D::MipLevels mips = texture->GetMipsUsed();
+        Texture2D::MipLevels mips = texture->GetMipsUsed();
 
         glm::ivec3 dims;
         auto feedbackMap = texture->GetFeedbackMap();
@@ -41,30 +42,30 @@ namespace Hazel
         }
 
         // =================== MAP PACKED MIPS ======================================
-        if (!allocInfo->PackedMipsMapped && vTexture->m_MipInfo.NumTilesForPackedMips > 0)
+        if (!allocInfo.PackedMipsMapped && vTexture->m_MipInfo.NumTilesForPackedMips > 0)
         {
             uint32_t packedSubresource = (vTexture->m_MipInfo.NumPackedMips > 0 ? vTexture->m_MipInfo.NumStandardMips : 0);
                 
             if (currentPage == nullptr) {
-                currentPage = this->AddPage(batch, 4096 * 2048 * 4);
+                currentPage = this->AddPage(4096 * 2048 * 4);
                 UpdateInfo newInfo;
                 newInfo.Page = currentPage;
                 updates.push_back(newInfo);
             }
 
-            allocInfo->PackedMipsAddress.Page = currentPage->PageIndex;
-            allocInfo->PackedMipsAddress.Tile = currentPage->AllocateTile();
+            allocInfo.PackedMipsAddress.Page = currentPage->PageIndex;
+            allocInfo.PackedMipsAddress.Tile = currentPage->AllocateTile();
 
             auto& info = updates[currentPage->PageIndex];
 
             info.startCoordinates.push_back(CD3DX12_TILED_RESOURCE_COORDINATE(0, 0, 0, packedSubresource));
             info.regionSizes.push_back({ vTexture->m_MipInfo.NumTilesForPackedMips, FALSE, 1, 1, 1 });
             info.rangeFlags.push_back(D3D12_TILE_RANGE_FLAG_NONE);
-            info.heapRangeStartOffsets.push_back(allocInfo->PackedMipsAddress.Tile);
+            info.heapRangeStartOffsets.push_back(allocInfo.PackedMipsAddress.Tile);
             info.rangeTileCounts.push_back(1);
             ++info.tilesUpdated;
 
-            allocInfo->PackedMipsMapped = true;
+            allocInfo.PackedMipsMapped = true;
         }
 
         
@@ -77,7 +78,7 @@ namespace Hazel
         {
             uint32_t xx = dims.x >> i;
             uint32_t yy = dims.y >> i;
-            auto& mipAllocation = allocInfo->MipAllocations[i];
+            auto& mipAllocation = allocInfo.MipAllocations[i];
 
 
             auto& tileAllocations = mipAllocation.TileAllocations;
@@ -122,7 +123,7 @@ namespace Hazel
         {
             uint32_t xx = dims.x >> i;
             uint32_t yy = dims.y >> i;
-            auto& mipAllocation = allocInfo->MipAllocations[i];
+            auto& mipAllocation = allocInfo.MipAllocations[i];
 
             auto& tileAllocations = mipAllocation.TileAllocations;
 
@@ -141,7 +142,7 @@ namespace Hazel
                     if (currentPage->NumFreeTiles() == 0) {
                         currentPage = FindAvailablePage(1);
                         if (currentPage == nullptr) {
-                            currentPage = this->AddPage(batch, 4096 * 2048 * 4);
+                            currentPage = this->AddPage(4096 * 2048 * 4);
                             UpdateInfo newInfo;
                             newInfo.Page = currentPage;
                             updates.push_back(newInfo);
@@ -173,7 +174,7 @@ namespace Hazel
         {
             uint32_t xx = dims.x >> i;
             uint32_t yy = dims.y >> i;
-            auto& mipAllocation = allocInfo->MipAllocations[i];
+            auto& mipAllocation = allocInfo.MipAllocations[i];
 
             auto& tileAllocations = mipAllocation.TileAllocations;
 
@@ -202,12 +203,14 @@ namespace Hazel
         }
 #endif
         // ======================== APPLY THE UPDATES ===================
+        auto commandQueue = D3D12Renderer::CommandListManager.GetComputeQueue();
+
         for (auto& info : updates)
         {
             if (info.tilesUpdated == 0)
                 continue;
 
-            commandQueue->UpdateTileMappings(
+            commandQueue.GetRawPtr()->UpdateTileMappings(
                 vTexture->GetResource(),
                 info.tilesUpdated,
                 info.startCoordinates.data(),
@@ -222,16 +225,16 @@ namespace Hazel
         }
     }
 
-    void D3D12TilePool::ReleaseTexture(Ref<D3D12Texture2D> texture, TComPtr<ID3D12CommandQueue> commandQueue)
+    void D3D12TilePool::ReleaseTexture(Ref<Texture2D> texture)
     {
         if (!texture->IsVirtual())
         {
             return;
         }
 
-        Ref<D3D12VirtualTexture2D> vTexture = std::dynamic_pointer_cast<D3D12VirtualTexture2D>(texture);
+        Ref<VirtualTexture2D> vTexture = std::dynamic_pointer_cast<VirtualTexture2D>(texture);
 
-        Ref<TextureAllocationInfo> allocInfo = GetTextureInfo(vTexture);
+        TextureAllocationInfo& allocInfo = GetTextureInfo(*vTexture);
 
         std::vector<UpdateInfo> updates(m_Pages.size());
         for (uint32_t u = 0; u < updates.size(); u++)
@@ -239,7 +242,7 @@ namespace Hazel
             updates[u].Page = m_Pages[u];
         }
 
-        D3D12Texture2D::MipLevels mips = texture->GetMipsUsed();
+        Texture2D::MipLevels mips = texture->GetMipsUsed();
 
         glm::ivec3 dims;
         auto feedbackMap = texture->GetFeedbackMap();
@@ -254,11 +257,11 @@ namespace Hazel
 
         //======= Release Packed Mips =======
 
-        if (allocInfo->PackedMipsMapped) {
-            this->ReleaseTile(allocInfo->PackedMipsAddress);
+        if (allocInfo.PackedMipsMapped) {
+            this->ReleaseTile(allocInfo.PackedMipsAddress);
         }
 
-        for (auto& allocation : allocInfo->MipAllocations)
+        for (auto& allocation : allocInfo.MipAllocations)
         {
             for (auto& tile : allocation.TileAllocations)
             {
@@ -271,8 +274,9 @@ namespace Hazel
         }
 
         D3D12_TILE_RANGE_FLAGS rangeFlags = D3D12_TILE_RANGE_FLAG_NULL;
+        auto commandQueue = D3D12Renderer::CommandListManager.GetComputeQueue();
 
-        commandQueue->UpdateTileMappings(
+        commandQueue.GetRawPtr()->UpdateTileMappings(
             texture->GetResource(),
             1,
             nullptr,
@@ -288,9 +292,9 @@ namespace Hazel
         //this->m_AllocationMap.erase(vTexture);
     }
 
-    void D3D12TilePool::RemoveTexture(Ref<D3D12VirtualTexture2D> texture)
+    void D3D12TilePool::RemoveTexture(VirtualTexture2D& texture)
     {
-        m_AllocationMap.erase(texture);
+        m_AllocationMap.erase(&texture);
     }
 
     std::vector<TilePoolStats> D3D12TilePool::GetStats()
@@ -307,12 +311,12 @@ namespace Hazel
         return ret;
     }
 
-    uint64_t D3D12TilePool::GetTilesUsed(Ref<D3D12VirtualTexture2D> texture)
+    uint64_t D3D12TilePool::GetTilesUsed(VirtualTexture2D& texture)
     {
-        Ref<TextureAllocationInfo> textureInfo = this->GetTextureInfo(texture);
+        TextureAllocationInfo& textureInfo = this->GetTextureInfo(texture);
         uint64_t tilesUsed = 0;
 
-        for (auto mip : textureInfo->MipAllocations) {
+        for (auto& mip : textureInfo.MipAllocations) {
             for (auto tile : mip.TileAllocations) {
                 if (tile.Mapped) {
                     tilesUsed++;
@@ -320,7 +324,7 @@ namespace Hazel
             }
         }
 
-        if (textureInfo->PackedMipsMapped) {
+        if (textureInfo.PackedMipsMapped) {
             tilesUsed++;
         }
 
@@ -341,13 +345,16 @@ namespace Hazel
         return ret;
     }
 
-    Ref<TilePage> D3D12TilePool::AddPage(D3D12ResourceBatch& batch, uint32_t size)
+    Ref<TilePage> D3D12TilePool::AddPage(uint32_t size)
     {
 
         D3D12_HEAP_DESC heapDesc = CD3DX12_HEAP_DESC(size, D3D12_HEAP_TYPE_DEFAULT);
         TComPtr<ID3D12Heap> heap = nullptr;
 
-        D3D12::ThrowIfFailed(batch.GetDevice()->CreateHeap(&heapDesc, IID_PPV_ARGS(&heap)));
+        D3D12::ThrowIfFailed(D3D12Renderer::GetDevice()->CreateHeap(
+            &heapDesc, 
+            IID_PPV_ARGS(&heap)
+        ));
 
         uint32_t numTiles = size / D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
 
@@ -357,36 +364,31 @@ namespace Hazel
         return newPage;
     }
 
-    Ref<D3D12TilePool::TextureAllocationInfo> D3D12TilePool::GetTextureInfo(Ref<D3D12VirtualTexture2D> texture)
+    D3D12TilePool::TextureAllocationInfo& D3D12TilePool::GetTextureInfo(VirtualTexture2D& texture)
     {
-        auto search = m_AllocationMap.find(texture);
-        Ref<TextureAllocationInfo> allocInfo = nullptr;
+        auto search = m_AllocationMap.find(&texture);
+        TextureAllocationInfo allocInfo;
 
-        if (search == m_AllocationMap.end())
+        if (search != m_AllocationMap.end())
+            return search->second;
+
+        // We do not know about this texture, lets add it
+        allocInfo.PackedMipsMapped = false;
+        allocInfo.MipAllocations.resize(texture.m_MipInfo.NumStandardMips);
+        for (uint32_t i = 0; i < allocInfo.MipAllocations.size(); i++)
         {
-            // We do not know about this texture, lets add it
-            allocInfo = CreateRef<TextureAllocationInfo>();
-            m_AllocationMap[texture] = allocInfo;
-            allocInfo->PackedMipsMapped = false;
-            allocInfo->MipAllocations.resize(texture->m_MipInfo.NumStandardMips);
-            for (uint32_t i = 0; i < allocInfo->MipAllocations.size(); i++)
+            auto& a = allocInfo.MipAllocations[i];
+            auto& tiling = texture.m_Tilings[i];
+            uint32_t size = tiling.WidthInTiles * tiling.HeightInTiles * tiling.DepthInTiles;
+            a.TileAllocations.resize(size);
+            for (auto&&  ma : a.TileAllocations)
             {
-                auto& a = allocInfo->MipAllocations[i];
-                auto& tiling = texture->m_Tilings[i];
-                uint32_t size = tiling.WidthInTiles * tiling.HeightInTiles * tiling.DepthInTiles;
-                a.TileAllocations.resize(size);
-                for (auto&&  ma : a.TileAllocations)
-                {
-                    ma.Mapped = false;
-                }
+                ma.Mapped = false;
             }
         }
-        else
-        {
-            allocInfo = search->second;
-        }
-
-        return allocInfo;
+        m_AllocationMap[&texture] = allocInfo;
+      
+        return m_AllocationMap[&texture];
     }
 
 

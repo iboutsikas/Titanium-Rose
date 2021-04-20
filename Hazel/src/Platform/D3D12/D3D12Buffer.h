@@ -6,46 +6,32 @@
 
 #include "Platform/D3D12/ComPtr.h"
 #include "Platform/D3D12/D3D12ResourceBatch.h"
-
+#include "Platform/D3D12/CommandContext.h"
 
 namespace Hazel {
 	class D3D12ResourceBatch;
 
-	class D3D12VertexBuffer : public VertexBuffer
+	class D3D12VertexBuffer : public GpuResource
 	{
 	public:
-		D3D12VertexBuffer(D3D12ResourceBatch& batch, float* vertices, uint32_t size);
+		D3D12VertexBuffer(CommandContext& context, float* vertices, uint32_t size);
 		virtual ~D3D12VertexBuffer();
 
-		virtual void Bind() const override {};
-		virtual void Unbind() const override {};
-
-		virtual const BufferLayout& GetLayout() const override { return m_Layout; }
-		virtual void SetLayout(const BufferLayout& layout) override { m_Layout = layout; }
-
-		inline TComPtr<ID3D12Resource> GetResource() { return m_CommittedResource; }
 		inline D3D12_VERTEX_BUFFER_VIEW GetView() const { return m_View; }
 	private:
-		BufferLayout m_Layout;
-		TComPtr<ID3D12Resource> m_CommittedResource;
 		D3D12_VERTEX_BUFFER_VIEW m_View;
 	};
 
-	class D3D12IndexBuffer : public IndexBuffer
+	class D3D12IndexBuffer : public GpuResource
 	{
 	public:
-		D3D12IndexBuffer(D3D12ResourceBatch& batch, uint32_t* indices, uint32_t count);
+		D3D12IndexBuffer(CommandContext& context, uint32_t* indices, uint32_t count);
 		virtual ~D3D12IndexBuffer();
 
-		virtual void Bind() const override {};
-		virtual void Unbind() const override {};
-
 		virtual uint32_t GetCount() const { return m_Count; }
-		inline TComPtr<ID3D12Resource> GetResource() { return m_CommittedResource; }
 		inline D3D12_INDEX_BUFFER_VIEW GetView() const { return m_View; }
 	private:
 		uint32_t m_Count;
-		TComPtr<ID3D12Resource> m_CommittedResource;
 		D3D12_INDEX_BUFFER_VIEW m_View;
 	};
 #if 1
@@ -60,7 +46,7 @@ namespace Hazel {
 			m_ElementByteSize = sizeof(T);
 
 			if (m_IsConstantBuffer) {
-				m_ElementByteSize = D3D12::CalculateConstantBufferSize(m_ElementByteSize);
+				m_ElementByteSize = D3D12::AlignUp(m_ElementByteSize);
 			}
 
 			D3D12::ThrowIfFailed(D3D12Renderer::Context->DeviceResources->Device->CreateCommittedResource(
@@ -75,16 +61,16 @@ namespace Hazel {
 			D3D12::ThrowIfFailed(m_UploadBuffer->Map(0, nullptr, reinterpret_cast<void**>(&m_MappedData)));
 		}
 
-		D3D12UploadBuffer(D3D12ResourceBatch& batch, uint32_t elementCount, bool isConstantBuffer)
+		D3D12UploadBuffer(TComPtr<ID3D12Device> device, uint32_t elementCount, bool isConstantBuffer)
 			: m_IsConstantBuffer(isConstantBuffer)
 		{
 			m_ElementByteSize = sizeof(T);
 
 			if (m_IsConstantBuffer) {
-				m_ElementByteSize = D3D12::CalculateConstantBufferSize(m_ElementByteSize);
+				m_ElementByteSize = D3D12::AlignUp(m_ElementByteSize);
 			}
 
-			D3D12::ThrowIfFailed(batch.GetDevice()->CreateCommittedResource(
+			D3D12::ThrowIfFailed(device->CreateCommittedResource(
 				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 				D3D12_HEAP_FLAG_NONE,
 				&CD3DX12_RESOURCE_DESC::Buffer(m_ElementByteSize * elementCount),
@@ -107,7 +93,8 @@ namespace Hazel {
 			m_MappedData = nullptr;
 		}
 
-		inline ID3D12Resource* Resource() const { return m_UploadBuffer.Get(); }
+		inline ID3D12Resource* ResourceRaw() const { return m_UploadBuffer.Get(); }
+		inline TComPtr<ID3D12Resource> Resource() { return m_UploadBuffer; }
 
 		inline size_t CalculateOffset(uint32_t numElements) const { return numElements * m_ElementByteSize; }
 

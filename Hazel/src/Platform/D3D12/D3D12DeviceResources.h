@@ -4,6 +4,7 @@
 #include "Platform/D3D12/ComPtr.h"
 #include "Platform/D3D12/D3D12CommandList.h"
 #include "Platform/D3D12/D3D12Helpers.h"
+#include "Platform/D3D12/ColorBuffer.h"
 
 #include <vector>
 // DirectX 12 specific headers.
@@ -35,15 +36,14 @@ namespace Hazel {
         TComPtr<ID3D12Device2>                  Device;
         TComPtr<ID3D12CommandQueue>             CommandQueue;
         TComPtr<IDXGISwapChain4>                SwapChain;
-        std::vector<TComPtr<ID3D12Resource>>    BackBuffers;
+        std::vector<ColorBuffer>                BackBuffers;
+
         TComPtr<ID3D12Resource>                 DepthStencilBuffer;
         Ref<D3D12CommandList>                   MainCommandList;
         Ref<D3D12CommandList>                   DecoupledCommandList;
         Ref<D3D12CommandList>                   WorkerCommandList;
         TComPtr<ID3D12CommandAllocator>         CommandAllocator;
         TComPtr<ID3D12DescriptorHeap>           RTVDescriptorHeap;
-        //TComPtr<ID3D12DescriptorHeap>           SRVDescriptorHeap;
-        //TComPtr<ID3D12DescriptorHeap>           DSVDescriptorHeap;
         TComPtr<ID3D12Fence>                    Fence;
 
         int SwapChainBufferCount;

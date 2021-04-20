@@ -1,7 +1,10 @@
 #include "hzpch.h"
 
+#include "Hazel/Core/SystemTime.h"
+
 #include "Platform/D3D12/d3dx12.h"
 #include "Platform/D3D12/D3D12Renderer.h"
+#include "Platform/D3D12/Profiler/GpuTime.h"
 #include "Platform/D3D12/Profiler/Profiler.h"
 
 #include "ImGui/imgui.h"
@@ -9,394 +12,232 @@
 
 #include <fstream>
 #include "WinPixEventRuntime/pix3.h"
+namespace Hazel {
+    class StatHistory {
+    public:
+        StatHistory()
+            : m_Average(0.0f), m_Minimum(0.0f), m_Maximum(0.0f), m_Recent(0.0f)
+        {
+            memset(m_RecentHistory, 0.0f, HistorySize * sizeof(float));
+            memset(m_ExtendedHistory, 0.0f, ExtendedHistorySize * sizeof(float));
+        }
 
-namespace Hazel
-{
+        void RecordStat(uint32_t frame, float value)
+        {
+            m_RecentHistory[frame % HistorySize] = value;
+            m_ExtendedHistory[frame % ExtendedHistorySize] = value;
 
+            uint32_t count = 0;
+            m_Minimum = std::numeric_limits<float>::max();
+            m_Maximum = 0.0f;
+            m_Average = 0.0f;
 
-    Hazel::Profiler Profiler::GlobalProfiler;
+            for (float val : m_RecentHistory) {
+                if (val > 0.0f) {
+                    count++;
+                    m_Average += val;
+                    m_Minimum = std::min(val, m_Minimum);
+                    m_Maximum = std::min(val, m_Maximum);
+                }
+            }
 
-    struct ProfileData
-    {
-        static constexpr uint64_t FilterSize = 64;
-        std::string Name;
+            if (count)
+                m_Average /= (float)count;
+            else
+                m_Minimum = 0.0f;
+        }
 
-        bool QueryStarted = false;
-        bool QueryFinished = false;
-        bool Active = false;
+        float GetLast(void) const { return m_Recent; }
+        float GetMax(void) const { return m_Maximum; }
+        float GetMin(void) const { return m_Minimum; }
+        float GetAvg(void) const { return m_Average; }
 
-        bool CPUProfile = false;
-        uint64_t StartTime = 0;
-        uint64_t EndTime = 0;
+        const float* GetHistory(void) const { return m_ExtendedHistory; }
+        uint32_t GetHistoryLength(void) const { return ExtendedHistorySize; }
 
-        double TimeSamples[FilterSize] = { };
-        uint64_t CurrSample = 0;
+    private:
+        static constexpr uint32_t HistorySize = 64;
+        static constexpr uint32_t ExtendedHistorySize = 256;
+        float m_RecentHistory[HistorySize];
+        float m_ExtendedHistory[ExtendedHistorySize];
+        float m_Recent;
+        float m_Average;
+        float m_Minimum;
+        float m_Maximum;
+    };
+    
+    class GpuTimer {
+    public:
+        GpuTimer::GpuTimer() {
+            m_TimerIndex = GpuTime::NewTimer();
+        }
 
-        double AverageTime = 0;
-        double MaxTime = 0;
+        void Start(Ref<D3D12CommandList> commandList) {
+            GpuTime::StartTimer(commandList, m_TimerIndex);
+        }
+
+        void Stop(Ref<D3D12CommandList> commandList) {
+            GpuTime::StopTimer(commandList, m_TimerIndex);
+        }
+
+        float GetTime(void) {
+            return GpuTime::GetTime(m_TimerIndex);
+        }
+
+        uint32_t GetTimerIndex(void) {
+            return m_TimerIndex;
+        }
+
+    private:
+        uint32_t m_TimerIndex;
     };
 
+    class NestedTimingTree {
+    public:
+        NestedTimingTree(const std::string& name, NestedTimingTree* parent = nullptr)
+            : m_Name(name), m_Parent(parent)
+        {
+        }
+
+        NestedTimingTree* GetChild(const std::string& name) {
+            auto iter = m_Lookup.find(name);
+
+            if (iter != m_Lookup.end())
+                return iter->second;
+
+            NestedTimingTree* node = new NestedTimingTree(name, this);
+            m_Children.push_back(node);
+            m_Lookup[name] = node;
+            return node;
+        }
+
+        void StartTiming(Ref<D3D12CommandList> commandList) {
+            m_StartTick = SystemTime::GetCurrentTick();
+            if (commandList == nullptr)
+                return;
+
+            m_GpuTimer.Start(commandList);
+            commandList->BeginEvent(m_Name.c_str());
+        }
+
+        void StopTiming(Ref<D3D12CommandList> commandList) {
+            m_EndTick = SystemTime::GetCurrentTick();
+            if (commandList == nullptr)
+                return;
+
+            m_GpuTimer.Stop(commandList);
+            commandList->EndEvent();
+        }
+
+        void GatherTimes(uint32_t frame) {
+            m_CPUTime.RecordStat(frame, 1000.0f * SystemTime::TimeBetweenTicks(m_StartTick, m_EndTick));
+            m_GPUTime.RecordStat(frame, 1000.0f * m_GpuTimer.GetTime());
+
+            for (auto child : m_Children)
+                child->GatherTimes(frame);
+
+            m_StartTick = 0;
+            m_EndTick = 0;
+        }
+
+        void SumInclusiveTimes(float& cpuTime, float& gpuTime)
+        {
+            cpuTime = 0.0f;
+            gpuTime = 0.0f;
+            for (auto iter = m_Children.begin(); iter != m_Children.end(); ++iter)
+            {
+                cpuTime += (*iter)->m_CPUTime.GetLast();
+                gpuTime += (*iter)->m_GPUTime.GetLast();
+            }
+        }
+        
+
+        static void NestedTimingTree::PushProfilingMarker(const std::string& name, Ref<D3D12CommandList> commandList);
+        static void PopProfilingMarker(Ref<D3D12CommandList> commandList);
+
+        static void UpdateTimes() {
+            uint64_t frame = D3D12Renderer::GetFrameCount();
+            GpuTime::BeginReadBack();
+            s_RootScope.GatherTimes(frame);
+            s_FrameDelta.RecordStat(frame, GpuTime::GetTime(0));
+            GpuTime::EndReadBack();
+
+            float totalCpuTime, totalGpuTime;
+            s_RootScope.SumInclusiveTimes(totalCpuTime, totalGpuTime);
+            s_TotalCpuTime.RecordStat(frame, totalCpuTime);
+            s_TotalGpuTime.RecordStat(frame, totalGpuTime);
+
+        }
+    private:
+        std::string m_Name;
+        NestedTimingTree* m_Parent;
+        std::vector<NestedTimingTree*> m_Children;
+        std::unordered_map<std::string, NestedTimingTree*> m_Lookup;
+
+        int64_t m_StartTick;
+        int64_t m_EndTick;
+
+        GpuTimer m_GpuTimer;
+        
+        StatHistory m_CPUTime;
+        StatHistory m_GPUTime;
+
+
+        static StatHistory s_TotalCpuTime;
+        static StatHistory s_TotalGpuTime;
+        static StatHistory s_FrameDelta;
+        static NestedTimingTree s_RootScope;
+        static NestedTimingTree* s_CurrentNode;
+    };
 
     void Profiler::Initialize()
     {
-        Shutdown();
-        D3D12_QUERY_HEAP_DESC desc = {};
-        desc.Count = MaxProfiles * 2;
-        desc.NodeMask = 0;
-        desc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
-        D3D12Renderer::Context->DeviceResources
-            ->Device->CreateQueryHeap(&desc, IID_PPV_ARGS(m_QueryHeap.GetAddressOf()));
-        // MaxProfiles for every Frame, and 2 timestamps one for start and one for end
-        m_ReadbackBuffer = CreateScope<ReadbackBuffer>(MaxProfiles * D3D12Renderer::FrameLatency * 2 * sizeof(uint64_t));
-
-        m_GPUProfiles.resize(MaxProfiles);
-        m_CPUProfiles.resize(MaxProfiles);
+        GpuTime::Initialize(4096);
     }
 
     void Profiler::Shutdown()
     {
-        m_QueryHeap.Reset();
-        m_ReadbackBuffer.reset();
-        m_GPUProfiles.clear();
-        m_CPUProfiles.clear();
-        m_GPUCount = m_CPUCount = 0;
+        GpuTime::Shutdown();
     }
 
-    uint64_t Profiler::StartProfile(Ref<D3D12CommandList> cmdlist, const std::string& name)
+    void Profiler::Update()
     {
-        HZ_CORE_ASSERT(!name.empty(), "Profile name is empty");
-
-        // uint_max
-        uint64_t idx = uint64_t(-1);
-        for (uint64_t i = 0; i < m_GPUCount; ++i)
-        {
-            if (m_GPUProfiles[i].Name == name)
-            {
-                idx = i;
-                break;
-            }
-        }
-
-        // We do not have an existing profile. Let's try to add it
-        if (idx == uint64_t(-1))
-        {
-            HZ_CORE_ASSERT(m_GPUCount < MaxProfiles, "We are out of profiles!");
-            idx = m_GPUCount++;
-            m_GPUProfiles[idx].Name = name;
-        }
-
-        ProfileData& datum = m_GPUProfiles[idx];
-        HZ_CORE_ASSERT(datum.QueryStarted == false, "");
-        HZ_CORE_ASSERT(datum.QueryFinished == false, "");
-        datum.CPUProfile = false;
-        datum.Active = true;
-
-        const uint32_t startQueryIdx = uint32_t(idx * 2);
-        cmdlist->BeginEvent(name.c_str(), PIX_COLOR_INDEX(idx));
-        cmdlist->Get()->EndQuery(m_QueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, startQueryIdx);
-        datum.QueryStarted = true;
-        return idx;
+        NestedTimingTree::UpdateTimes();
     }
 
-    void Profiler::EndProfile(Ref<D3D12CommandList> cmdlist, uint64_t idx)
-    {
-        HZ_CORE_ASSERT(idx < m_GPUCount, "Index is out of bounds");
-
-        auto& datum = m_GPUProfiles[idx];
-        const uint32_t startIdx = uint32_t(idx * 2);
-        const uint32_t endIdx = startIdx + 1;
-        cmdlist->Get()->EndQuery(m_QueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, endIdx);
-        cmdlist->EndEvent();
-
-        auto frameIndex = D3D12Renderer::Context->GetCurrentFrameIndex();
-        
-        
-        const uint64_t dest = ((frameIndex * MaxProfiles * 2) + startIdx) * sizeof(uint64_t);
-        cmdlist->Get()->ResolveQueryData(m_QueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, startIdx, 2, m_ReadbackBuffer->GetResource(), dest);
-        datum.QueryStarted = false;
-        datum.QueryFinished = true;
-    }
-
-    uint64_t Profiler::StartCPUProfile(const std::string& name)
-    {
-        HZ_CORE_ASSERT(!name.empty(), "Profile name is empty");
-        uint64_t idx = uint64_t(-1);
-        for (uint64_t i = 0; i < m_CPUCount; ++i)
-        {
-            if (m_CPUProfiles[i].Name == name)
-            {
-                idx = i;
-                break;
-            }
-        }
-
-        // We do not have an existing profile. Let's try to add it
-        if (idx == uint64_t(-1))
-        {
-            HZ_CORE_ASSERT(m_CPUCount < MaxProfiles, "We are out of profiles!");
-            idx = m_CPUCount++;
-            m_CPUProfiles[idx].Name = name;
-        }
-
-        auto& datum = m_CPUProfiles[idx];
-        HZ_CORE_ASSERT(datum.QueryStarted == false, "");
-        HZ_CORE_ASSERT(datum.QueryFinished == false, "");
-        datum.CPUProfile = true;
-        datum.Active = true;
-        timer.Tick();
-
-        datum.StartTime = timer.ElapsedMicroseconds();
-        datum.QueryStarted = true;
-
-        return idx;
-    }
-
-    void Profiler::EndCPUProfile(uint64_t idx)
-    {
-        HZ_CORE_ASSERT(idx < m_CPUCount, "Index is out of bounds");
-
-        auto& datum = m_CPUProfiles[idx];
-
-        HZ_CORE_ASSERT(datum.QueryStarted == true, "");
-        HZ_CORE_ASSERT(datum.QueryFinished == false, "");
-
-        timer.Tick();
-
-        datum.EndTime = timer.ElapsedMicroseconds();
-        datum.QueryStarted = false;
-        datum.QueryFinished = true;
-    }
-
-    void Profiler::EndCPUFrame()
-    {
-        // Update all the CPU profiles
-        for (uint64_t p = 0; p < m_CPUCount; ++p)
-        {
-            UpdateProfile(m_CPUProfiles[p], p, 0.0, nullptr);
-        }
-    }
-
-    void Profiler::EndGPUFrame()
-    {
-        uint64_t gpuFrequency = 0;
-        uint64_t* data = nullptr;
-
-        D3D12Renderer::Context->DeviceResources->CommandQueue->GetTimestampFrequency(&gpuFrequency);
-        uint64_t* queryData = m_ReadbackBuffer->Map<uint64_t*>();
-
-        data = queryData + (D3D12Renderer::Context->GetCurrentFrameIndex() * MaxProfiles * 2);
-
-        // Update all the GPU profiles
-        for (uint64_t p = 0; p < m_GPUCount; ++p)
-        {
-            UpdateProfile(m_GPUProfiles[p], p, gpuFrequency, data);
-        }
-        
-        m_FrameCount++;
-        m_ReadbackBuffer->Unmap();
-    }
-
-    void Profiler::RenderStats()
-    {
-        ImGui::Text("CPU Timing");
-        for (uint64_t p = 0; p < m_CPUCount; ++p)
-        {
-            auto& profile = m_CPUProfiles[p];
-            ImGui::Text("%s: %.2f ms (%.2f ms max)", profile.Name.c_str(), profile.AverageTime, profile.MaxTime);
-        }
-
-        ImGui::Separator();
-        ImGui::Text("GPU Timings");
-        for (uint64_t p = 0; p < m_GPUCount; ++p)
-        {
-            auto& profile = m_GPUProfiles[p];
-            ImGui::Text("%s: %.3f ms (%.3f ms max)", profile.Name.c_str(), profile.AverageTime, profile.MaxTime);
-        }
-
-    }
-
-    void Profiler::DumpDatabases(std::string& path)
-    {
-        using json = nlohmann::json;
-        // Bounce early if we cannot write the file anyway
-        std::fstream file(path, std::fstream::out);
-        if (!file.is_open()) {
-            HZ_CORE_ERROR("Unable to write timing data");
-            return;
-        }
-
-        json output;
-        auto cpuTimings = json::object();
-
-        for (const auto& [category, list] : m_CPUDatabase)
-        {
-            auto categoryArray = json::array();
-            for (const auto& item : list) {
-                categoryArray.push_back(item);
-            }
-            cpuTimings[category] = categoryArray;
-        }
-
-        output["cpu"] = cpuTimings;
-
-
-        auto gpuTimings = json::object();
-
-        for (const auto& [category, list] : m_GPUDatabase)
-        {
-            auto categoryArray = json::array();
-            for (const auto& item : list) {
-                categoryArray.push_back(item);
-            }
-            gpuTimings[category] = categoryArray;
-        }
-
-        output["gpu"] = gpuTimings;
-        
-        file << output.dump(2);
-        file.close();
-    }
-
-#define TOGGLE 0
-
-    void Profiler::UpdateProfile(ProfileData& profile, uint64_t index, uint64_t gpuFrequency, const uint64_t* frameQueryData)
-    {
-        profile.QueryFinished = false;
-        
-        double time = 0.0;
-        if (profile.CPUProfile)
-        {
-            time = double(profile.EndTime - profile.StartTime) * 0.001;
-#if TOGGLE
-            auto& dataList = m_CPUDatabase[profile.Name];
-            dataList.emplace_back(SerializedProfileData{ 
-                profile.StartTime, 
-                profile.EndTime, 
-                m_FrameCount,
-                time
-            });
-#endif
-        }
-        else if (frameQueryData != nullptr)
-        {
-            auto startTimeStamp = profile.StartTime = frameQueryData[index * 2];
-            auto endTimeStamp   = profile.EndTime = frameQueryData[index * 2 + 1];
-
-            if (endTimeStamp > startTimeStamp)
-            {
-                uint64_t delta = endTimeStamp - startTimeStamp;
-                double freq = double(gpuFrequency);
-                // delta / freq gives us time elapsed in seconds. We multiply by 1000
-                // to convert to ms, as the rest of the computations use ms
-                time = (delta / freq) * 1000.0; 
-
-#if TOGGLE
-                auto& dataList = m_GPUDatabase[profile.Name];
-                dataList.emplace_back(SerializedProfileData{
-                    profile.StartTime,
-                    profile.EndTime,
-                    m_FrameCount,
-                    time
-                });
-#endif
-            }
-        }
-
-        profile.TimeSamples[profile.CurrSample] = time;
-        profile.CurrSample = (profile.CurrSample + 1) % ProfileData::FilterSize;
-        
-        double maxTime = 0.0;
-        double avgTime = 0.0;
-        uint64_t samplesTaken= 0;
-
-        for (uint32_t s = 0; s < ProfileData::FilterSize; ++s)
-        {
-            if (profile.TimeSamples[s] <= 0.0)
-            {
-                // No data yet, ignore it
-                continue;
-            }
-            
-            maxTime = std::max<double>(profile.TimeSamples[s], maxTime);
-            avgTime += profile.TimeSamples[s];
-            ++samplesTaken;
-        }
-
-        if (samplesTaken > 0)
-            avgTime /= (double)samplesTaken;
-
-        profile.AverageTime = avgTime;
-        profile.MaxTime = maxTime;
-
-        profile.Active = false;
-    }
-
-    //====================================Profile Block=============================================
-    ProfileBlock::ProfileBlock(bool shouldEnd, uint64_t index)
-        : m_ShouldEnd(shouldEnd), m_Index(index)
+    void Profiler::Render()
     {
 
     }
 
-    GPUProfileBlock::GPUProfileBlock()
-        :ProfileBlock(false), m_Cmdlist(nullptr)
+    void Profiler::BeginBlock(const std::string& name, Ref<D3D12CommandList> commandList /*= nullptr*/)
     {
-
+        NestedTimingTree::PushProfilingMarker(name, commandList);
     }
 
-    GPUProfileBlock::GPUProfileBlock(Ref<D3D12CommandList> cmdlist, const std::string& name)
-        : ProfileBlock(true), m_Cmdlist(cmdlist)
+    void Profiler::EndBlock(Ref<D3D12CommandList> commandList /*= nullptr*/)
     {
-        m_Index = Profiler::GlobalProfiler.StartProfile(cmdlist, name);
+        NestedTimingTree::PopProfilingMarker(commandList);
     }
 
-    // GPUProfileBlock::GPUProfileBlock(const GPUProfileBlock& other)
-    //    : ProfileBlock(true, other.m_Index), m_Cmdlist(other.m_Cmdlist)
-    // {     
-    //    //HZ_CORE_WARN("GPU profile copy constructor. Should not be called");
-    //    other.m_ShouldEnd = false;
-    // }
+}
+namespace Hazel {
+    NestedTimingTree NestedTimingTree::s_RootScope("");
+    NestedTimingTree* NestedTimingTree::s_CurrentNode = &NestedTimingTree::s_RootScope;
 
-    GPUProfileBlock::GPUProfileBlock(GPUProfileBlock&& other)
-        : ProfileBlock(true, other.m_Index), m_Cmdlist(other.m_Cmdlist)
-    {
-        //HZ_CORE_WARN("GPU profile move constructor");
-        other.m_ShouldEnd = false;
+    StatHistory NestedTimingTree::s_FrameDelta;
+    StatHistory NestedTimingTree::s_TotalCpuTime;
+    StatHistory NestedTimingTree::s_TotalGpuTime;
+
+
+    void NestedTimingTree::PushProfilingMarker(const std::string& name, Ref<D3D12CommandList> commandList) {
+        s_CurrentNode = s_CurrentNode->GetChild(name);
+        s_CurrentNode->StartTiming(commandList);
     }
 
-    GPUProfileBlock::~GPUProfileBlock()
-    {
-        if (m_ShouldEnd)
-            Profiler::GlobalProfiler.EndProfile(m_Cmdlist, m_Index);
-    }
-
-    CPUProfileBlock::CPUProfileBlock()
-        : ProfileBlock(false)
-    {
+    void NestedTimingTree::PopProfilingMarker(Ref<D3D12CommandList> commandList) {
+        s_CurrentNode->StopTiming(commandList);
+        s_CurrentNode = s_CurrentNode->m_Parent;
 
     }
-
-    CPUProfileBlock::CPUProfileBlock(const std::string& name)
-        : ProfileBlock(true)
-    {
-        m_Index = Profiler::GlobalProfiler.StartCPUProfile(name);
-    }
-
-    //CPUProfileBlock::CPUProfileBlock(const CPUProfileBlock& other)
-    //    : ProfileBlock(false, other.m_Index)
-    //{
-    //}
-
-    CPUProfileBlock::CPUProfileBlock(CPUProfileBlock&& other)
-        : ProfileBlock(true, other.m_Index)
-    {
-        other.m_ShouldEnd = false;
-    }
-
-    CPUProfileBlock::~CPUProfileBlock()
-    {
-        if (m_ShouldEnd)
-            Profiler::GlobalProfiler.EndCPUProfile(m_Index);
-    }
-
 }

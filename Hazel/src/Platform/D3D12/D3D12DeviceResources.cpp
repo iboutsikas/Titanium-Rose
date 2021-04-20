@@ -121,6 +121,9 @@ namespace Hazel {
         desc.Type = type;
         desc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
         desc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+        // NOTE: For multi adapter this needs to have 1 bit set for the adapter we wanna use.
+        // also setting this to 1 would still work the exact same way for 1 GPU systems, but
+        // we are going with what the documentation says now.
         desc.NodeMask = 0;
 
         D3D12::ThrowIfFailed(device->CreateCommandQueue(&desc, IID_PPV_ARGS(&d3d12CommandQueue)));

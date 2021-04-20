@@ -8,7 +8,7 @@
 #include "Platform/D3D12/D3D12FeedbackMap.h"
 #include "Platform/D3D12/D3D12ResourceBatch.h"
 #include "Platform/D3D12/D3D12DescriptorHeap.h"
-#include "Platform/D3D12/DeviceResource.h"
+#include "Platform/D3D12/GpuBuffer.h"
 
 #include <memory>
 
@@ -19,7 +19,7 @@ namespace Hazel {
     class D3D12TilePool;
 
 #pragma region Texture
-    class D3D12Texture : public DeviceResource
+    class Texture : public GpuBuffer
     {
     public:
         struct TextureCreationOptions
@@ -43,7 +43,7 @@ namespace Hazel {
             {}
         };
 
-        virtual ~D3D12Texture() = default;
+        virtual ~Texture() = default;
 
         bool IsCube() const { return m_IsCube; }
 
@@ -60,17 +60,19 @@ namespace Hazel {
         uint32_t m_MipLevels;
         bool m_IsCube;
 
-        D3D12Texture(uint32_t width, uint32_t height, uint32_t depth, uint32_t mips,
+        Texture(uint32_t width, uint32_t height, uint32_t depth, uint32_t mips,
             bool isCube, D3D12_RESOURCE_STATES initialState, std::string id);
 
         D3D12_RESOURCE_ALLOCATION_INFO m_ResourceAllocationInfo;
+
+        void UpdateFromDescription();
 
     };
 #pragma endregion
 
 
 #pragma region Texture2D
-    class D3D12Texture2D: public D3D12Texture
+    class Texture2D: public Texture
     {
     public:
         struct MipLevels {
@@ -78,7 +80,7 @@ namespace Hazel {
             uint32_t CoarsestMip;
         };
 
-        virtual ~D3D12Texture2D() = default;
+        virtual ~Texture2D() = default;
 
         void SetData(D3D12ResourceBatch& batch, void* data, uint32_t size);
         //Ref<D3D12Texture2D> GetSharedPtr() { return this->shared_from_this(); }
@@ -95,39 +97,39 @@ namespace Hazel {
 
 
 
-        static Ref<D3D12Texture2D>		CreateVirtualTexture(D3D12ResourceBatch& batch, TextureCreationOptions& opts);
-        static Ref<D3D12Texture2D>		CreateCommittedTexture(D3D12ResourceBatch& batch, TextureCreationOptions& opts);
-        static Ref<D3D12FeedbackMap>	CreateFeedbackMap(D3D12ResourceBatch& batch, Ref<D3D12Texture2D> texture);
+        static Ref<Texture2D>		    CreateVirtualTexture(TextureCreationOptions& opts);
+        static Ref<Texture2D>		    CreateCommittedTexture(TextureCreationOptions& opts);
+        static Ref<D3D12FeedbackMap>	CreateFeedbackMap(Ref<Texture2D> texture);
 
     protected:
 
-        static Ref<D3D12Texture2D> LoadFromDDS(D3D12ResourceBatch& batch, TextureCreationOptions& opts);
+        static Ref<Texture2D> LoadFromDDS(TextureCreationOptions& opts);
 
-        static Ref<D3D12Texture2D> LoadFromImage(Ref<Image>& image, D3D12ResourceBatch& batch, TextureCreationOptions& opts);
+        static Ref<Texture2D> LoadFromImage(Ref<Image>& image, TextureCreationOptions& opts);
 
-        D3D12Texture2D(std::string id, uint32_t width, uint32_t height, uint32_t mips = 1);
+        Texture2D(std::string id, uint32_t width, uint32_t height, uint32_t mips = 1);
 
         Ref<D3D12FeedbackMap> m_FeedbackMap;
     };
 
-    class D3D12CommittedTexture2D : public D3D12Texture2D
+    class CommittedTexture2D : public Texture2D
     {
     public:
-        D3D12CommittedTexture2D(std::string id, uint32_t width, uint32_t height, uint32_t mips = 1);
-        D3D12CommittedTexture2D() = delete;
+        CommittedTexture2D(std::string id, uint32_t width, uint32_t height, uint32_t mips = 1);
+        CommittedTexture2D() = delete;
         virtual bool IsVirtual() const override { return false; }
     private:
         std::vector<D3D12_SUBRESOURCE_DATA> m_SubData;
 
-        friend class D3D12Texture2D;
+        friend class Texture2D;
     };
 
-    class D3D12VirtualTexture2D : public D3D12Texture2D, public std::enable_shared_from_this< D3D12VirtualTexture2D>
+    class VirtualTexture2D : public Texture2D
     {
     public:
-        D3D12VirtualTexture2D(std::string id, uint32_t width, uint32_t height, uint32_t mips = 1);
-        D3D12VirtualTexture2D() = delete;
-        virtual ~D3D12VirtualTexture2D();
+        VirtualTexture2D(std::string id, uint32_t width, uint32_t height, uint32_t mips = 1);
+        VirtualTexture2D() = delete;
+        virtual ~VirtualTexture2D();
 
         virtual bool IsVirtual() const override { return true; }
 
@@ -144,16 +146,16 @@ namespace Hazel {
     private:
         MipLevels m_CachedMipLevels;
         friend class D3D12TilePool;
-        friend class D3D12Texture2D;
+        friend class Texture2D;
     };
 
 #pragma endregion
 
 #pragma region Cube Texture
-    class D3D12TextureCube : public D3D12Texture
+    class D3D12TextureCube : public Texture
     {
     public:
-        static Ref<D3D12TextureCube> Create(D3D12ResourceBatch& batch, TextureCreationOptions& opts);
+        static Ref<D3D12TextureCube> Initialize(TextureCreationOptions& opts);
         D3D12TextureCube(uint32_t width, uint32_t height, uint32_t depth, uint32_t mips, std::string id);
 
     protected:

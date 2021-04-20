@@ -9,7 +9,7 @@
 
 namespace Hazel {
 
-    class D3D12Texture2D;
+    class Texture2D;
 
     struct HeapAllocationDescription
     {
@@ -76,7 +76,7 @@ namespace Hazel {
             size_t Count;
         };
 
-        void Create(ID3D12Device* pDevice, const D3D12_DESCRIPTOR_HEAP_DESC* pDesc);
+        void Initialize(ID3D12Device* pDevice, const D3D12_DESCRIPTOR_HEAP_DESC* pDesc);
 
         size_t GetAvailableDescirptorRange(size_t numDescriptors);
         

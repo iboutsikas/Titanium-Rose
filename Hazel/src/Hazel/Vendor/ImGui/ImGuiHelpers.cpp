@@ -238,7 +238,7 @@ void ImGui::DecoupledTextureControl(Hazel::DecoupledTextureComponent& component)
         
         //ImGui::SetWindowSize(ImVec2(dims.x + 50, dims.y + 15));
 
-        Hazel::D3D12Renderer::CreateSRV(std::static_pointer_cast<Hazel::D3D12Texture>(component.VirtualTexture), previewAllocation, selectedMip);
+        Hazel::D3D12Renderer::CreateSRV(std::static_pointer_cast<Hazel::Texture>(component.VirtualTexture), previewAllocation, selectedMip);
 
         ImGui::Image((ImTextureID)(previewAllocation.GPUHandle.ptr), dims);
 

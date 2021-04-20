@@ -3,16 +3,16 @@
 #include "Platform/D3D12/D3D12Texture.h"
 
 namespace Hazel {
-    Ref<FrameBuffer> FrameBuffer::Create(D3D12ResourceBatch& batch, FrameBufferOptions& opts)
+    Ref<FrameBuffer> FrameBuffer::Create(FrameBufferOptions& opts)
     {
-        Ref<D3D12Texture2D> colorTexture = nullptr;
-        Ref<D3D12Texture2D> depthStencilTexture = nullptr;
+        Ref<Texture2D> colorTexture = nullptr;
+        Ref<Texture2D> depthStencilTexture = nullptr;
         Ref<FrameBuffer> ret = Ref<FrameBuffer>(new FrameBuffer());
 
         if (opts.ColourFormat != DXGI_FORMAT_UNKNOWN)
         {
-            D3D12Texture::TextureCreationOptions textureOpts;
-            textureOpts.Name = opts.Name + "color";
+            Texture::TextureCreationOptions textureOpts;
+            textureOpts.Name = opts.Name + ":color";
             textureOpts.Format = opts.ColourFormat;
             textureOpts.Width = opts.Width;
             textureOpts.Height = opts.Height;
@@ -20,13 +20,13 @@ namespace Hazel {
             textureOpts.MipLevels = 1;
             textureOpts.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 
-            colorTexture = D3D12Texture2D::CreateCommittedTexture(batch, textureOpts);
+            colorTexture = Texture2D::CreateCommittedTexture(textureOpts);
         }
 
         if (opts.DepthStencilFormat != DXGI_FORMAT_UNKNOWN)
         {
-            D3D12Texture::TextureCreationOptions textureOpts;
-            textureOpts.Name = opts.Name + "depthstencil";
+            Texture::TextureCreationOptions textureOpts;
+            textureOpts.Name = opts.Name + ":depth-stencil";
             textureOpts.Format = opts.DepthStencilFormat;
             textureOpts.Width = opts.Width;
             textureOpts.Height = opts.Height;
@@ -35,7 +35,7 @@ namespace Hazel {
             textureOpts.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
             textureOpts.IsDepthStencil = true;
 
-            depthStencilTexture = D3D12Texture2D::CreateCommittedTexture(batch, textureOpts);
+            depthStencilTexture = Texture2D::CreateCommittedTexture(textureOpts);
         }
 
         ret->ColorResource.swap(colorTexture);

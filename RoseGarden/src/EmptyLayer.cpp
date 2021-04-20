@@ -16,7 +16,7 @@ void EmptyLayer::OnUpdate(Hazel::Timestep ts)
 {
     using namespace Hazel;
     
-    D3D12Renderer::PrepareBackBuffer(color);
-    
-    D3D12Renderer::DoToneMapping();
+    //D3D12Renderer::PrepareBackBuffer(color);
+    //
+    //D3D12Renderer::DoToneMapping();
 }

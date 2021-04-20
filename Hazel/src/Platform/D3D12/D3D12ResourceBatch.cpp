@@ -56,12 +56,13 @@ namespace Hazel {
 		m_TrackedObjects.push_back(tmpResource);
 	}
 
-	void D3D12ResourceBatch::TrackResource(TComPtr<ID3D12Resource> resource)
+	void D3D12ResourceBatch::TrackResource(TComPtr<ID3D12Resource> resource, bool forwardTrack)
 	{
-		HZ_CORE_ASSERT(m_IsAsync, "Calling a track method on a non-async batch is a bad idea");
-
+		
 		if (m_IsAsync)
 			m_TrackedObjects.emplace_back(resource);
+		if (forwardTrack)
+			m_CommandList->Track(resource);
 	}
 
 	void D3D12ResourceBatch::TrackImage(Ref<Image> image)
@@ -71,25 +72,32 @@ namespace Hazel {
 			m_TrackedImages.push_back(image);
 	}
 
-	void D3D12ResourceBatch::TrackBlock(CPUProfileBlock& block)
-	{
-		m_CPUProfilingBlocks.push(std::move(block));
-	}
+	//void D3D12ResourceBatch::TrackBlock(CPUProfileBlock& block)
+	//{
+	//	m_CPUProfilingBlocks.push(std::move(block));
+	//}
 
-    void D3D12ResourceBatch::TrackBlock(GPUProfileBlock& block)
-    {
-		m_GPUProfilingBlocks.push(std::move(block));
-    }
+ //   void D3D12ResourceBatch::TrackBlock(GPUProfileBlock& block)
+ //   {
+	//	m_GPUProfilingBlocks.push(std::move(block));
+ //   }
+
+	//void D3D12ResourceBatch::Record(TComPtr<ID3D12CommandQueue> commandQueue)
+	//{
+ //       HZ_CORE_ASSERT(m_Finalized == false, "Resource batch has been finalized");
+ //       HZ_CORE_ASSERT(m_IsAsync == false, "Should not be calling a sync method on an async batch");
+	//	//m_Finalized = true;
+	//}
 
 	void D3D12ResourceBatch::End(TComPtr<ID3D12CommandQueue> commandQueue)
 	{
 		HZ_CORE_ASSERT(m_Finalized == false, "Resource batch has been finalized");
 		HZ_CORE_ASSERT(m_IsAsync == false, "Should not be calling a sync method on an async batch");
 
-        while (!m_CPUProfilingBlocks.empty())
-            m_CPUProfilingBlocks.pop();
-        while (!m_GPUProfilingBlocks.empty())
-            m_GPUProfilingBlocks.pop();
+        //while (!m_CPUProfilingBlocks.empty())
+        //    m_CPUProfilingBlocks.pop();
+        //while (!m_GPUProfilingBlocks.empty())
+        //    m_GPUProfilingBlocks.pop();
 
 		m_CommandList->Execute(commandQueue);
 		m_Finalized = true;
@@ -101,10 +109,10 @@ namespace Hazel {
         HZ_CORE_ASSERT(m_Finalized == false, "Resource batch has been finalized");
         HZ_CORE_ASSERT(m_IsAsync == false, "Should not be calling a sync method on an async batch");
 
-        while (!m_CPUProfilingBlocks.empty())
-            m_CPUProfilingBlocks.pop();
-        while (!m_GPUProfilingBlocks.empty())
-            m_GPUProfilingBlocks.pop();
+        //while (!m_CPUProfilingBlocks.empty())
+        //    m_CPUProfilingBlocks.pop();
+        //while (!m_GPUProfilingBlocks.empty())
+        //    m_GPUProfilingBlocks.pop();
 
         m_CommandList->ExecuteAndWait(commandQueue);
         m_Finalized = true;
@@ -115,10 +123,10 @@ namespace Hazel {
     {
         HZ_CORE_ASSERT(m_IsAsync, "Should not be calling an async method in a non-async batch");
 
-        while (!m_CPUProfilingBlocks.empty())
-            m_CPUProfilingBlocks.pop();
-        while (!m_GPUProfilingBlocks.empty())
-            m_GPUProfilingBlocks.pop();
+        //while (!m_CPUProfilingBlocks.empty())
+        //    m_CPUProfilingBlocks.pop();
+        //while (!m_GPUProfilingBlocks.empty())
+        //    m_GPUProfilingBlocks.pop();
 
 		m_CommandList->Execute(commandQueue);
 

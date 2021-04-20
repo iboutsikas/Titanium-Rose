@@ -1,35 +1,33 @@
 #include "hzpch.h"
 
 #include "Platform/D3D12/d3dx12.h"
-#include "Platform/D3D12/DeviceResource.h"
+#include "Platform/D3D12/GpuResource.h"
 #include "Platform/D3D12/D3D12ResourceBatch.h"
 
 namespace Hazel
 {
 
-    DeviceResource::DeviceResource() : 
-        m_Width(0), 
-        m_Height(0), 
-        m_Depth(0), 
-        m_Identifier(""),
+    GpuResource::GpuResource() : 
         m_CurrentState(D3D12_RESOURCE_STATE_COMMON),
+        m_TransitioningState((D3D12_RESOURCE_STATES)-1),
+        m_GpuVirtualAddress((D3D12_GPU_VIRTUAL_ADDRESS)0),
+        m_Identifier(""),
         m_Resource(nullptr)
     {
 
     }
 
-    DeviceResource::DeviceResource(uint32_t width, uint32_t height, uint32_t depth, std::string id, D3D12_RESOURCE_STATES state) :
-        m_Width(width),
-        m_Height(height),
-        m_Depth(depth),
-        m_Identifier(id),
+    GpuResource::GpuResource(std::string id, D3D12_RESOURCE_STATES state) :
         m_CurrentState(state),
+        m_TransitioningState((D3D12_RESOURCE_STATES)-1),
+        m_GpuVirtualAddress((D3D12_GPU_VIRTUAL_ADDRESS)0),
+        m_Identifier(id),
         m_Resource(nullptr)
     {
 
     }
-
-    void DeviceResource::Transition(D3D12ResourceBatch& batch, D3D12_RESOURCE_STATES from, D3D12_RESOURCE_STATES to)
+#if 0
+    void GpuResource::Transition(D3D12ResourceBatch& batch, D3D12_RESOURCE_STATES from, D3D12_RESOURCE_STATES to)
     {
         HZ_CORE_ASSERT(m_Resource != nullptr, "Tried to create transition for null resource");
         batch.GetCommandList()->Get()->ResourceBarrier(1,
@@ -42,14 +40,14 @@ namespace Hazel
         m_CurrentState = to;
     }
 
-    void DeviceResource::Transition(D3D12ResourceBatch& batch, D3D12_RESOURCE_STATES to)
+    void GpuResource::Transition(D3D12ResourceBatch& batch, D3D12_RESOURCE_STATES to)
     {
         if (to == m_CurrentState)
             return;
         this->Transition(batch, m_CurrentState, to);
     }
 
-    void DeviceResource::Transition(TComPtr<ID3D12GraphicsCommandList> commandList, D3D12_RESOURCE_STATES from, D3D12_RESOURCE_STATES to)
+    void GpuResource::Transition(TComPtr<ID3D12GraphicsCommandList> commandList, D3D12_RESOURCE_STATES from, D3D12_RESOURCE_STATES to)
     {
         HZ_CORE_ASSERT(m_Resource != nullptr, "Tried to create transition for null resource");
         commandList->ResourceBarrier(1,
@@ -62,20 +60,20 @@ namespace Hazel
         m_CurrentState = to;
     }
 
-    void DeviceResource::Transition(TComPtr<ID3D12GraphicsCommandList> commandList, D3D12_RESOURCE_STATES to)
+    void GpuResource::Transition(TComPtr<ID3D12GraphicsCommandList> commandList, D3D12_RESOURCE_STATES to)
     {
         if (to == m_CurrentState)
             return;
         this->Transition(commandList, m_CurrentState, to);
     }
 
-    D3D12_RESOURCE_BARRIER DeviceResource::CreateTransition(D3D12_RESOURCE_STATES to)
+    D3D12_RESOURCE_BARRIER GpuResource::CreateTransition(D3D12_RESOURCE_STATES to)
     {
         HZ_CORE_ASSERT(m_Resource != nullptr, "Tried to create transition for null resource");
         return CD3DX12_RESOURCE_BARRIER::Transition(m_Resource.Get(), m_CurrentState, to);
     }
-
-    void DeviceResource::SetName(std::string name)
+#endif
+    void GpuResource::SetName(std::string name)
     {
         m_Identifier = name;
 

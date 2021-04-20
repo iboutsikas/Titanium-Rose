@@ -27,14 +27,12 @@ namespace Hazel{
 		void SwapBuffers();
 		void SetVSync(bool enable);
 		
-		void CreateRenderTargetViews();
+		void CreateBackBuffers();
 		void CleanupRenderTargetViews();
-		void CreateDepthStencil();
 		void WaitForGpu();
 		void ResizeSwapChain();
 		void NewFrame();
 		D3D12_CPU_DESCRIPTOR_HANDLE CurrentBackBufferView() const;
-		//D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView() const;
 		D3D12FrameResource* CurrentFrameResource;
 
 		Scope<D3D12DeviceResources> DeviceResources;
@@ -46,7 +44,7 @@ namespace Hazel{
 
 		D3D12_VIEWPORT Viewport;
 		D3D12_RECT	ScissorRect;
-		TComPtr<ID3D12Resource> GetCurrentBackBuffer() { return DeviceResources->BackBuffers[m_CurrentBackbufferIndex]; }
+		ColorBuffer& GetCurrentBackBuffer() { return DeviceResources->BackBuffers[m_CurrentBackbufferIndex]; }
 		Capabilities RendererCapabilities;
 	private:
 		Window* m_Window;

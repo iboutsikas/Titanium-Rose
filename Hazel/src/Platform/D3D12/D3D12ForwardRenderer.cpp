@@ -13,18 +13,18 @@
 #include <sstream>
 
 DECLARE_SHADER_NAMED("SurfaceShader-Forward", Surface);
-#define STRINGIFY(x) #x
-#define TOSTRING(x) STRINGIFY(x)
 
 void Hazel::D3D12ForwardRenderer::ImplRenderSubmitted()
 {
 #if 1
-    static std::vector<std::future<void>> renderTasks;
-    uint32_t counter = 0;
+    auto commandList = Context->DeviceResources->MainCommandList;
+    if (commandList->IsClosed())
+        commandList->Reset(Context->CurrentFrameResource->CommandAllocator);
+
     auto shader = ShaderLibrary->GetAs<D3D12Shader>(ShaderNameSurface);
     auto envRad = s_CommonData.Scene->Environment.EnvironmentMap;
     auto envIrr = s_CommonData.Scene->Environment.IrradianceMap;
-    auto lut = TextureLibrary->GetAs<D3D12Texture2D>(std::string("spbrdf"));
+    auto lut = TextureLibrary->GetAs<Texture2D>(std::string("spbrdf"));
 
     HPassData passData;
     passData.ViewProjection = s_CommonData.Scene->Camera->GetViewProjectionMatrix();
@@ -32,130 +32,92 @@ void Hazel::D3D12ForwardRenderer::ImplRenderSubmitted()
     passData.EyePosition = s_CommonData.Scene->Camera->GetPosition();
 
     auto framebuffer = ResolveFrameBuffer();
+    
+    auto cmdList = commandList->Get();
+    ScopedTimer passTimer("Forward Pass", commandList);
 
-    auto myCmdList = Context->DeviceResources->MainCommandList;
+    D3D12UploadBuffer<HPerObjectData> perObjectBuffer(Context->DeviceResources->Device, s_OpaqueObjects.size(), true);
+    D3D12UploadBuffer<HPassData> passBuffer(Context->DeviceResources->Device, 1, true);
 
-    if (myCmdList->IsClosed()) {
-        myCmdList->Reset(Context->CurrentFrameResource->CommandAllocator);
-    }
+    passBuffer.CopyData(0, passData);
 
-    while (counter < s_OpaqueObjects.size())
+    cmdList->SetPipelineState(shader->GetPipelineState());
+    cmdList->SetGraphicsRootSignature(shader->GetRootSignature());
+    cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    cmdList->RSSetViewports(1, &Context->Viewport);
+    cmdList->RSSetScissorRects(1, &Context->ScissorRect);
+
+    ID3D12DescriptorHeap* const heaps[] = {
+        s_ResourceDescriptorHeap->GetHeap()
+    };
+    cmdList->SetDescriptorHeaps(_countof(heaps), heaps);
+
+
+    cmdList->OMSetRenderTargets(1, &framebuffer->RTVAllocation.CPUHandle, true, &framebuffer->DSVAllocation.CPUHandle);
+
+    cmdList->SetGraphicsRootConstantBufferView(ShaderIndices_Pass, passBuffer.ResourceRaw()->GetGPUVirtualAddress());
+    cmdList->SetGraphicsRootDescriptorTable(ShaderIndices_Lights, s_LightsBufferAllocation.GPUHandle);
+    cmdList->SetGraphicsRootDescriptorTable(ShaderIndices_EnvRadiance, envRad->SRVAllocation.GPUHandle);
+    cmdList->SetGraphicsRootDescriptorTable(ShaderIndices_EnvIrradiance, envIrr->SRVAllocation.GPUHandle);
+    cmdList->SetGraphicsRootDescriptorTable(ShaderIndices_BRDFLUT, lut->SRVAllocation.GPUHandle);
+
+    for (size_t i = 0; i < s_OpaqueObjects.size(); i++)
     {
-        D3D12ResourceBatch batch(Context->DeviceResources->Device, Context->DeviceResources->MainCommandList, true);
-        auto commandList = batch.Begin(Context->CurrentFrameResource->CommandAllocator);
-        auto cmdList = commandList->Get();
+        auto go = s_OpaqueObjects[i];
 
-        CPUProfileBlock cpuBlock("Forward Pass::Render");
-        batch.TrackBlock(cpuBlock);
-        GPUProfileBlock gpuBlock(commandList, "Forward Pass::Render");
-        batch.TrackBlock(gpuBlock);
-
-        D3D12UploadBuffer<HPerObjectData> perObjectBuffer(batch, MaxItemsPerQueue, true);
-        D3D12UploadBuffer<HPassData> passBuffer(batch, 1, true);
-#if HZ_DEBUG
-        perObjectBuffer.Resource()->SetName(L"perObjectBuffer - " __FILE__ ":" TOSTRING(__LINE__));
-        passBuffer.Resource()->SetName(L"passBuffer - " __FILE__ ":" TOSTRING(__LINE__));
-#endif
-        passBuffer.CopyData(0, passData);
-
-        cmdList->SetPipelineState(shader->GetPipelineState());
-        cmdList->SetGraphicsRootSignature(shader->GetRootSignature());
-        cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        cmdList->RSSetViewports(1, &Context->Viewport);
-        cmdList->RSSetScissorRects(1, &Context->ScissorRect);
-
-        ID3D12DescriptorHeap* const heaps[] = {
-            s_ResourceDescriptorHeap->GetHeap()
-        };
-        cmdList->SetDescriptorHeaps(_countof(heaps), heaps);
-
-        
-        cmdList->OMSetRenderTargets(1, &framebuffer->RTVAllocation.CPUHandle, true, &framebuffer->DSVAllocation.CPUHandle);
-
-        cmdList->SetGraphicsRootConstantBufferView(ShaderIndices_Pass, passBuffer.Resource()->GetGPUVirtualAddress());
-        cmdList->SetGraphicsRootDescriptorTable(ShaderIndices_Lights, s_LightsBufferAllocation.GPUHandle);
-        cmdList->SetGraphicsRootDescriptorTable(ShaderIndices_EnvRadiance, envRad->SRVAllocation.GPUHandle);
-        cmdList->SetGraphicsRootDescriptorTable(ShaderIndices_EnvIrradiance, envIrr->SRVAllocation.GPUHandle);
-        cmdList->SetGraphicsRootDescriptorTable(ShaderIndices_BRDFLUT, lut->SRVAllocation.GPUHandle);
-
-        for (size_t i = 0; i < MaxItemsPerQueue; i++)
-        {
-            if (counter == s_OpaqueObjects.size())
-            {
-                break;
-            }
-
-            auto go = s_OpaqueObjects[counter];
-
-            if (go == nullptr) {
-                continue;
-            }
-
-            if (go->Mesh == nullptr) {
-                continue;
-            }
-
-             CPUProfileBlock cpuBlock("Forward Pass::Render::" + go->Name);
-             //batch.TrackBlock(cpuBlock);
-             GPUProfileBlock itemBlock(commandList, "Forward Pass::Render::" + go->Name);
-             //batch.TrackBlock(itemBlock);
-
-            HPerObjectData objectData;
-            objectData.LocalToWorld = go->Transform.LocalToWorldMatrix();
-            objectData.WorldToLocal = glm::transpose(go->Transform.WorldToLocalMatrix());
-            objectData.MaterialColor = go->Material->Color;
-            objectData.HasAlbedo = go->Material->HasAlbedoTexture;
-            objectData.EmissiveColor = go->Material->EmissiveColor;
-            objectData.HasNormal = go->Material->HasNormalTexture;
-            objectData.HasMetallic = go->Material->HasMatallicTexture;
-            objectData.Metallic = go->Material->Metallic;
-            objectData.HasRoughness = go->Material->HasRoughnessTexture;
-            objectData.Roughness = go->Material->Roughness;
-            perObjectBuffer.CopyData(i, objectData);
-
-            auto vb = go->Mesh->vertexBuffer->GetView();
-            vb.StrideInBytes = sizeof(Vertex);
-            auto ib = go->Mesh->indexBuffer->GetView();
-
-            cmdList->IASetVertexBuffers(0, 1, &vb);
-            cmdList->IASetIndexBuffer(&ib);
-            if (go->Material->HasAlbedoTexture) {
-                cmdList->SetGraphicsRootDescriptorTable(ShaderIndices_Albedo, go->Material->AlbedoTexture->SRVAllocation.GPUHandle);
-            }
-
-            if (go->Material->HasNormalTexture) {
-                cmdList->SetGraphicsRootDescriptorTable(ShaderIndices_Normal, go->Material->NormalTexture->SRVAllocation.GPUHandle);
-            }
-
-            if (go->Material->HasRoughnessTexture) {
-                cmdList->SetGraphicsRootDescriptorTable(ShaderIndices_Roughness, go->Material->RoughnessTexture->SRVAllocation.GPUHandle);
-            }
-
-            if (go->Material->HasMatallicTexture) {
-                cmdList->SetGraphicsRootDescriptorTable(ShaderIndices_Metalness, go->Material->MetallicTexture->SRVAllocation.GPUHandle);
-            }
-
-            cmdList->SetGraphicsRootConstantBufferView(ShaderIndices_PerObject,
-                (perObjectBuffer.Resource()->GetGPUVirtualAddress() + perObjectBuffer.CalculateOffset(i))
-            );
-
-            cmdList->DrawIndexedInstanced(go->Mesh->indexBuffer->GetCount(), 1, 0, 0, 0);
-
-            ++counter;            
+        if (go == nullptr) {
+            continue;
         }
-        batch.TrackResource(perObjectBuffer.Resource());
-        batch.TrackResource(passBuffer.Resource());
 
-        renderTasks.push_back(std::move(
-            batch.EndAsync(Context->DeviceResources->CommandQueue)
-        ));
-    }
-    for (auto& task : renderTasks)
-    {
-        task.wait();
-    }
+        if (go->Mesh == nullptr) {
+            continue;
+        }
 
-    renderTasks.clear();
+        ScopedTimer objectTimer(go->Name, commandList);
+
+        HPerObjectData objectData;
+        objectData.LocalToWorld = go->Transform.LocalToWorldMatrix();
+        objectData.WorldToLocal = glm::transpose(go->Transform.WorldToLocalMatrix());
+        objectData.MaterialColor = go->Material->Color;
+        objectData.HasAlbedo = go->Material->HasAlbedoTexture;
+        objectData.EmissiveColor = go->Material->EmissiveColor;
+        objectData.HasNormal = go->Material->HasNormalTexture;
+        objectData.HasMetallic = go->Material->HasMatallicTexture;
+        objectData.Metallic = go->Material->Metallic;
+        objectData.HasRoughness = go->Material->HasRoughnessTexture;
+        objectData.Roughness = go->Material->Roughness;
+        perObjectBuffer.CopyData(i, objectData);
+
+        auto vb = go->Mesh->vertexBuffer->GetView();
+        vb.StrideInBytes = sizeof(Vertex);
+        auto ib = go->Mesh->indexBuffer->GetView();
+
+        cmdList->IASetVertexBuffers(0, 1, &vb);
+        cmdList->IASetIndexBuffer(&ib);
+        if (go->Material->HasAlbedoTexture) {
+            cmdList->SetGraphicsRootDescriptorTable(ShaderIndices_Albedo, go->Material->AlbedoTexture->SRVAllocation.GPUHandle);
+        }
+
+        if (go->Material->HasNormalTexture) {
+            cmdList->SetGraphicsRootDescriptorTable(ShaderIndices_Normal, go->Material->NormalTexture->SRVAllocation.GPUHandle);
+        }
+
+        if (go->Material->HasRoughnessTexture) {
+            cmdList->SetGraphicsRootDescriptorTable(ShaderIndices_Roughness, go->Material->RoughnessTexture->SRVAllocation.GPUHandle);
+        }
+
+        if (go->Material->HasMatallicTexture) {
+            cmdList->SetGraphicsRootDescriptorTable(ShaderIndices_Metalness, go->Material->MetallicTexture->SRVAllocation.GPUHandle);
+        }
+
+        cmdList->SetGraphicsRootConstantBufferView(ShaderIndices_PerObject,
+            (perObjectBuffer.ResourceRaw()->GetGPUVirtualAddress() + perObjectBuffer.CalculateOffset(i))
+        );
+
+        cmdList->DrawIndexedInstanced(go->Mesh->indexBuffer->GetCount(), 1, 0, 0, 0);
+    }
+    commandList->Track(perObjectBuffer.Resource());
+    commandList->Track(passBuffer.Resource());
 #endif
 }
 

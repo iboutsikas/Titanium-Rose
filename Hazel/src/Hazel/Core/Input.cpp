@@ -7,9 +7,9 @@
 
 namespace Hazel {
 
-	Scope<Input> Input::s_Instance = Input::Create();
+	Scope<Input> Input::s_Instance = Input::Initialize();
 
-	Scope<Input> Input::Create()
+	Scope<Input> Input::Initialize()
 	{
 	#ifdef HZ_PLATFORM_WINDOWS
 		return CreateScope<WindowsInput>();

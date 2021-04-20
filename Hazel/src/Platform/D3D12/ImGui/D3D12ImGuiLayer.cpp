@@ -66,23 +66,22 @@ namespace Hazel {
         ImGui_ImplWin32_Shutdown();
         ImGui::DestroyContext();
 	}
-	void D3D12ImGuiLayer::Begin()
+	void D3D12ImGuiLayer::Begin(GraphicsContext& context)
 	{
         ImGui_ImplDX12_NewFrame();
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
 	}
-	void D3D12ImGuiLayer::End()
+	void D3D12ImGuiLayer::End(GraphicsContext& context)
 	{
         ImGuiIO& io = ImGui::GetIO();
-        auto r = m_Context->DeviceResources.get();
         // Rendering
         ImGui::Render();
-        ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), r->MainCommandList->GetRawPtr());
+        ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), context.GetCommandList());
         if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
         {
             ImGui::UpdatePlatformWindows();
-            ImGui::RenderPlatformWindowsDefault(NULL, (void*)(r->MainCommandList->GetRawPtr()));
+            ImGui::RenderPlatformWindowsDefault(NULL, (void*)(context.GetCommandList()));
         }
 	}
 

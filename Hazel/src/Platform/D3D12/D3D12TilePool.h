@@ -69,18 +69,15 @@ namespace Hazel
 	class D3D12TilePool
 	{
 	public:
-		void MapTexture(D3D12ResourceBatch& batch, 
-			Ref<D3D12Texture2D> texture, 
-			TComPtr<ID3D12CommandQueue> commandQueue);
+		void MapTexture(Ref<Texture2D> texture);
 
-		void ReleaseTexture(Ref<D3D12Texture2D> texture,
-			TComPtr<ID3D12CommandQueue> commandQueue);
+		void ReleaseTexture(Ref<Texture2D> texture);
 		
-		void RemoveTexture(Ref<D3D12VirtualTexture2D> texture);
+		void RemoveTexture(VirtualTexture2D& texture);
 
 		std::vector<TilePoolStats> GetStats();
 
-		uint64_t GetTilesUsed(Ref<D3D12VirtualTexture2D> texture);
+		uint64_t GetTilesUsed(VirtualTexture2D& texture);
 
 
 	private:
@@ -120,8 +117,8 @@ namespace Hazel
         };
 
         struct CustomKeyHash {
-            std::size_t operator()(const Hazel::Ref<Hazel::D3D12VirtualTexture2D> k) const {
-                return std::hash<Hazel::D3D12VirtualTexture2D*>()(k.get());
+            std::size_t operator()(const Hazel::Ref<Hazel::VirtualTexture2D> k) const {
+                return std::hash<Hazel::VirtualTexture2D*>()(k.get());
             }
         };
 		
@@ -142,9 +139,9 @@ namespace Hazel
 		/// <param name="batch">The resource batch that will be used to create this page</param>
 		/// <param name="size">The size of the page in bytes</param>
 		/// <returns>A reference to the newly added page</returns>
-		Ref<TilePage> AddPage(D3D12ResourceBatch& batch, uint32_t size);
+		Ref<TilePage> AddPage(uint32_t size);
 
-        Ref<TextureAllocationInfo> GetTextureInfo(Ref<D3D12VirtualTexture2D> texture);
+        TextureAllocationInfo& GetTextureInfo(VirtualTexture2D& texture);
 
 		inline void ReleaseTile(TileAddress& address)
 		{
@@ -154,7 +151,7 @@ namespace Hazel
 	private:
 		uint32_t m_FrameCounter;
 
-		std::unordered_map<Ref<D3D12VirtualTexture2D>, Ref<TextureAllocationInfo>, CustomKeyHash> m_AllocationMap;
+		std::unordered_map<VirtualTexture2D*, TextureAllocationInfo> m_AllocationMap;
 		std::vector<Ref<TilePage>> m_Pages;
 	};
 }

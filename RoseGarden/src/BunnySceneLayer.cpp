@@ -7,6 +7,7 @@
 BunnySceneLayer::BunnySceneLayer()
     : BenchmarkLayer("BunnySceneLayer")
 {
+#if 0
     using namespace Hazel;
 
     m_EnableCapture = false;
@@ -36,7 +37,7 @@ BunnySceneLayer::BunnySceneLayer()
 
     for (auto& a : *D3D12Renderer::TextureLibrary)
     {
-        auto tex = std::static_pointer_cast<D3D12Texture>(a.second);
+        auto tex = std::static_pointer_cast<Texture>(a.second);
 
         D3D12Renderer::AddStaticResource(tex);
         a.second->Transition(batch, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -45,4 +46,5 @@ BunnySceneLayer::BunnySceneLayer()
     batch.EndAndWait(D3D12Renderer::Context->DeviceResources->CommandQueue);
 
     m_Scene.LoadEnvironment(std::string("assets/environments/pink_sunrise_4k.hdr"));
+#endif
 }

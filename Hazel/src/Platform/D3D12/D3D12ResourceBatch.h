@@ -28,11 +28,12 @@ namespace Hazel {
             const D3D12_SUBRESOURCE_DATA* subRes,
             uint32_t numSubresources);
 
-        void TrackResource(TComPtr<ID3D12Resource> resource);
+        void TrackResource(TComPtr<ID3D12Resource> resource, bool forwardTrack = false);
         void TrackImage(Ref<Image> image);
-        void TrackBlock(CPUProfileBlock& block);
-        void TrackBlock(GPUProfileBlock& block);
+        //void TrackBlock(CPUProfileBlock& block);
+        //void TrackBlock(GPUProfileBlock& block);
 
+        //void Record(TComPtr<ID3D12CommandQueue> commandQueue);
         void End(TComPtr<ID3D12CommandQueue> commandQueue);
         void EndAndWait(TComPtr<ID3D12CommandQueue> commandQueue);
         std::future<void> EndAsync(TComPtr<ID3D12CommandQueue> commandQueue);
@@ -43,8 +44,8 @@ namespace Hazel {
 
         std::vector<TComPtr<ID3D12DeviceChild>>     m_TrackedObjects;
         std::vector<Ref<Image>>                     m_TrackedImages;
-        std::stack<CPUProfileBlock>                 m_CPUProfilingBlocks;
-        std::stack<GPUProfileBlock>                 m_GPUProfilingBlocks;
+        //std::stack<CPUProfileBlock>                 m_CPUProfilingBlocks;
+        //std::stack<GPUProfileBlock>                 m_GPUProfilingBlocks;
 
         bool m_Finalized;
         bool m_IsAsync;

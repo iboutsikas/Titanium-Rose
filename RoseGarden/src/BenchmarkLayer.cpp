@@ -19,6 +19,7 @@
 #include "Platform/D3D12/D3D12Renderer.h"
 #include "Platform/D3D12/D3D12ResourceBatch.h"
 #include "Platform/D3D12/D3D12Shader.h"
+#include "Platform/D3D12/Profiler/Profiler.h"
 
 
 #include "ImGui/imgui.h"
@@ -91,79 +92,67 @@ void BenchmarkLayer::OnDetach()
         task.wait();
     }
 
-    Hazel::Profiler::GlobalProfiler.DumpDatabases(m_CaptureFolder + "timings.json");
+    //Hazel::Profiler::GlobalProfiler.DumpDatabases(m_CaptureFolder + "timings.json");
 }
 
 void BenchmarkLayer::OnUpdate(Hazel::Timestep ts)
 {
     using namespace Hazel;
-
-    m_LastFrameBuffer = D3D12Renderer::ResolveFrameBuffer();
-    
+        
     {
-        CPUProfileBlock cpuBlock("Camera update");
+        ScopedTimer timer("BenchmarkLayer::Camera update");
         m_CameraController.OnUpdate(ts);
     }
     {
-        CPUProfileBlock cpuBlock("Scene update");
+        ScopedTimer timer("BenchmarkLayer::Scene update");
         m_Scene.OnUpdate(ts);
     }
+}
 
-    D3D12Renderer::PrepareBackBuffer(m_ClearColor);
-
-
-    D3D12Renderer::BeginScene(m_Scene);
-    // "Submit phase"    
+void BenchmarkLayer::OnRender(Hazel::Timestep ts, Hazel::GraphicsContext& gfxContext)
+{
+    using namespace Hazel;
     auto r = D3D12Renderer::Context->DeviceResources.get();
     auto fr = D3D12Renderer::Context->CurrentFrameResource;
 
-    D3D12ResourceBatch batch(r->Device, r->WorkerCommandList);
-    batch.Begin(r->CommandAllocator);
+    m_LastFrameBuffer = D3D12Renderer::ResolveFrameBuffer();
 
-    CPUProfileBlock cpuBlock("Submit Phase");
-    batch.TrackBlock(cpuBlock);
-    GPUProfileBlock gpuBlock(r->WorkerCommandList, "Submit Phase");
-    batch.TrackBlock(gpuBlock);
+    {
+        //ScopedTimer timer("Prepare Backbuffer", r->MainCommandList);
+        D3D12Renderer::PrepareBackBuffer(gfxContext, m_ClearColor);
+    }
+
+    {
+        //ScopedTimer timer("Begin Scene", r->MainCommandList);
+        D3D12Renderer::BeginScene(m_Scene);
+    }
+
+ 
+    //Profiler::BeginBlock("Submit", r->WorkerCommandList);
 
     for (auto& obj : m_Scene.Entities)
     {
         D3D12Renderer::Submit(obj);
-        if (obj->DecoupledComponent.UseDecoupledTexture) {
-            D3D12Renderer::Submit(batch, obj);
-        }
     }
-    batch.EndAndWait(D3D12Renderer::Context->DeviceResources->CommandQueue);
 
-    if (m_CreationOptions.UpdateRate == 0 || (m_FrameCounter % m_CreationOptions.UpdateRate) == 0)
+    //Profiler::EndBlock(r->WorkerCommandList);
+
+    if (m_CreationOptions.UpdateRate == 0 || (D3D12Renderer::GetFrameCount() % m_CreationOptions.UpdateRate) == 0)
     {
-        //auto commandList = D3D12Renderer::Context->DeviceResources->DecoupledCommandList;
-        //commandList->BeginEvent("Virtual Pass");
-        //D3D12Renderer::UpdateVirtualTextures();
-        //D3D12Renderer::RenderVirtualTextures();
-        //D3D12Renderer::GenerateVirtualMips();
-        //OnRefresh();
-        //
-        //if (commandList->IsClosed())
-        //    commandList->Reset(D3D12Renderer::Context->CurrentFrameResource->CommandAllocator2);
-        //commandList->EndEvent();
+        D3D12Renderer::ShadeDecoupled();
     }
 
-    //D3D12Renderer::ClearVirtualMaps();
-    
+    D3D12Renderer::ClearVirtualMaps();
+
     D3D12Renderer::RenderSubmitted();
-    auto commandList = D3D12Renderer::Context->DeviceResources->MainCommandList;
 
-    if (commandList->IsClosed())
-        commandList->Reset(D3D12Renderer::Context->CurrentFrameResource->CommandAllocator);
-
-    D3D12Renderer::RenderSkybox(m_EnvironmentLevel);
-    D3D12Renderer::DoToneMapping();
+    D3D12Renderer::RenderSkybox(gfxContext, m_EnvironmentLevel);
+    D3D12Renderer::DoToneMapping(gfxContext);
 
     D3D12Renderer::EndScene();
-
 }
 
-void BenchmarkLayer::OnImGuiRender()
+void BenchmarkLayer::OnImGuiRender(Hazel::GraphicsContext& uiContext)
 {
     using namespace Hazel;
 #if 0

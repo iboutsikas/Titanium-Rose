@@ -25,13 +25,13 @@ namespace Hazel
     {
     public:
 
-        Ref<D3D12Texture2D> ColorResource;
-        Ref<D3D12Texture2D> DepthStensilResource;
+        Ref<Texture2D> ColorResource;
+        Ref<Texture2D> DepthStensilResource;
         HeapAllocationDescription RTVAllocation;
         HeapAllocationDescription SRVAllocation;
         HeapAllocationDescription DSVAllocation;
 
-        static Ref<FrameBuffer> Create(D3D12ResourceBatch& batch, FrameBufferOptions& opts);
+        static Ref<FrameBuffer> Create(FrameBufferOptions& opts);
 
     private:
         FrameBuffer();

@@ -8,6 +8,7 @@
 #include "Platform/D3D12/D3D12DescriptorHeap.h"
 #include "Platform/D3D12/D3D12Context.h"
 #include "Platform/D3D12/FrameBuffer.h"
+#include "Platform/D3D12/CommandContext.h"
 
 #include "glm/vec4.hpp"
 
@@ -19,6 +20,8 @@ namespace Hazel
 {
     class D3D12VertexBuffer;
     class D3D12IndexBuffer;
+    class CommandListManager;
+    class ContextManager;
 
     class D3D12Renderer
     {
@@ -40,6 +43,8 @@ namespace Hazel
         static D3D12Context* Context;
         static D3D12TilePool* TilePool;
 
+        static CommandListManager CommandListManager;
+
         static D3D12DescriptorHeap* s_ResourceDescriptorHeap;
         static D3D12DescriptorHeap* s_RenderTargetDescriptorHeap;
         static D3D12DescriptorHeap* s_DepthStencilDescriptorHeap;
@@ -50,7 +55,7 @@ namespace Hazel
         /// The commands are executed immediately, and the thread blocks until it is finished.
         /// </summary>
         /// <param name="clear"></param>
-        static void PrepareBackBuffer(glm::vec4 clear = { 0, 0, 0, 0 });
+        static void PrepareBackBuffer(CommandContext& context, glm::vec4 clear = { 0, 0, 0, 0 });
         
         /// <summary>
         /// This method will prepare the resources for a new frame.
@@ -59,7 +64,7 @@ namespace Hazel
         /// </summary>
         static void BeginFrame();
 
-        static void EndFrame();
+        static void EndFrame(CommandContext& context);
 
         /// <summary>
         /// This will swap the back buffers and execute the "main" command list
@@ -76,19 +81,20 @@ namespace Hazel
 
         static void SetVCsync(bool enable);
 
-        static void AddStaticResource(Ref<D3D12Texture> texture);
-        static void AddDynamicResource(Ref<D3D12Texture> texture);
-        static void ReleaseDynamicResource(Ref<D3D12Texture> texture);
-        static void AddStaticRenderTarget(Ref<D3D12Texture> texture);
+        static void AddStaticResource(Ref<Texture> texture);
+        static void AddDynamicResource(Ref<Texture> texture);
+        static void ReleaseDynamicResource(Ref<Texture> texture);
+        static void AddStaticRenderTarget(Ref<Texture> texture);
 
         static void Submit(Ref<GameObject> gameObject);
-        static void Submit(D3D12ResourceBatch& batch, Ref<GameObject> gameObject);
         static void RenderSubmitted();
-        static void RenderSkybox(uint32_t mipLevel = 0);
+        static void ShadeDecoupled();
+        static void RenderSkybox(GraphicsContext& gfxContext, uint32_t mipLevel = 0);
         static void RenderDiagnostics();
-        static void DoToneMapping();
+        static void DoToneMapping(GraphicsContext& gfxContext);
 
-        static void GenerateMips(Ref<D3D12Texture> texture, uint32_t mostDetailedMip = 0);
+        static void GenerateMips(Ref<Texture> texture, uint32_t mostDetailedMip = 0);
+        static void GenerateMips(CommandContext& context, Ref<Texture> texture, uint32_t mostDetailedMip = 0);
         static void ClearUAV(ID3D12GraphicsCommandList* cmdlist, Ref<D3D12FeedbackMap>& resource, uint32_t value);
         static void UpdateVirtualTextures();
         static void RenderVirtualTextures();
@@ -100,23 +106,27 @@ namespace Hazel
         static std::pair<Ref<D3D12TextureCube>, Ref<D3D12TextureCube>> LoadEnvironmentMap(std::string& path);
         static Ref<FrameBuffer> ResolveFrameBuffer();
 
-        static void CreateUAV(Ref<D3D12Texture> texture, uint32_t mip);
-        static void CreateUAV(Ref<D3D12Texture> texture, HeapAllocationDescription& description, uint32_t mip);
-        static void CreateSRV(Ref<D3D12Texture> texture, uint32_t mostDetailedMip = 0, uint32_t mips = 0, bool forceArray = false);
-        static void CreateSRV(Ref<D3D12Texture> texture, HeapAllocationDescription& description, uint32_t mostDetailedMip = 0, uint32_t mips = 0, bool forceArray = false);
-        static void CreateRTV(Ref<D3D12Texture> texture, uint32_t mip = 0);
-        static void CreateRTV(Ref<D3D12Texture> texture, HeapAllocationDescription& description, uint32_t mip = 0);
+        static void CreateUAV(Ref<Texture> texture, uint32_t mip);
+        static void CreateUAV(Ref<Texture> texture, HeapAllocationDescription& description, uint32_t mip);
+        static void CreateSRV(Ref<Texture> texture, uint32_t mostDetailedMip = 0, uint32_t mips = 0, bool forceArray = false);
+        static void CreateSRV(Ref<Texture> texture, HeapAllocationDescription& description, uint32_t mostDetailedMip = 0, uint32_t mips = 0, bool forceArray = false);
+        static void CreateRTV(Ref<Texture> texture, uint32_t mip = 0);
+        static void CreateRTV(Ref<Texture> texture, HeapAllocationDescription& description, uint32_t mip = 0);
         //static void CreateDSV(Ref<D3D12Texture> texture);
-        static void CreateDSV(Ref<D3D12Texture> texture, HeapAllocationDescription& description);
-
+        static void CreateDSV(Ref<Texture> texture, HeapAllocationDescription& description);
+        static void CreateMissingVirtualTextures();
         static inline HeapAllocationDescription GetImguiAllocation() { return s_ImGuiAllocation; }
 
         static void Init();
         static void Shutdown();
+
+        static inline uint64_t GetFrameCount() { return s_FrameCount; }
+
+        static inline ID3D12Device* GetDevice() { return Context->DeviceResources->Device.Get(); }
+
     protected:
         static void ReclaimDynamicDescriptors();
-        static void CreateFrameBuffers();
-        static void CreateFrameBuffers(D3D12ResourceBatch& batch);
+        static void CreateFrameBuffers(CommandContext& context);
 
         virtual void ImplRenderSubmitted() = 0;
         virtual void ImplOnInit() = 0;
@@ -163,6 +173,7 @@ namespace Hazel
         static D3D12_INPUT_ELEMENT_DESC s_InputLayout[];
         static uint32_t s_InputLayoutCount;
         static uint32_t s_CurrentFrameBuffer;
+        static uint64_t s_FrameCount;
 
         static std::vector<Ref<GameObject>> s_OpaqueObjects;
         static std::vector<Ref<GameObject>> s_TransparentObjects;

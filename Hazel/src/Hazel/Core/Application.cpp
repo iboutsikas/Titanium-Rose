@@ -3,6 +3,7 @@
 
 #include "Hazel/Core/Log.h"
 #include "Hazel/Core/Input.h"
+#include "Hazel/Core/SystemTime.h"
 
 #include "Platform/D3D12/D3D12Renderer.h"
 #include "Platform/D3D12/Profiler/Profiler.h"
@@ -26,7 +27,7 @@ namespace Hazel {
 		HZ_CORE_ASSERT(!s_Instance, "Application already exists!");
 		s_Instance = this;
 
-		m_Window = Window::Create(WindowProps(opts.Name, opts.Width, opts.Height));
+		m_Window = Window::Initialize(WindowProps(opts.Name, opts.Width, opts.Height));
 		m_Window->SetEventCallback(HZ_BIND_EVENT_FN(Application::OnEvent));
 	}
 
@@ -34,16 +35,17 @@ namespace Hazel {
 	{
 		HZ_PROFILE_FUNCTION();
 
-
+		Profiler::Shutdown();
 		D3D12Renderer::Shutdown();
 	}
 
 	void Application::Init()
 	{
-		HZ_CORE_ERROR("Calling Application::Init");
+		SystemTime::Initialize();
 		D3D12Renderer::Init();
+		Profiler::Initialize();
 #if USE_IMGUI
-		m_ImGuiLayer = ImGuiLayer::Create();
+		m_ImGuiLayer = ImGuiLayer::Initialize();
 		PushOverlay(m_ImGuiLayer);
 #endif
 
@@ -110,52 +112,58 @@ namespace Hazel {
 	{
 		while (m_Running)
 		{
-			{
-				 CPUProfileBlock cpuBlock("Frame total");
+			Profiler::Update();
 
-				if (!m_Minimized)
-				{	
-					//D3D12Renderer::ShaderLibrary->Update();
+			if (!m_Minimized)
+			{	
+                D3D12Renderer::BeginFrame();
 
-					D3D12Renderer::BeginFrame();
-					{
-						{
-							// CPUProfileBlock cpuBlock("LayerStack update");
-							for (Layer* layer : m_LayerStack)
-								layer->OnUpdate(m_TimeStep);
-						}
+				
+
+				Profiler::BeginBlock("Frame Total", D3D12Renderer::Context->DeviceResources->MainCommandList);
+				//D3D12Renderer::ShaderLibrary->Update();
+
+				{
+                    Profiler::BeginBlock("OnUpdate", D3D12Renderer::Context->DeviceResources->MainCommandList);
+                    for (Layer* layer : m_LayerStack)
+                        layer->OnUpdate(m_TimeStep);
+                    Profiler::EndBlock(D3D12Renderer::Context->DeviceResources->MainCommandList);
+
+					GraphicsContext& gfxContext = GraphicsContext::Begin("Render");
+					//Profiler::BeginBlock("OnRender", D3D12Renderer::Context->DeviceResources->MainCommandList);
+                    for (Layer* layer : m_LayerStack)
+                        layer->OnRender(m_TimeStep, gfxContext);
+					gfxContext.Finish(true);
+					//Profiler::EndBlock(D3D12Renderer::Context->DeviceResources->MainCommandList);
+
 #if USE_IMGUI
-						{
-							CPUProfileBlock cpuBlock("ImGui Update");
-							GPUProfileBlock gpuBlock(D3D12Renderer::Context->DeviceResources->MainCommandList, "ImGui Render");
-							m_ImGuiLayer->Begin();
-							{
-								for (Layer* layer : m_LayerStack)
-									layer->OnImGuiRender();
+                    //Profiler::BeginBlock("OnImGuiRender", D3D12Renderer::Context->DeviceResources->MainCommandList);
+					GraphicsContext& uiContext = GraphicsContext::Begin("UI");
+					m_ImGuiLayer->Begin(uiContext);
+					{
+						for (Layer* layer : m_LayerStack)
+							layer->OnImGuiRender(uiContext);
 
-								ImGui::Begin("Diagnostics");
-								Profiler::GlobalProfiler.RenderStats();
-								//ImGui::Text("Frame Time: %.2f ms (%.2f fps)", m_TimeStep.GetMilliseconds(), 1000.0f / m_TimeStep.GetMilliseconds());
-								D3D12Renderer::RenderDiagnostics();
-								ImGui::End();
-							}
-							m_ImGuiLayer->End();
-						}
-#endif	
+						ImGui::Begin("Diagnostics");
+						Profiler::Render();
+						D3D12Renderer::RenderDiagnostics();
+						ImGui::End();
 					}
+					m_ImGuiLayer->End(uiContext);
+                    //Profiler::EndBlock(D3D12Renderer::Context->DeviceResources->MainCommandList);
 
-					D3D12Renderer::EndFrame();
-					D3D12Renderer::Present();
+#endif	
 				}
+				Profiler::EndBlock(D3D12Renderer::Context->DeviceResources->MainCommandList);
+				
+				D3D12Renderer::Present();
 
-				for (Layer* layer : m_LayerStack)
-					layer->OnFrameEnd();
+                for (Layer* layer : m_LayerStack)
+                    layer->OnFrameEnd();
+			}		
 
-				m_Window->OnUpdate();
-			} // Whole frame scope
+			m_Window->OnUpdate();
 
-            Profiler::GlobalProfiler.EndGPUFrame();
-            Profiler::GlobalProfiler.EndCPUFrame();
 			float time = (float)glfwGetTime();
 			m_TimeStep = /*FixedTime;*/ time - m_LastFrameTime;
 			m_LastFrameTime = time;

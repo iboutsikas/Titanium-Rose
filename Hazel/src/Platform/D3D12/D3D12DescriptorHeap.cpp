@@ -22,7 +22,7 @@ namespace Hazel
 
     D3D12DescriptorHeap::D3D12DescriptorHeap(ID3D12Device* device, const D3D12_DESCRIPTOR_HEAP_DESC* pDesc) noexcept(false)
     {
-        Create(device, pDesc);
+        Initialize(device, pDesc);
     }
 
     D3D12DescriptorHeap::D3D12DescriptorHeap(ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_TYPE type, D3D12_DESCRIPTOR_HEAP_FLAGS flags, size_t count) noexcept(false)
@@ -33,7 +33,7 @@ namespace Hazel
         desc.Flags = flags;
         desc.NumDescriptors = count;
         desc.Type = type;
-        Create(device, &desc);
+        Initialize(device, &desc);
     }
 
     HeapAllocationDescription D3D12DescriptorHeap::Allocate(size_t numDescriptors)
@@ -63,6 +63,9 @@ namespace Hazel
 
     void D3D12DescriptorHeap::Release(HeapAllocationDescription& allocation)
     {
+        if (!allocation.Allocated)
+            return;
+
         // NOTE: We could combine this loop to the one below
         for (auto& range : m_FreeDescriptors)
         {
@@ -114,7 +117,7 @@ namespace Hazel
             }
         }
 invalid_path:
-        HZ_CORE_ASSERT(false, "This execution path should not be reachable");
+        HZ_CORE_ASSERT(false, "This execution path should not be reachable. There is probably a dynamic resource that is assumed discarded, but it is not");
 ret:
         allocation.Allocated = false;
         allocation.CPUHandle.ptr = allocation.GPUHandle.ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
@@ -174,7 +177,7 @@ ret:
         return handle;
     }
 
-    void D3D12DescriptorHeap::Create(ID3D12Device* pDevice, const D3D12_DESCRIPTOR_HEAP_DESC* pDesc)
+    void D3D12DescriptorHeap::Initialize(ID3D12Device* pDevice, const D3D12_DESCRIPTOR_HEAP_DESC* pDesc)
     {
         HZ_CORE_ASSERT(pDesc != nullptr, "Heap Description cannot be null");
 
