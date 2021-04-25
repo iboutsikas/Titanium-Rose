@@ -14,14 +14,13 @@ namespace Hazel
         void ImplDilateVirtualTextures(GraphicsContext& gfxContext);
         
         Ref<D3D12Shader> GetShader();
-        void ClearDialationQueue();
 
     protected:
-        virtual void ImplRenderSubmitted() override;
+        virtual void ImplRenderSubmitted(GraphicsContext& gfxContext) override;
         virtual void ImplOnInit() override;
         virtual void ImplOnFrameEnd() override;
-        virtual void ImplSubmit(Ref<GameObject> gameObject) override {};
-        virtual void ImplSubmit(D3D12ResourceBatch& batch, Ref<GameObject> gameObject) override;
+        virtual void ImplSubmit(Ref<HGameObject> gameObject) override {};
+        virtual void ImplSubmit(D3D12ResourceBatch& batch, Ref<HGameObject> gameObject) override;
         virtual RendererType ImplGetRendererType() override { return D3D12Renderer::RendererType_TextureSpace; }
 
 
@@ -90,7 +89,7 @@ namespace Hazel
 
         struct DilateTextureInfo 
         {
-            Ref<VirtualTexture2D> Temporary;
+            Texture2D* Temporary;
             Ref<VirtualTexture2D> Target;
         };
 

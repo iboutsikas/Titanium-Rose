@@ -6,14 +6,14 @@
 namespace Hazel
 {
 
-    Ray::Ray(glm::vec3& orign, glm::vec3& dir) :
-        m_Origin(orign), m_Direction(dir)
+    Ray::Ray(glm::vec3& origin, glm::vec3& dir) :
+        m_Origin(origin), m_Direction(dir)
     {
 
     }
 
-    Ray::Ray(glm::vec3&& orign, glm::vec3&& dir)
-        : m_Origin(std::move(orign)), m_Direction(std::move(dir))
+    Ray::Ray(glm::vec3&& origin, glm::vec3&& dir)
+        : m_Origin(std::move(origin)), m_Direction(std::move(dir))
     {
 
     }
@@ -94,7 +94,7 @@ namespace Hazel
         return false;
     }
 
-    bool Ray::Raycast(Ref<GameObject> entity, Ray& ray, std::vector<RaycastHit>& hits)
+    bool Ray::Raycast(Ref<HGameObject> entity, Ray& ray, std::vector<RaycastHit>& hits)
     {
         if (entity->Mesh == nullptr)
         {

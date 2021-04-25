@@ -9,9 +9,10 @@
 #include "Platform/D3D12/DDSTextureLoader/DDSTextureLoader.h"
 
 
+const float clrclr[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+
 
 namespace Hazel {
-#pragma region Texture
 	Texture::Texture(uint32_t width, uint32_t height, uint32_t depth, 
 		uint32_t mips, bool isCube, D3D12_RESOURCE_STATES initialState, std::string id) :
 		GpuBuffer(width, height, depth, id, initialState),
@@ -27,7 +28,7 @@ namespace Hazel {
 		HZ_CORE_ASSERT(m_Resource != nullptr, "Resource is not initialized");
         auto desc = m_Resource->GetDesc();
 
-        m_Width = desc.Width;
+        m_Width = static_cast<uint32_t>(desc.Width);
         m_Height = desc.Height;
         m_Depth = desc.DepthOrArraySize;
         m_MipLevels = desc.MipLevels;
@@ -35,23 +36,10 @@ namespace Hazel {
 		m_ResourceAllocationInfo = D3D12Renderer::GetDevice()->GetResourceAllocationInfo(0, 1, &desc);
 	}
 
-#pragma endregion
-
-#pragma region Texture2D
 	Texture2D::Texture2D(std::string id, uint32_t width, uint32_t height, uint32_t mips)
 		: Texture(width, height, 1, mips, false, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, id),
 		m_FeedbackMap(nullptr)
 	{
-	}
-	
-	void Texture2D::SetData(D3D12ResourceBatch& batch, void* data, uint32_t size)
-	{
-		D3D12_SUBRESOURCE_DATA subresourceData = {};
-		subresourceData.pData = data;
-		subresourceData.RowPitch = (uint64_t)m_Width * 4 * sizeof(uint8_t);
-		subresourceData.SlicePitch = subresourceData.RowPitch * m_Height;
-
-		batch.Upload(m_Resource.Get(), 0, &subresourceData, 1);
 	}
 
 	Ref<Texture2D> Texture2D::CreateVirtualTexture(TextureCreationOptions& opts)
@@ -163,19 +151,19 @@ namespace Hazel {
 		return ret;
 	}
 
-	Ref<D3D12FeedbackMap> Texture2D::CreateFeedbackMap(Ref<Texture2D> texture)
+	D3D12FeedbackMap* Texture2D::CreateFeedbackMap(Texture2D& texture)
 	{
-		auto resource = texture->GetResource();
+		auto resource = texture.GetResource();
 		auto desc = resource->GetDesc();
 		uint32_t tiles_x = 1;
 		uint32_t tiles_y = 1;
 
-		if (texture->IsVirtual()) 
+		if (texture.IsVirtual()) 
 		{
 			// We need to get tiling info from the device.
 			UINT numTiles = 0;
 			D3D12_TILE_SHAPE tileShape = {};
-			UINT subresourceCount = texture->GetMipLevels();
+			UINT subresourceCount = texture.GetMipLevels();
 			D3D12_PACKED_MIP_INFO mipInfo;
 			std::vector<D3D12_SUBRESOURCE_TILING> tilings(subresourceCount);
 
@@ -196,23 +184,21 @@ namespace Hazel {
 
 		// TODO: The feedback map is hardcoded to always be uint32_t now. Might have to change it later.
 		// The constructor already supports it.
-		auto ret = CreateRef<D3D12FeedbackMap>(
-			D3D12Renderer::GetDevice(),
-			tiles_x, tiles_y, sizeof(uint32_t)
-		);
-		auto name = texture->GetIdentifier() + "-feedback";
+		auto ret = new D3D12FeedbackMap(D3D12Renderer::GetDevice(), tiles_x, tiles_y, sizeof(uint32_t));
+		auto name = texture.GetIdentifier() + "-feedback";
 
 		ret->SetName(name);
 
 		return ret;
 	}
+	
 	Ref<Texture2D> Texture2D::LoadFromDDS(TextureCreationOptions& opts)
 	{
 		bool isCube;
 		DirectX::DDS_ALPHA_MODE alphaMode;
 		std::vector<D3D12_SUBRESOURCE_DATA> subData;
 
-		std::ifstream file(opts.Path, std::ios::binary | std::ios::ate);
+		std::ifstream file(opts.Path, std::ios::binary);
 
 		std::vector<uint8_t> bytes((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
 		
@@ -224,16 +210,19 @@ namespace Hazel {
 		); 
 
         DirectX::LoadDDSTextureFromMemory(
-            D3D12Renderer::Context->DeviceResources->Device.Get(),
+            D3D12Renderer::GetDevice(),
             bytes.data(), bytes.size(), ret->m_Resource.GetAddressOf(),
             subData, 0, &alphaMode, &isCube
         );
 
+		// LoadDDSTextureFromMemory leaves the resource as D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
+		ret->BypassAndSetState(D3D12_RESOURCE_STATE_COPY_DEST);
+		ret->SetName(opts.Path);
 		// The resource is left in the copy_dest state from LoadDDSTextureFromMemory
 		CommandContext::InitializeTexture(*ret, subData.size(), subData.data());
 		ret->UpdateFromDescription();
 
-		return CreateRef<Texture2D>(ret);
+		return Ref<Texture2D>(ret);
 }
 
 	Ref<Texture2D> Texture2D::LoadFromImage(Ref<Image>& image, TextureCreationOptions& opts)
@@ -274,11 +263,9 @@ namespace Hazel {
 
 		ret->UpdateFromDescription();
 				
-		return CreateRef<CommittedTexture2D>(ret);
+		return Ref<CommittedTexture2D>(ret);
 	}
-#pragma endregion
 
-#pragma region VirtualTexture2D
 	VirtualTexture2D::VirtualTexture2D(std::string id, uint32_t width, uint32_t height, uint32_t mips)
 		: Texture2D(id, width, height, mips),
 		m_NumTiles(0),
@@ -294,7 +281,7 @@ namespace Hazel {
 		D3D12Renderer::TilePool->ReleaseTexture(thing, D3D12Renderer::Context->DeviceResources->CommandQueue);*/
 	}
 
-	Texture2D::MipLevels VirtualTexture2D::ExtractMipsUsed()
+	Texture2D::MipLevelsUsed VirtualTexture2D::ExtractMipsUsed()
 	{
 		HZ_CORE_ASSERT(m_FeedbackMap != nullptr, "Virtual textures should have a feedback map");
 
@@ -314,7 +301,7 @@ namespace Hazel {
 					finest_mip = mip;
 				}
 
-				if (mip > coarsest_mip) {
+				if (mip > coarsest_mip && mip != m_MipLevels) {
 					coarsest_mip = mip;
 				}
 			}
@@ -322,32 +309,31 @@ namespace Hazel {
 		m_CachedMipLevels.FinestMip = (finest_mip == m_MipLevels) ? finest_mip - 1 : finest_mip;
 		m_CachedMipLevels.CoarsestMip = (coarsest_mip == m_MipLevels) ? coarsest_mip - 1 : coarsest_mip;
 
-
 		return m_CachedMipLevels;
 	}
 
-	Texture2D::MipLevels VirtualTexture2D::GetMipsUsed()
+	Texture2D::MipLevelsUsed VirtualTexture2D::GetMipsUsed()
 	{
 		return m_CachedMipLevels;
 	}
+
 	glm::ivec3 VirtualTexture2D::GetTileDimensions(uint32_t subresource) const
 	{
 		HZ_CORE_ASSERT(subresource < m_Tilings.size(), "Subresource is out of bounds");
 		auto& t = m_Tilings[subresource];
 		return glm::ivec3(t.WidthInTiles, t.HeightInTiles, t.DepthInTiles);
 	}
+
 	uint64_t VirtualTexture2D::GetTileUsage()
 	{
 		return D3D12Renderer::TilePool->GetTilesUsed(*this);
 	}
-#pragma endregion
 
-#pragma region CommittedTexture2D
 	CommittedTexture2D::CommittedTexture2D(std::string id, uint32_t width, uint32_t height, uint32_t mips)
 		: Texture2D(id, width, height, mips)
 	{
 	}
-#pragma endregion
+
 
 #pragma region D3D12TextureCube
 	Ref<D3D12TextureCube> D3D12TextureCube::Initialize(TextureCreationOptions& opts)
@@ -356,7 +342,7 @@ namespace Hazel {
 
 		if (!opts.Path.empty())
 		{
-            std::ifstream file(opts.Path, std::ios::binary | std::ios::ate);
+            std::ifstream file(opts.Path, std::ios::binary);
 
             std::vector<uint8_t> bytes((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
 
@@ -434,6 +420,6 @@ namespace Hazel {
 	{
 	}
 #pragma endregion
-	
+
 }
 

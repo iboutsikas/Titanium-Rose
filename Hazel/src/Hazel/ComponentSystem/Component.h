@@ -14,7 +14,7 @@
 
 namespace Hazel {
 
-    class GameObject;
+    class HGameObject;
 
     typedef size_t ComponentID;
 
@@ -33,7 +33,7 @@ inline Hazel::ComponentID GetTypeID() override { return ID; }
     {
     public:
 
-        GameObject* gameObject;
+        HGameObject* gameObject;
 
         virtual void OnUpdate(Timestep ts) {}
         virtual void OnEvent(Event& e) {}

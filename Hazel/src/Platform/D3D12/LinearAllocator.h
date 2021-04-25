@@ -110,6 +110,8 @@ namespace Hazel {
         LinearAllocator(AllocatorType type);
 
         DynamicAllocation Allocate(size_t size, size_t alignment = 256);
+
+        void CleanupUsedPages(uint64_t fenceValue);
     private:
 
         DynamicAllocation AllocateLargePage(size_t sizeInBytes);

@@ -13,6 +13,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <future>
+#include <queue>
 
 #include "Hazel/Core/Log.h"
 

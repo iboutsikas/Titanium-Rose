@@ -9,7 +9,7 @@ namespace Hazel
 
     struct RaycastHit
     {
-        Ref<GameObject> GameObject;
+        Ref<HGameObject> GameObject;
         float t;
     };
 
@@ -25,7 +25,7 @@ namespace Hazel
         static bool Raycast(Scene& scene, Ray& ray, RaycastHit& hit);
 
     private:
-        static bool Raycast(Ref<GameObject>, Ray& ray, std::vector<RaycastHit>& hits);
+        static bool Raycast(Ref<HGameObject>, Ray& ray, std::vector<RaycastHit>& hits);
         glm::vec3 m_Origin;
         glm::vec3 m_Direction;
     };

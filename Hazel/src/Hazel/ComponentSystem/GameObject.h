@@ -23,11 +23,11 @@ namespace Hazel {
         Ref<VirtualTexture2D> VirtualTexture = nullptr;
     };
 
-	class GameObject
+	class HGameObject
 	{
 	public:
 
-		~GameObject() 
+		~HGameObject() 
 		{ 
 
 		}
@@ -37,9 +37,9 @@ namespace Hazel {
 		Hazel::Ref<HMaterial> Material;
 		DecoupledTextureComponent DecoupledComponent;
 
-		std::vector<Hazel::Ref<Hazel::GameObject>> children;
+		std::vector<Hazel::Ref<Hazel::HGameObject>> children;
 
-		void AddChild(Hazel::Ref<Hazel::GameObject> child) {
+		void AddChild(Hazel::Ref<Hazel::HGameObject> child) {
 			if (child.get() == this || child == nullptr)
 				return;
 
@@ -66,9 +66,9 @@ namespace Hazel {
 		
 
 	private:
-		GameObject* m_Parent = nullptr;
+		HGameObject* m_Parent = nullptr;
 		
-		void SetParent(GameObject* parent) {
+		void SetParent(HGameObject* parent) {
 			if (parent == this || parent == nullptr)
 				return;
 			this->Transform.SetParent(&parent->Transform);

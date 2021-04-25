@@ -24,6 +24,7 @@ namespace Hazel {
 			nullptr,
 			IID_PPV_ARGS(m_Resource.GetAddressOf())
 		));
+		BypassAndSetState(D3D12_RESOURCE_STATE_COPY_DEST);
 
 		if (vertices) {
 			context.WriteBuffer(*this, 0, vertices, size);
@@ -38,7 +39,7 @@ namespace Hazel {
 	}
 
 	D3D12IndexBuffer::D3D12IndexBuffer(CommandContext& context, uint32_t* indices, uint32_t count)
-		:m_Count(count)
+		: m_Count(count)
 	{
 		auto size = sizeof(uint32_t) * count;
 
@@ -50,6 +51,7 @@ namespace Hazel {
 			nullptr,
 			IID_PPV_ARGS(m_Resource.GetAddressOf())
 		));
+		BypassAndSetState(D3D12_RESOURCE_STATE_COPY_DEST);
 
 		if (indices) {
 			context.WriteBuffer(*this, 0, indices, size);

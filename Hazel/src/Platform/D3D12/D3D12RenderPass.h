@@ -26,7 +26,7 @@ namespace Hazel {
 
 		virtual ~D3D12RenderPass() = default;
 
-		virtual void Process(D3D12Context* ctx, Hazel::GameObject* sceneRoot, Hazel::PerspectiveCamera& camera) = 0;
+		virtual void Process(D3D12Context* ctx, Hazel::HGameObject* sceneRoot, Hazel::PerspectiveCamera& camera) = 0;
 	
 		virtual void SetInput(uint32_t index, Hazel::Ref<Texture2D> input) 
 		{

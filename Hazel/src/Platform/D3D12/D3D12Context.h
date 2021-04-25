@@ -26,20 +26,23 @@ namespace Hazel{
 		void Init(Window* window);
 		void SwapBuffers();
 		void SetVSync(bool enable);
+
+		void CreateSwapChain(ID3D12CommandQueue* commandQueue);
 		
 		void CreateBackBuffers();
-		void CleanupRenderTargetViews();
+		void ResetBackbuffers();
 		void WaitForGpu();
 		void ResizeSwapChain();
 		void NewFrame();
-		D3D12_CPU_DESCRIPTOR_HANDLE CurrentBackBufferView() const;
+
 		D3D12FrameResource* CurrentFrameResource;
 
 		Scope<D3D12DeviceResources> DeviceResources;
 		std::vector<Scope<D3D12FrameResource>> FrameResources;
+
 		inline HWND GetNativeHandle() { return m_NativeHandle; }
-		inline UINT GetRTVDescriptorSize() { return m_RTVDescriptorSize; }
-		inline UINT GetSRVDescriptorSize() { return m_SRVDescriptorSize; }
+		//inline UINT GetRTVDescriptorSize() { return m_RTVDescriptorSize; }
+		//inline UINT GetSRVDescriptorSize() { return m_SRVDescriptorSize; }
 		inline UINT	GetCurrentFrameIndex() { return m_CurrentBackbufferIndex; }
 
 		D3D12_VIEWPORT Viewport;
@@ -52,8 +55,7 @@ namespace Hazel{
 		bool m_TearingSupported;
 		bool m_VSyncEnabled;
 		UINT m_CurrentBackbufferIndex;
-		UINT m_RTVDescriptorSize;
-		UINT m_SRVDescriptorSize;
+
 		uint64_t  m_FenceValue = 0;
 		
 		void PerformInitializationTransitions();

@@ -6,10 +6,13 @@
 #include "Platform/D3D12/D3D12Shader.h"
 #include "Platform/D3D12/D3D12DescriptorHeap.h"
 
+#include "Platform/D3D12/CommandQueue.h"
+
 namespace Hazel {
     class CommandListManager;
     class GraphicsContext;
     class ComputeContext;
+    class Texture2D;
 
     struct Param32 {
         Param32(float f)    : Float32(f) {}
@@ -71,6 +74,7 @@ namespace Hazel {
 
         GraphicsContext& GetGraphicsContext();
         ComputeContext& GetComputeContext();
+        uint64_t GetCompletedFenceValue();
 
         inline ID3D12GraphicsCommandList* GetCommandList() { return m_CommandList; }
 
@@ -80,9 +84,11 @@ namespace Hazel {
 
         static void InitializeTexture(GpuResource& destination, uint32_t numSubresources, D3D12_SUBRESOURCE_DATA subData[]);
         static void InitializeBuffer(GpuResource& destination, const void* data, size_t sizeInBytes, size_t offset = 0);
+        static void ReadbackTexture2D(GpuResource& readbackBuffer, Texture2D& texture);
 
-        inline void CopyBuffer(GpuResource& source, GpuResource& destination);
-        inline void CopyBufferRegion(GpuResource& destination, size_t offset, GpuResource& source, size_t srcOffset, size_t sizeInBytes);
+        void CopyBuffer(GpuResource& source, GpuResource& destination);
+        void CopyBufferRegion(GpuResource& destination, size_t offset, GpuResource& source, size_t srcOffset, size_t sizeInBytes);
+        void CopySubresource(GpuResource& destination, uint32_t destinationIndex, GpuResource& source, uint32_t sourceIndex);
         
         void WriteBuffer(GpuResource& destination, size_t offset, const void* data, size_t sizeInBytes);
 
@@ -97,42 +103,46 @@ namespace Hazel {
             switch (type)
             {
             case D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV:
-                m_RTVAllocations.push_back(allocation);
+                m_ResourceAllocations.push_back(allocation);
                 break;
             case D3D12_DESCRIPTOR_HEAP_TYPE_RTV:
-                m_ShaderAllocations.push_back(allocation);
+                m_RTVAllocations.push_back(allocation);
+                break;
             default:
                 HZ_CORE_ASSERT(false, "Unsupported heap type");
                 break;
             }
 
         }
-
         inline void TrackAllocation(const std::vector<HeapAllocationDescription>& allocations, D3D12_DESCRIPTOR_HEAP_TYPE type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)
         {
             switch (type)
             {
             case D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV:
-                m_RTVAllocations.insert(std::end(m_RTVAllocations), std::begin(allocations), std::end(allocations));
+                m_ResourceAllocations.insert(std::end(m_ResourceAllocations), std::begin(allocations), std::end(allocations));
                 break;
             case D3D12_DESCRIPTOR_HEAP_TYPE_RTV:
-                m_ShaderAllocations.insert(std::end(m_ShaderAllocations), std::begin(allocations), std::end(allocations));
+                m_RTVAllocations.insert(std::end(m_RTVAllocations), std::begin(allocations), std::end(allocations));
+                break;
             default:
                 HZ_CORE_ASSERT(false, "Unsupported heap type");
                 break;
             }
         }
 
+        void BeginEvent(const char* name, uint64_t color = 0 /*PIX_COLOR_DEFAULT*/);
+        void EndEvent();
+
         static CommandContext& Begin(const std::string name = "");
 
     protected:
 
-        void SetName(const std::string& name) { m_Identifier = name; }
+        void SetName(const std::string& name) { m_Name = name; }
         void BindDescriptorHeaps();
         void ReturnAllocations();
 
     protected:
-        D3D12_COMMAND_LIST_TYPE m_Type;
+        D3D12_COMMAND_LIST_TYPE     m_Type;
         ID3D12GraphicsCommandList*  m_CommandList;
         ID3D12CommandAllocator*     m_CurrentAllocator;
 
@@ -141,15 +151,15 @@ namespace Hazel {
         uint64_t                    m_NumCachedBarriers;
 
         // 4 different types. But do I really need the sampler one?
-        ID3D12DescriptorHeap* m_DescriptorHeaps[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
+        ID3D12DescriptorHeap*       m_DescriptorHeaps[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
 
         LinearAllocator m_CpuLinearAllocator;
         LinearAllocator m_GpuLinearAllocator;
 
-        std::string m_Identifier;
+        std::string m_Name;
 
         std::vector<HeapAllocationDescription> m_RTVAllocations;
-        std::vector<HeapAllocationDescription> m_ShaderAllocations;
+        std::vector<HeapAllocationDescription> m_ResourceAllocations;
     };
 
 
@@ -159,7 +169,7 @@ namespace Hazel {
             return CommandContext::Begin(name).GetGraphicsContext();
         }
 
-        inline void SetDynamicContantBufferView(uint32_t rootIndex, size_t sizeInBytes, const void* data);
+        void SetDynamicContantBufferView(uint32_t rootIndex, size_t sizeInBytes, const void* data);
     };
 
     class ComputeContext : public CommandContext {
@@ -167,9 +177,9 @@ namespace Hazel {
 
         static ComputeContext& Begin(const std::string& name = "", bool async = false);
 
-        inline void SetShader(D3D12Shader& shader);
+        void SetShader(D3D12Shader& shader);
 
-        inline void SetDynamicContantBufferView(uint32_t rootIndex, size_t sizeInBytes, const void* data);
+        void SetDynamicContantBufferView(uint32_t rootIndex, size_t sizeInBytes, const void* data);
     };
 
     class ContextManager {

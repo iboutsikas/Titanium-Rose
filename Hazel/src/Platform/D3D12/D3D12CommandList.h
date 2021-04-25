@@ -8,8 +8,6 @@
 #include "WinPixEventRuntime/pix3.h"
 
 namespace Hazel {
-    typedef HANDLE;
-
     class D3D12CommandList {
     public:
         D3D12CommandList(TComPtr<ID3D12Device2> inDevice, TComPtr<ID3D12CommandAllocator> commandAllocator, D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT);

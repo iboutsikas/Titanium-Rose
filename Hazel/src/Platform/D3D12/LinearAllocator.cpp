@@ -54,6 +54,22 @@ namespace Hazel {
         return alloc;
     }
 
+    void LinearAllocator::CleanupUsedPages(uint64_t fenceValue)
+    {
+        if (m_CurrentPage == nullptr)
+            return;
+
+        m_RetiredPages.push_back(m_CurrentPage);
+        m_CurrentPage = nullptr;
+        m_Offset = 0;
+
+        s_PageManagers[m_AllocationType].DiscardPages(fenceValue, m_RetiredPages);
+        m_RetiredPages.clear();
+
+        s_PageManagers[m_AllocationType].FreeLargePages(fenceValue, m_RetiredPages);
+        m_LargePageList.clear();
+    }
+
     LinearAllocator::LinearAllocatorPageManager::LinearAllocatorPageManager(AllocatorType type)
         : m_Type(type)
     {
@@ -62,7 +78,7 @@ namespace Hazel {
 
     LinearAllocator::LinearAllocatorPage* LinearAllocator::LinearAllocatorPageManager::RequestPage()
     {
-        while (!m_RetiredPages.empty() && D3D12Renderer::CommandListManager.IsFenceComplete(m_RetiredPages.front().FenceValue))
+        while (!m_RetiredPages.empty() && D3D12Renderer::CommandQueueManager.IsFenceComplete(m_RetiredPages.front().FenceValue))
         {
             m_AvailablePages.push(m_RetiredPages.front().Page);
             m_RetiredPages.pop();
@@ -137,7 +153,7 @@ namespace Hazel {
 
     void LinearAllocator::LinearAllocatorPageManager::FreeLargePages(uint64_t fenceValue, const std::vector<LinearAllocatorPage*>& pages)
     {
-        while (!m_DeletionQueue.empty() && D3D12Renderer::CommandListManager.IsFenceComplete(m_DeletionQueue.front().FenceValue))
+        while (!m_DeletionQueue.empty() && D3D12Renderer::CommandQueueManager.IsFenceComplete(m_DeletionQueue.front().FenceValue))
         {
             delete m_DeletionQueue.front().Page;
             m_DeletionQueue.pop();

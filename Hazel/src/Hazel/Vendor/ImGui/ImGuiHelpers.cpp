@@ -128,7 +128,7 @@ void ImGui::MaterialControl(Hazel::Ref<Hazel::HMaterial> material)
     ImGui::Columns(oldColumns);
 }
 
-void ImGui::MeshSelectControl(Hazel::Ref<Hazel::GameObject> target, std::vector<Hazel::Ref<Hazel::GameObject>>& models)
+void ImGui::MeshSelectControl(Hazel::Ref<Hazel::HGameObject> target, std::vector<Hazel::Ref<Hazel::HGameObject>>& models)
 {
     Hazel::Ref<Hazel::HMesh> selectedMesh = target->Mesh;
     if (ImGui::BeginCombo("##combo", target->Name.c_str()))
@@ -249,7 +249,7 @@ ret:
     ImGui::Columns(oldColumns);
 }
 
-void ImGui::EntityPanel(Hazel::Ref<Hazel::GameObject> target)
+void ImGui::EntityPanel(Hazel::Ref<Hazel::HGameObject> target)
 {
     static constexpr char* emptyString = "";
 

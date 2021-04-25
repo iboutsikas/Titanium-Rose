@@ -73,6 +73,13 @@ namespace Hazel
         return CD3DX12_RESOURCE_BARRIER::Transition(m_Resource.Get(), m_CurrentState, to);
     }
 #endif
+    void GpuResource::Reset()
+    {
+        m_Resource = nullptr;
+        m_GpuVirtualAddress = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
+    }
+
+
     void GpuResource::SetName(std::string name)
     {
         m_Identifier = name;

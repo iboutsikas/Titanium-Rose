@@ -34,17 +34,17 @@ namespace Hazel {
         ~D3D12DeviceResources();
 
         TComPtr<ID3D12Device2>                  Device;
-        TComPtr<ID3D12CommandQueue>             CommandQueue;
+        //TComPtr<ID3D12CommandQueue>             CommandQueue;
         TComPtr<IDXGISwapChain4>                SwapChain;
         std::vector<ColorBuffer>                BackBuffers;
 
         TComPtr<ID3D12Resource>                 DepthStencilBuffer;
-        Ref<D3D12CommandList>                   MainCommandList;
-        Ref<D3D12CommandList>                   DecoupledCommandList;
-        Ref<D3D12CommandList>                   WorkerCommandList;
-        TComPtr<ID3D12CommandAllocator>         CommandAllocator;
-        TComPtr<ID3D12DescriptorHeap>           RTVDescriptorHeap;
-        TComPtr<ID3D12Fence>                    Fence;
+        //Ref<D3D12CommandList>                   MainCommandList;
+        //Ref<D3D12CommandList>                   DecoupledCommandList;
+        //Ref<D3D12CommandList>                   WorkerCommandList;
+        //TComPtr<ID3D12CommandAllocator>         CommandAllocator;
+        //TComPtr<ID3D12DescriptorHeap>           RTVDescriptorHeap;
+        //TComPtr<ID3D12Fence>                    Fence;
 
         int SwapChainBufferCount;
 
@@ -70,7 +70,7 @@ namespace Hazel {
 
         TComPtr<IDXGISwapChain4> CreateSwapChain(
             SwapChainCreationOptions& opts,
-            TComPtr<ID3D12CommandQueue> commandQueue);
+            ID3D12CommandQueue* commandQueue);
 
         TComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(
             TComPtr<ID3D12Device2> device,
@@ -79,15 +79,16 @@ namespace Hazel {
             D3D12_DESCRIPTOR_HEAP_FLAGS flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
 
         TComPtr<ID3D12Fence> CreateFence(TComPtr<ID3D12Device2> device);
-
+#if 0
         uint64_t Signal(
-            TComPtr<ID3D12CommandQueue> commandQueue, 
-            TComPtr<ID3D12Fence> fence, 
+            TComPtr<ID3D12CommandQueue> commandQueue,
+            TComPtr<ID3D12Fence> fence,
             uint64_t fenceValue);
 
         void WaitForFenceValue(
-            TComPtr<ID3D12Fence> fence, 
+            TComPtr<ID3D12Fence> fence,
             uint64_t fenceValue,
             UINT duration = INFINITE);
+#endif
     };
 }

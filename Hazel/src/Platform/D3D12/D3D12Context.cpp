@@ -95,6 +95,7 @@ namespace Hazel {
 		BuildFrameResources();
 
 #pragma region Command Objects
+#if 0
 		// The command queue        
 		DeviceResources->CommandQueue = DeviceResources->CreateCommandQueue(
 			DeviceResources->Device,
@@ -125,38 +126,7 @@ namespace Hazel {
             D3D12_COMMAND_LIST_TYPE_DIRECT
         );
         DeviceResources->DecoupledCommandList->SetName("DeviceResources->DecoupledCommandList");
-#pragma endregion
-
-#pragma region The Swap Chain
-		// The Swap Chain
-		SwapChainCreationOptions opts = { 0 };
-		opts.Width = width;
-		opts.Height = height;
-		opts.BufferCount = DeviceResources->SwapChainBufferCount;
-		opts.TearingSupported = m_TearingSupported;
-		opts.Handle = m_NativeHandle;
-
-		DeviceResources->SwapChain = DeviceResources->CreateSwapChain(
-			opts,
-			DeviceResources->CommandQueue
-		);
-
-		m_CurrentBackbufferIndex = DeviceResources
-			->SwapChain
-			->GetCurrentBackBufferIndex();
-#pragma endregion
-
-#pragma region The Heaps
-		//DeviceResources->RTVDescriptorHeap = DeviceResources->CreateDescriptorHeap(
-		//	DeviceResources->Device,
-		//	D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
-		//	DeviceResources->SwapChainBufferCount
-		//);
-		//NAME_D3D12_OBJECT(DeviceResources->RTVDescriptorHeap);
-
-		m_RTVDescriptorSize = DeviceResources
-			->Device
-			->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+#endif
 #pragma endregion
 
 		// Initial viewport
@@ -207,6 +177,26 @@ namespace Hazel {
 		m_VSyncEnabled = enable;
 	}
 
+	void D3D12Context::CreateSwapChain(ID3D12CommandQueue* commandQueue)
+	{
+        // The Swap Chain
+        SwapChainCreationOptions opts = { 0 };
+        opts.Width = m_Window->GetWidth();
+        opts.Height = m_Window->GetHeight();
+        opts.BufferCount = DeviceResources->SwapChainBufferCount;
+        opts.TearingSupported = m_TearingSupported;
+        opts.Handle = m_NativeHandle;
+
+        DeviceResources->SwapChain = DeviceResources->CreateSwapChain(
+            opts,
+			commandQueue
+        );
+
+        m_CurrentBackbufferIndex = DeviceResources
+            ->SwapChain
+            ->GetCurrentBackBufferIndex();
+	}
+
 	void D3D12Context::CreateBackBuffers()
 	{
 		std::stringstream ss;
@@ -219,21 +209,19 @@ namespace Hazel {
 			);
 			ss << "Backbuffer[" << i << "]";
 			DeviceResources->BackBuffers[i].CreateFromSwapChain(ss.str(), backBuffer);
-			ss.clear();
+			ss.str("");
 		}
 
 		// The index might not be the same or the next one. We need to ask the swap chain again
 		m_CurrentBackbufferIndex = DeviceResources->SwapChain->GetCurrentBackBufferIndex();
 	}
 
-	void D3D12Context::CleanupRenderTargetViews()
+	void D3D12Context::ResetBackbuffers()
 	{
-#if 0
 		for (int i = 0; i < DeviceResources->SwapChainBufferCount; i++)
 		{
 			DeviceResources->BackBuffers[i].Reset();
 		}
-#endif
 	}
 
 	void D3D12Context::WaitForGpu()
@@ -251,17 +239,7 @@ namespace Hazel {
 
 #undef IDLE_COMMAND_LIST
 #endif
-		D3D12Renderer::CommandListManager.WaitForIdle();
-		/*m_FenceValue = DeviceResources->Signal(
-			DeviceResources->CommandQueue,
-			DeviceResources->Fence,
-			m_FenceValue
-		);
-
-		DeviceResources->WaitForFenceValue(
-			DeviceResources->Fence,
-			m_FenceValue
-		);*/
+		D3D12Renderer::CommandQueueManager.WaitForIdle();
 	}
 	
 	void D3D12Context::ResizeSwapChain()
@@ -291,45 +269,45 @@ namespace Hazel {
 		// Get from resource
 		auto fr = CurrentFrameResource;
 
-		ThrowIfFailed(DeviceResources->CommandAllocator->Reset());
+		//ThrowIfFailed(DeviceResources->CommandAllocator->Reset());
 
-		if (DeviceResources->MainCommandList->IsClosed())
-			DeviceResources->MainCommandList->Reset(fr->CommandAllocator);
-		if (DeviceResources->DecoupledCommandList->IsClosed())
-			DeviceResources->DecoupledCommandList->Reset(fr->CommandAllocator2);
-		if (DeviceResources->WorkerCommandList->IsClosed())
-			DeviceResources->WorkerCommandList->Reset(DeviceResources->CommandAllocator);
+		//if (DeviceResources->MainCommandList->IsClosed())
+		//	DeviceResources->MainCommandList->Reset(fr->CommandAllocator);
+		//if (DeviceResources->DecoupledCommandList->IsClosed())
+		//	DeviceResources->DecoupledCommandList->Reset(fr->CommandAllocator2);
+		//if (DeviceResources->WorkerCommandList->IsClosed())
+		//	DeviceResources->WorkerCommandList->Reset(DeviceResources->CommandAllocator);
 	}
 
-	D3D12_CPU_DESCRIPTOR_HANDLE D3D12Context::CurrentBackBufferView() const
-	{
-		return CD3DX12_CPU_DESCRIPTOR_HANDLE(
-			DeviceResources->RTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
-			m_CurrentBackbufferIndex,
-			m_RTVDescriptorSize
-		);
-	}
+	//D3D12_CPU_DESCRIPTOR_HANDLE D3D12Context::CurrentBackBufferView() const
+	//{
+	//	return CD3DX12_CPU_DESCRIPTOR_HANDLE(
+	//		DeviceResources->RTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
+	//		m_CurrentBackbufferIndex,
+	//		m_RTVDescriptorSize
+	//	);
+	//}
 
 	void D3D12Context::PerformInitializationTransitions()
 	{
-		auto commandAllocator = DeviceResources->CommandAllocator;
+		//auto commandAllocator = DeviceResources->CommandAllocator;
 
-		commandAllocator->Reset();
-		DeviceResources->MainCommandList->Reset(commandAllocator);
+		//commandAllocator->Reset();
+		//DeviceResources->MainCommandList->Reset(commandAllocator);
 
-		// Transitions go here
-		{
-			auto dsBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
-				DeviceResources->DepthStencilBuffer.Get(),
-				D3D12_RESOURCE_STATE_COMMON,
-				D3D12_RESOURCE_STATE_DEPTH_WRITE
-			);
+		//// Transitions go here
+		//{
+		//	auto dsBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
+		//		DeviceResources->DepthStencilBuffer.Get(),
+		//		D3D12_RESOURCE_STATE_COMMON,
+		//		D3D12_RESOURCE_STATE_DEPTH_WRITE
+		//	);
 
-			DeviceResources->MainCommandList->Get()->ResourceBarrier(1, &dsBarrier);
-		}
+		//	DeviceResources->MainCommandList->Get()->ResourceBarrier(1, &dsBarrier);
+		//}
 
-		DeviceResources->MainCommandList->Execute(DeviceResources->CommandQueue);
-		WaitForGpu();
+		//DeviceResources->MainCommandList->Execute(DeviceResources->CommandQueue);
+		//WaitForGpu();
 	}
 
 	void D3D12Context::NextFrameResource()
@@ -339,12 +317,6 @@ namespace Hazel {
 		CurrentFrameResource = FrameResources[m_CurrentBackbufferIndex].get();
 		// Wait until this frame resource catches up
 		WaitForGpu();
-		/*if (CurrentFrameResource->FenceValue != 0) {
-			DeviceResources->WaitForFenceValue(
-				DeviceResources->Fence,
-				CurrentFrameResource->FenceValue
-			);
-		}*/
 		CurrentFrameResource->PrepareForNewFrame();
 	}
 

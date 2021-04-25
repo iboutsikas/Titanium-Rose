@@ -38,12 +38,12 @@ namespace Hazel
             RendererType_Count
         };
 
-        static ShaderLibrary* ShaderLibrary;
-        static TextureLibrary* TextureLibrary;
+        static ShaderLibrary* g_ShaderLibrary;
+        static TextureLibrary* g_TextureLibrary;
         static D3D12Context* Context;
         static D3D12TilePool* TilePool;
 
-        static CommandListManager CommandListManager;
+        static CommandListManager CommandQueueManager;
 
         static D3D12DescriptorHeap* s_ResourceDescriptorHeap;
         static D3D12DescriptorHeap* s_RenderTargetDescriptorHeap;
@@ -64,7 +64,7 @@ namespace Hazel
         /// </summary>
         static void BeginFrame();
 
-        static void EndFrame(CommandContext& context);
+        static void EndFrame();
 
         /// <summary>
         /// This will swap the back buffers and execute the "main" command list
@@ -86,8 +86,8 @@ namespace Hazel
         static void ReleaseDynamicResource(Ref<Texture> texture);
         static void AddStaticRenderTarget(Ref<Texture> texture);
 
-        static void Submit(Ref<GameObject> gameObject);
-        static void RenderSubmitted();
+        static void Submit(Ref<HGameObject> gameObject);
+        static void RenderSubmitted(GraphicsContext& gfxContext);
         static void ShadeDecoupled();
         static void RenderSkybox(GraphicsContext& gfxContext, uint32_t mipLevel = 0);
         static void RenderDiagnostics();
@@ -108,10 +108,18 @@ namespace Hazel
 
         static void CreateUAV(Ref<Texture> texture, uint32_t mip);
         static void CreateUAV(Ref<Texture> texture, HeapAllocationDescription& description, uint32_t mip);
+        
         static void CreateSRV(Ref<Texture> texture, uint32_t mostDetailedMip = 0, uint32_t mips = 0, bool forceArray = false);
         static void CreateSRV(Ref<Texture> texture, HeapAllocationDescription& description, uint32_t mostDetailedMip = 0, uint32_t mips = 0, bool forceArray = false);
+        static void CreateSRV(Texture& resource, uint32_t mostDetailedMip = 0, uint32_t mips = 0, bool forceArray = false);
+        static void CreateSRV(Texture& resource, HeapAllocationDescription& description, uint32_t mostDetailedMip = 0, uint32_t mips = 0, bool forceArray = false);
+
         static void CreateRTV(Ref<Texture> texture, uint32_t mip = 0);
         static void CreateRTV(Ref<Texture> texture, HeapAllocationDescription& description, uint32_t mip = 0);
+        static void CreateRTV(Texture& texture, uint32_t mip = 0);
+        static void CreateRTV(Texture& texture, HeapAllocationDescription& description, uint32_t mip = 0);
+        static void CreateRTV(GpuResource& resource, HeapAllocationDescription& description, uint32_t mip = 0);
+
         //static void CreateDSV(Ref<D3D12Texture> texture);
         static void CreateDSV(Ref<Texture> texture, HeapAllocationDescription& description);
         static void CreateMissingVirtualTextures();
@@ -122,16 +130,16 @@ namespace Hazel
 
         static inline uint64_t GetFrameCount() { return s_FrameCount; }
 
-        static inline ID3D12Device* GetDevice() { return Context->DeviceResources->Device.Get(); }
+        static inline ID3D12Device2* GetDevice() { return Context->DeviceResources->Device.Get(); }
 
     protected:
         static void ReclaimDynamicDescriptors();
         static void CreateFrameBuffers(CommandContext& context);
 
-        virtual void ImplRenderSubmitted() = 0;
+        virtual void ImplRenderSubmitted(GraphicsContext& gfxContext) = 0;
         virtual void ImplOnInit() = 0;
-        virtual void ImplSubmit(Ref<GameObject> gameObject) = 0;
-        virtual void ImplSubmit(D3D12ResourceBatch& batch, Ref<GameObject> gameObject) = 0;
+        virtual void ImplSubmit(Ref<HGameObject> gameObject) = 0;
+        virtual void ImplSubmit(D3D12ResourceBatch& batch, Ref<HGameObject> gameObject) = 0;
         virtual void ImplOnFrameEnd() {};
         virtual RendererType ImplGetRendererType() = 0;
 
@@ -175,17 +183,19 @@ namespace Hazel
         static uint32_t s_CurrentFrameBuffer;
         static uint64_t s_FrameCount;
 
-        static std::vector<Ref<GameObject>> s_OpaqueObjects;
-        static std::vector<Ref<GameObject>> s_TransparentObjects;
-        static std::vector<Ref<GameObject>> s_DecoupledObjects;
+        static std::vector<Ref<HGameObject>> s_ForwardOpaqueObjects;
+        static std::vector<Ref<HGameObject>> s_ForwardTransparentObjects;
+        static std::vector<Ref<HGameObject>> s_DecoupledOpaqueObjects;
         static std::vector<D3D12Renderer*> s_AvailableRenderers;
         static std::vector<Ref<FrameBuffer>> s_Framebuffers;
         static Scope<D3D12UploadBuffer<RendererLight>> s_LightsBuffer;
         static HeapAllocationDescription s_LightsBufferAllocation;
         static HeapAllocationDescription s_ImGuiAllocation;
-        static D3D12Renderer* s_CurrentRenderer;
+        
         static D3D12VertexBuffer* s_FullscreenQuadVB;
         static D3D12IndexBuffer* s_FullscreenQuadIB;
+
+        static TComPtr<ID3D12Device2> s_Device; 
     };
 }
 

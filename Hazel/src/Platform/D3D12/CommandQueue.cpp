@@ -30,7 +30,9 @@ namespace Hazel {
     
 
     CommandQueue::CommandQueue(D3D12_COMMAND_LIST_TYPE type)
-        : m_Type(type), m_CommandQueue(nullptr), m_Fence(nullptr), m_AllocatorPool(type)
+        : m_Type(type), m_CommandQueue(nullptr), m_Fence(nullptr), m_AllocatorPool(type),
+        m_FenceValue(static_cast<uint64_t>(type) << 56 | 1),
+        m_LastCompletedFenceValue(static_cast<uint64_t>(type) << 56)
     {
 
     }
@@ -60,6 +62,7 @@ namespace Hazel {
 
         m_FenceEvent = CreateEvent(nullptr, false, false, nullptr);
         HZ_CORE_ASSERT(m_FenceEvent != nullptr, "Fence event was null!");
+        m_AllocatorPool.Initialize(device);
 
         HZ_CORE_ASSERT(m_CommandQueue != nullptr, "How did we get here and the command queue is still null?");
     }
@@ -85,14 +88,14 @@ namespace Hazel {
 
     bool CommandQueue::IsFenceComplete(uint64_t fenceValue)
     {
-        HZ_CORE_ASSERT(m_LastCompletedFenceValue == m_Fence->GetCompletedValue(), "We have a shitty race condition");
+//        HZ_CORE_ASSERT(m_LastCompletedFenceValue == m_Fence->GetCompletedValue(), "We have a shitty race condition");
 
         return fenceValue < m_LastCompletedFenceValue;
     }
 
     void CommandQueue::StallForFence(uint64_t fenceValue)
     {
-        CommandQueue& other = D3D12Renderer::CommandListManager.GetQueue(static_cast<D3D12_COMMAND_LIST_TYPE>(fenceValue >> 56));
+        CommandQueue& other = D3D12Renderer::CommandQueueManager.GetQueue(static_cast<D3D12_COMMAND_LIST_TYPE>(fenceValue >> 56));
         m_CommandQueue->Wait(other.m_Fence, fenceValue);
     }
 
@@ -200,9 +203,9 @@ namespace Hazel {
         D3D12::ThrowIfFailed(m_Device->CreateCommandList(0, type, *allocator, nullptr, IID_PPV_ARGS(list)));
     }
 
-    inline void CommandListManager::WaitForFence(uint64_t value)
+    void CommandListManager::WaitForFence(uint64_t value)
     {
-        CommandQueue& q = D3D12Renderer::CommandListManager.GetQueue(static_cast<D3D12_COMMAND_LIST_TYPE>(value >> 56));
+        CommandQueue& q = D3D12Renderer::CommandQueueManager.GetQueue(static_cast<D3D12_COMMAND_LIST_TYPE>(value >> 56));
         q.WaitForFence(value);
     }
 }

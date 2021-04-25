@@ -49,7 +49,7 @@ protected:
 	Hazel::Scene m_Scene;
 	Hazel::PerspectiveCameraController m_CameraController;
 
-    Hazel::Ref<Hazel::GameObject> m_Selection = nullptr;
+    Hazel::Ref<Hazel::HGameObject> m_Selection = nullptr;
     Hazel::Ref<Hazel::FrameBuffer> m_LastFrameBuffer = nullptr;
     Hazel::Ref<Hazel::ReadbackBuffer> m_ReadbackBuffer = nullptr;
 

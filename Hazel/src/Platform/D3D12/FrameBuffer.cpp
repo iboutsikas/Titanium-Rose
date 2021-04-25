@@ -11,7 +11,7 @@ namespace Hazel {
 
         if (opts.ColourFormat != DXGI_FORMAT_UNKNOWN)
         {
-            Texture::TextureCreationOptions textureOpts;
+            TextureCreationOptions textureOpts;
             textureOpts.Name = opts.Name + ":color";
             textureOpts.Format = opts.ColourFormat;
             textureOpts.Width = opts.Width;
@@ -25,7 +25,7 @@ namespace Hazel {
 
         if (opts.DepthStencilFormat != DXGI_FORMAT_UNKNOWN)
         {
-            Texture::TextureCreationOptions textureOpts;
+            TextureCreationOptions textureOpts;
             textureOpts.Name = opts.Name + ":depth-stencil";
             textureOpts.Format = opts.DepthStencilFormat;
             textureOpts.Width = opts.Width;

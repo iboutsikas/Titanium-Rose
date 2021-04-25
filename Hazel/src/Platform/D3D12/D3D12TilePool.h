@@ -69,16 +69,29 @@ namespace Hazel
 	class D3D12TilePool
 	{
 	public:
-		void MapTexture(Ref<Texture2D> texture);
-
-		void ReleaseTexture(Ref<Texture2D> texture);
-		
+		void MapTexture(VirtualTexture2D& texture);
+		void ReleaseTexture(VirtualTexture2D& texture);
 		void RemoveTexture(VirtualTexture2D& texture);
+        uint64_t GetTilesUsed(VirtualTexture2D& texture);
+
+
+		inline void MapTexture(Texture2D& texture) {
+			MapTexture(MakeVirtualTexture(texture));
+		}
+
+		inline void ReleaseTexture(Texture2D& texture) {
+			ReleaseTexture(MakeVirtualTexture(texture));
+		}
+
+		inline void RemoveTexture(Texture2D& texture) {
+			RemoveTexture(MakeVirtualTexture(texture));
+		}		
+
+		inline uint64_t GetTilesUsed(Texture2D& texture) {
+			return GetTilesUsed(MakeVirtualTexture(texture));
+		}
 
 		std::vector<TilePoolStats> GetStats();
-
-		uint64_t GetTilesUsed(VirtualTexture2D& texture);
-
 
 	private:
         struct TileAllocation
@@ -147,7 +160,12 @@ namespace Hazel
 		{
 			m_Pages[address.Page]->ReleaseTile(address.Tile);
 		}
-	
+		
+		inline VirtualTexture2D& MakeVirtualTexture(Texture2D& texture) 
+		{
+			HZ_CORE_ASSERT(texture.IsVirtual(), "How did we get here with a non-virtual texture");
+			return dynamic_cast<VirtualTexture2D&>(texture);
+		}
 	private:
 		uint32_t m_FrameCounter;
 

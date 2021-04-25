@@ -14,7 +14,7 @@ namespace Hazel
 	class D3D12FeedbackMap : public GpuBuffer
 	{
 	public:
-		D3D12FeedbackMap(TComPtr<ID3D12Device2> device, uint32_t width, uint32_t height, uint32_t elementSize);
+		D3D12FeedbackMap(ID3D12Device2* device, uint32_t width, uint32_t height, size_t elementSize);
 		D3D12FeedbackMap(const D3D12FeedbackMap& other) = delete;
 		~D3D12FeedbackMap();
 		/// <summary>
@@ -31,8 +31,8 @@ namespace Hazel
 
 		HeapAllocationDescription UAVAllocation;
 	private:
-		uint32_t m_ElementSize;
-		uint32_t m_ActualSize;
+		size_t m_ElementSize;
+		size_t m_ActualSize;
 		ReadbackBuffer* m_ReadbackBuffer;
 	};
 

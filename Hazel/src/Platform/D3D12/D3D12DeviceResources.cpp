@@ -96,6 +96,7 @@ namespace Hazel {
                 D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,   // I'm really not sure how to avoid this message.
                 D3D12_MESSAGE_ID_MAP_INVALID_NULLRANGE,                         // This warning occurs when using capture frame while graphics debugging.
                 D3D12_MESSAGE_ID_UNMAP_INVALID_NULLRANGE,                       // This warning occurs when using capture frame while graphics debugging.
+                (D3D12_MESSAGE_ID)1008                                          // RESOURCE_BARRIER_DUPLICATE_SUBRESOURCE_TRANSITIONS
             };
 
             D3D12_INFO_QUEUE_FILTER NewFilter = {};
@@ -151,11 +152,12 @@ namespace Hazel {
         return commandList;
     }
 
-    TComPtr<IDXGISwapChain4> D3D12DeviceResources::CreateSwapChain(SwapChainCreationOptions& opts, TComPtr<ID3D12CommandQueue> commandQueue)
+    TComPtr<IDXGISwapChain4> D3D12DeviceResources::CreateSwapChain(SwapChainCreationOptions& opts, ID3D12CommandQueue* commandQueue)
     {
         TComPtr<IDXGISwapChain4> dxgiSwapChain4;
         TComPtr<IDXGIFactory4> dxgiFactory4;
         UINT createFactoryFlags = 0;
+
 #if defined(HZ_DEBUG) && !defined(HZ_NO_D3D12_DEBUG_LAYER)
         createFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
 #endif
@@ -170,7 +172,7 @@ namespace Hazel {
         swapChainDesc.SampleDesc = { 1, 0 };
         swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
         swapChainDesc.BufferCount = opts.BufferCount;
-        swapChainDesc.Scaling = DXGI_SCALING_STRETCH;
+        swapChainDesc.Scaling = DXGI_SCALING_NONE;
         swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
         swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
         // TODO: It is recommended to always allow tearing if tearing support is available.
@@ -178,7 +180,7 @@ namespace Hazel {
 
         TComPtr<IDXGISwapChain1> swapChain1;
         D3D12::ThrowIfFailed(dxgiFactory4->CreateSwapChainForHwnd(
-            commandQueue.Get(),
+            commandQueue,
             opts.Handle,
             &swapChainDesc,
             nullptr,
@@ -216,7 +218,7 @@ namespace Hazel {
 
         return fence;
     }
-
+#if 0
     uint64_t D3D12DeviceResources::Signal(TComPtr<ID3D12CommandQueue> commandQueue, TComPtr<ID3D12Fence> fence, uint64_t fenceValue)
     {
         uint64_t val = ++fenceValue;
@@ -238,5 +240,5 @@ namespace Hazel {
             ::CloseHandle(evt);
         }
     }
-
+#endif
 }

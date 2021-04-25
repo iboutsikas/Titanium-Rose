@@ -22,6 +22,7 @@ namespace Hazel
         
         uint64_t IncrementFence();
         bool IsFenceComplete(uint64_t FenceValue);
+        uint64_t GetCompletedFenceValue() { return m_Fence->GetCompletedValue(); }
 
         /**
          * Stalls for a fence value that was signaled in another queue. For instance
@@ -90,7 +91,7 @@ namespace Hazel
             return GetQueue(static_cast<D3D12_COMMAND_LIST_TYPE>(value >> 56)).IsFenceComplete(value);
         }
 
-        inline void WaitForFence(uint64_t value);
+        void WaitForFence(uint64_t value);
 
         inline void WaitForIdle() {
             m_GraphicsQueue.WaitForIdle();

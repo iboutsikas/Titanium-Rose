@@ -100,11 +100,11 @@ void BenchmarkLayer::OnUpdate(Hazel::Timestep ts)
     using namespace Hazel;
         
     {
-        ScopedTimer timer("BenchmarkLayer::Camera update");
+        //ScopedTimer timer("BenchmarkLayer::Camera update");
         m_CameraController.OnUpdate(ts);
     }
     {
-        ScopedTimer timer("BenchmarkLayer::Scene update");
+        //ScopedTimer timer("BenchmarkLayer::Scene update");
         m_Scene.OnUpdate(ts);
     }
 }
@@ -144,10 +144,13 @@ void BenchmarkLayer::OnRender(Hazel::Timestep ts, Hazel::GraphicsContext& gfxCon
 
     D3D12Renderer::ClearVirtualMaps();
 
-    D3D12Renderer::RenderSubmitted();
+    D3D12Renderer::RenderSubmitted(gfxContext);
+    //gfxContext.FlushResourceBarriers();
 
     D3D12Renderer::RenderSkybox(gfxContext, m_EnvironmentLevel);
+    //gfxContext.FlushResourceBarriers();
     D3D12Renderer::DoToneMapping(gfxContext);
+    //gfxContext.FlushResourceBarriers();
 
     D3D12Renderer::EndScene();
 }
@@ -155,10 +158,10 @@ void BenchmarkLayer::OnRender(Hazel::Timestep ts, Hazel::GraphicsContext& gfxCon
 void BenchmarkLayer::OnImGuiRender(Hazel::GraphicsContext& uiContext)
 {
     using namespace Hazel;
-#if 0
+#if 1
     ImGui::Begin("Shader Control Center");    
     ImGui::Columns(2);
-    for (const auto& [key, shader] : *D3D12Renderer::ShaderLibrary)
+    for (const auto& [key, shader] : *D3D12Renderer::g_ShaderLibrary)
     {
         ImGui::PushID(shader->GetName().c_str());
         ImGui::Text(shader->GetName().c_str());
@@ -193,7 +196,7 @@ void BenchmarkLayer::OnImGuiRender(Hazel::GraphicsContext& uiContext)
     ImGui::Columns(2);
     ImGui::AlignTextToFramePadding();
     ImGui::Property("Exposure", m_Scene.Exposure, 0.0f, 5.0f);
-    ImGui::Property("Texture update rate", m_CreationOptions.UpdateRate, 0, 120, ImGui::PropertyFlag::None);
+    ImGui::Property("Texture update rate", m_CreationOptions.UpdateRate, 0, 3000.0f, ImGui::PropertyFlag::InputProperty);
     ImGui::Columns(1);
     ImGui::End();
 
@@ -298,30 +301,8 @@ void BenchmarkLayer::CaptureLastFramebuffer()
     {
         auto width = framebuffer->ColorResource->GetWidth();
         auto height = framebuffer->ColorResource->GetHeight();
-
-        auto r = D3D12Renderer::Context->DeviceResources.get();
-        auto fr = D3D12Renderer::Context->CurrentFrameResource;
-
-        D3D12ResourceBatch batch(r->Device, r->WorkerCommandList);
-        auto myCmdList = batch.Begin(r->CommandAllocator);
-        auto cmdlist = myCmdList->Get();
-
-        framebuffer->ColorResource->Transition(batch, D3D12_RESOURCE_STATE_COPY_SOURCE);
-
-        CD3DX12_TEXTURE_COPY_LOCATION source(framebuffer->ColorResource->GetResource());
-
-        D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = { 0 };
-        footprint.Offset = 0;
-        footprint.Footprint.Format = framebuffer->ColorResource->GetFormat();
-        footprint.Footprint.Width = framebuffer->ColorResource->GetWidth();
-        footprint.Footprint.Height = framebuffer->ColorResource->GetHeight();
-        footprint.Footprint.Depth = framebuffer->ColorResource->GetDepth();
-        footprint.Footprint.RowPitch = width * 4 * sizeof(uint16_t); // The gpu is using half floats
-
-        CD3DX12_TEXTURE_COPY_LOCATION destination(readback->GetResource(), footprint);
-
-        cmdlist->CopyTextureRegion(&destination, 0, 0, 0, &source, nullptr);
-        batch.EndAndWait(D3D12Renderer::Context->DeviceResources->CommandQueue);
+        
+        CommandContext::ReadbackTexture2D(*readback, *framebuffer->ColorResource);
 
         // 3 floats per pixel in hdr format
         float* data = new float[width * height * 3];

@@ -9,10 +9,10 @@ namespace Hazel
         /*static constexpr uint8_t MaxSupportedLights = 2;*/
 
     protected:
-        virtual void ImplRenderSubmitted() override;
+        virtual void ImplRenderSubmitted(GraphicsContext& gfxContext) override;
         virtual void ImplOnInit() override;
-        virtual void ImplSubmit(Ref<GameObject> gameObject) override;
-        virtual void ImplSubmit(D3D12ResourceBatch& batch, Ref<GameObject> gameObject) override {};
+        virtual void ImplSubmit(Ref<HGameObject> gameObject) override;
+        virtual void ImplSubmit(D3D12ResourceBatch& batch, Ref<HGameObject> gameObject) override {};
         virtual RendererType ImplGetRendererType() override { return RendererType_Forward; }
 
 

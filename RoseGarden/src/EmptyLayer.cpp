@@ -14,9 +14,15 @@ void EmptyLayer::OnDetach()
 static glm::vec4 color(1, 0, 1, 1);
 void EmptyLayer::OnUpdate(Hazel::Timestep ts)
 {
-    using namespace Hazel;
     
-    //D3D12Renderer::PrepareBackBuffer(color);
     //
-    //D3D12Renderer::DoToneMapping();
+}
+
+void EmptyLayer::OnRender(Hazel::Timestep ts, Hazel::GraphicsContext& gfxContext)
+{
+    using namespace Hazel;
+
+    D3D12Renderer::PrepareBackBuffer(gfxContext, color);
+
+    D3D12Renderer::DoToneMapping(gfxContext);
 }

@@ -1,11 +1,10 @@
 #pragma once
-
-#include <unordered_map>
-
 #include "Hazel.h"
 #include "Hazel/Core/Core.h"
 
 #include "Platform/D3D12/D3D12Texture.h"
+
+#include <unordered_map>
 
 namespace Hazel 
 {

@@ -40,6 +40,6 @@ namespace Hazel {
 		glm::mat4 m_ProjectionMatrix;
 		glm::mat4 m_ViewMatrix;
 		glm::mat4 m_ViewProjectionMatrix;
-	};
+	};;
 
 }

@@ -20,27 +20,27 @@ namespace Hazel {
         static void Shutdown();
 
         static void Update();
-        static void Render();
+        static void Render(CommandContext& context);
 
-        static void BeginBlock(const std::string& name, Ref<D3D12CommandList> commandList = nullptr);
-        static void EndBlock(Ref<D3D12CommandList> commandList = nullptr);
+        static void BeginBlock(const std::string& name, CommandContext* context = nullptr);
+        static void EndBlock(CommandContext* context = nullptr);
     };
 
     class ScopedTimer {
     public:
-        ScopedTimer(const std::string& name) : m_CommandList(nullptr) {
+        ScopedTimer(const std::string& name) : m_Context(nullptr) {
             Profiler::BeginBlock(name);
         }
 
-        ScopedTimer(const std::string& name, Ref<D3D12CommandList> commandList) : m_CommandList(commandList) {
-            Profiler::BeginBlock(name, commandList);
+        ScopedTimer(const std::string& name, CommandContext& context) : m_Context(&context) {
+            Profiler::BeginBlock(name, m_Context);
         }
 
         ~ScopedTimer() {
-            Profiler::EndBlock(m_CommandList);
+            Profiler::EndBlock(m_Context);
         }
 
     private:
-        Ref<D3D12CommandList> m_CommandList;
+        CommandContext* m_Context;
     };
 }

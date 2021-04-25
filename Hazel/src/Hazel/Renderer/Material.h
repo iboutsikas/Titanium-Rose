@@ -1,11 +1,16 @@
 #pragma once
-#include "glm/vec4.hpp"
-#include "Hazel/Core/Core.h"
-#include "Platform/D3D12/D3D12Texture.h"
 
+#include "Hazel/Core/Core.h"
 #include "Hazel/Core/Log.h"
 
+//#include "Platform/D3D12/D3D12Texture.h"
+
+
+#include "glm/glm/vec3.hpp"
+#include "glm/vec4.hpp"
 namespace Hazel {
+	class Texture2D;
+
 	class HMaterial 
 	{
 	public:

@@ -1,7 +1,7 @@
 #include "hzpch.h"
 #include "Hazel/ComponentSystem/GameObject.h"
 
-void Hazel::GameObject::Update(Timestep ts)
+void Hazel::HGameObject::Update(Timestep ts)
 {
     for (auto& c : Components)
     {

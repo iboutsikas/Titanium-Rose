@@ -2,6 +2,7 @@
 
 #include "Platform/D3D12/D3D12DescriptorHeap.h"
 #include "Platform/D3D12/D3D12ResourceBatch.h"
+#include "Platform/D3D12/D3D12Texture.h"
 
 namespace Hazel
 {

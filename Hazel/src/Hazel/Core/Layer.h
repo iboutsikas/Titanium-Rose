@@ -4,9 +4,8 @@
 #include "Hazel/Core/Timestep.h"
 #include "Hazel/Events/Event.h"
 
-#include "Platform/D3D12/CommandContext.h"
-
 namespace Hazel {
+	class GraphicsContext;
 
 	class Layer
 	{

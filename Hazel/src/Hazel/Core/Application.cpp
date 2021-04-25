@@ -116,18 +116,19 @@ namespace Hazel {
 
 			if (!m_Minimized)
 			{	
+				ScopedTimer timer("Frame Total");
                 D3D12Renderer::BeginFrame();
 
 				
 
-				Profiler::BeginBlock("Frame Total", D3D12Renderer::Context->DeviceResources->MainCommandList);
-				//D3D12Renderer::ShaderLibrary->Update();
+				//Profiler::BeginBlock("Frame Total", D3D12Renderer::Context->DeviceResources->MainCommandList);
+				D3D12Renderer::g_ShaderLibrary->Update();
 
 				{
-                    Profiler::BeginBlock("OnUpdate", D3D12Renderer::Context->DeviceResources->MainCommandList);
+                    //Profiler::BeginBlock("OnUpdate", D3D12Renderer::Context->DeviceResources->MainCommandList);
                     for (Layer* layer : m_LayerStack)
                         layer->OnUpdate(m_TimeStep);
-                    Profiler::EndBlock(D3D12Renderer::Context->DeviceResources->MainCommandList);
+                    //Profiler::EndBlock(D3D12Renderer::Context->DeviceResources->MainCommandList);
 
 					GraphicsContext& gfxContext = GraphicsContext::Begin("Render");
 					//Profiler::BeginBlock("OnRender", D3D12Renderer::Context->DeviceResources->MainCommandList);
@@ -145,21 +146,21 @@ namespace Hazel {
 							layer->OnImGuiRender(uiContext);
 
 						ImGui::Begin("Diagnostics");
-						Profiler::Render();
+						Profiler::Render(uiContext);
 						D3D12Renderer::RenderDiagnostics();
 						ImGui::End();
 					}
 					m_ImGuiLayer->End(uiContext);
                     //Profiler::EndBlock(D3D12Renderer::Context->DeviceResources->MainCommandList);
-
+					uiContext.Finish(true);
 #endif	
 				}
-				Profiler::EndBlock(D3D12Renderer::Context->DeviceResources->MainCommandList);
-				
+				//Profiler::EndBlock(D3D12Renderer::Context->DeviceResources->MainCommandList);
 				D3D12Renderer::Present();
 
                 for (Layer* layer : m_LayerStack)
                     layer->OnFrameEnd();
+				D3D12Renderer::EndFrame();
 			}		
 
 			m_Window->OnUpdate();

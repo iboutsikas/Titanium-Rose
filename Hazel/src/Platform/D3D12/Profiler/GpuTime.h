@@ -1,6 +1,5 @@
 
-#include "Platform/D3D12/D3D12CommandList.h"
-
+#include "Platform/D3D12/CommandContext.h"
 
 namespace Hazel{ namespace GpuTime {
     void Initialize(uint32_t maxTimers = 4096);
@@ -8,8 +7,8 @@ namespace Hazel{ namespace GpuTime {
 
     uint32_t NewTimer(void);
 
-    void StartTimer(Ref<D3D12CommandList> commandList, uint32_t index);
-    void StopTimer(Ref<D3D12CommandList> commandList, uint32_t index);
+    void StartTimer(CommandContext& context, uint32_t index);
+    void StopTimer(CommandContext& context, uint32_t index);
 
     void BeginReadBack(void);
     void EndReadBack(void);

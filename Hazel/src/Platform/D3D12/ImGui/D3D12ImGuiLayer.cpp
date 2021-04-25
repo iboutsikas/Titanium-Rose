@@ -71,7 +71,13 @@ namespace Hazel {
         ImGui_ImplDX12_NewFrame();
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
+
+        ColorBuffer& backbuffer = D3D12Renderer::Context->GetCurrentBackBuffer();
+
+        context.TransitionResource(backbuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+        context.GetCommandList()->OMSetRenderTargets(1, &(backbuffer.GetRTV().CPUHandle), TRUE, nullptr);
 	}
+
 	void D3D12ImGuiLayer::End(GraphicsContext& context)
 	{
         ImGuiIO& io = ImGui::GetIO();

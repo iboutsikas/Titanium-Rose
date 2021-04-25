@@ -153,7 +153,7 @@ SingleBunnyLayer::SingleBunnyLayer(CreationOptions& opts)
 
 
     GraphicsContext& gfxContext = GraphicsContext::Begin();
-    for (auto& a : *D3D12Renderer::TextureLibrary)
+    for (auto& a : *D3D12Renderer::g_TextureLibrary)
     {
         auto tex = std::static_pointer_cast<Texture>(a.second);
 

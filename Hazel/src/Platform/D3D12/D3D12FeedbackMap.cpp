@@ -3,10 +3,11 @@
 #include "Platform/D3D12/D3D12FeedbackMap.h"
 #include "Platform/D3D12/D3D12Helpers.h"
 #include "Platform/D3D12/d3dx12.h"
+#include "Platform/D3D12/CommandContext.h"
 
 namespace Hazel
 {
-	D3D12FeedbackMap::D3D12FeedbackMap(TComPtr<ID3D12Device2> device, uint32_t width, uint32_t height, uint32_t elementSize)
+	D3D12FeedbackMap::D3D12FeedbackMap(ID3D12Device2* device, uint32_t width, uint32_t height, size_t elementSize)
 		: GpuBuffer(width, height, 1, "", D3D12_RESOURCE_STATE_UNORDERED_ACCESS), 
 		m_ElementSize(elementSize), m_ReadbackBuffer(nullptr)
 	{
@@ -34,6 +35,6 @@ namespace Hazel
 
 	void D3D12FeedbackMap::Update(CommandContext& context)
 	{		
-		context.CopyBuffer(*m_ReadbackBuffer, *this);
+		context.CopyBuffer(*this, *m_ReadbackBuffer);
 	}
 }

@@ -20,6 +20,8 @@ namespace Hazel
         inline ID3D12Resource* GetResource() const { return m_Resource.Get(); }
         inline DXGI_FORMAT GetFormat() const { return m_Resource->GetDesc().Format; }
         inline std::string& GetIdentifier() { return m_Identifier; }
+
+        void Reset();
        
         void SetName(std::string name);
 

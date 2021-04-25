@@ -1,5 +1,5 @@
 #include "hzpch.h"
-#include "ColorBuffer.h"
+#include "Platform/D3D12/ColorBuffer.h"
 #include "Platform/D3D12/D3D12Renderer.h"
 
 namespace Hazel {
@@ -25,6 +25,7 @@ namespace Hazel {
         m_RTVAllocation = D3D12Renderer::s_RenderTargetDescriptorHeap->Allocate(1);
         HZ_CORE_ASSERT(m_RTVAllocation.Allocated, "RTV allocation failed");
         D3D12Renderer::GetDevice()->CreateRenderTargetView(m_Resource.Get(), nullptr, m_RTVAllocation.CPUHandle);
+        SetName(name);
     }
 
 }

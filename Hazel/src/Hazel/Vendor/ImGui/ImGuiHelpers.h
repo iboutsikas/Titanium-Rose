@@ -18,13 +18,13 @@ namespace ImGui {
         None = 0, ColorProperty = 1, InputProperty = 2
     };
 
-	void MeshSelectControl(Hazel::Ref<Hazel::GameObject> target, std::vector<Hazel::Ref<Hazel::GameObject>>& models);
+	void MeshSelectControl(Hazel::Ref<Hazel::HGameObject> target, std::vector<Hazel::Ref<Hazel::HGameObject>>& models);
     
     //================== Components=========================
 	void TransformControl(Hazel::HTransform& transform);
 	void MaterialControl(Hazel::Ref<Hazel::HMaterial> material);
     void DecoupledTextureControl(Hazel::DecoupledTextureComponent& component);
-	void EntityPanel(Hazel::Ref<Hazel::GameObject> target);
+	void EntityPanel(Hazel::Ref<Hazel::HGameObject> target);
     void LightComponentPanel(Hazel::Ref<Hazel::Component> component);
 
     // ImGui UI helpers

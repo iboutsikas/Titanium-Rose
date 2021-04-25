@@ -2,14 +2,10 @@
 
 #include "d3d12.h"
 
-#include "Hazel/Renderer/Buffer.h"
-
 #include "Platform/D3D12/ComPtr.h"
-#include "Platform/D3D12/D3D12ResourceBatch.h"
 #include "Platform/D3D12/CommandContext.h"
 
 namespace Hazel {
-	class D3D12ResourceBatch;
 
 	class D3D12VertexBuffer : public GpuResource
 	{

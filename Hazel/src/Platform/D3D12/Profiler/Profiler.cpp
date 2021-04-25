@@ -26,6 +26,7 @@ namespace Hazel {
         {
             m_RecentHistory[frame % HistorySize] = value;
             m_ExtendedHistory[frame % ExtendedHistorySize] = value;
+            m_Recent = value;
 
             uint32_t count = 0;
             m_Minimum = std::numeric_limits<float>::max();
@@ -72,12 +73,12 @@ namespace Hazel {
             m_TimerIndex = GpuTime::NewTimer();
         }
 
-        void Start(Ref<D3D12CommandList> commandList) {
-            GpuTime::StartTimer(commandList, m_TimerIndex);
+        void Start(CommandContext& context) {
+            GpuTime::StartTimer(context, m_TimerIndex);
         }
 
-        void Stop(Ref<D3D12CommandList> commandList) {
-            GpuTime::StopTimer(commandList, m_TimerIndex);
+        void Stop(CommandContext& context) {
+            GpuTime::StopTimer(context, m_TimerIndex);
         }
 
         float GetTime(void) {
@@ -111,22 +112,29 @@ namespace Hazel {
             return node;
         }
 
-        void StartTiming(Ref<D3D12CommandList> commandList) {
+        void StartTiming(CommandContext* context) {
             m_StartTick = SystemTime::GetCurrentTick();
-            if (commandList == nullptr)
+            if (context == nullptr) {
+                // We care about the CPU markers as well. So we start the pix even directly if no contex is given
+                PIXBeginEvent(PIX_COLOR_INDEX(m_GpuTimer.GetTimerIndex()), m_Name.c_str());
                 return;
+            }
 
-            m_GpuTimer.Start(commandList);
-            commandList->BeginEvent(m_Name.c_str());
+            m_GpuTimer.Start(*context);
+            context->BeginEvent(m_Name.c_str(), PIX_COLOR_INDEX(m_GpuTimer.GetTimerIndex()));
         }
 
-        void StopTiming(Ref<D3D12CommandList> commandList) {
-            m_EndTick = SystemTime::GetCurrentTick();
-            if (commandList == nullptr)
-                return;
+        void StopTiming(CommandContext* context) {
 
-            m_GpuTimer.Stop(commandList);
-            commandList->EndEvent();
+            m_EndTick = SystemTime::GetCurrentTick();
+            //HZ_CORE_TRACE("StopTiming: {0}", m_EndTick);
+            if (context == nullptr) {
+                PIXEndEvent();
+                return;
+            }
+
+            m_GpuTimer.Stop(*context);
+            context->EndEvent();
         }
 
         void GatherTimes(uint32_t frame) {
@@ -151,9 +159,12 @@ namespace Hazel {
             }
         }
         
+        void RenderSelf(GraphicsContext& gfxContext);
 
-        static void NestedTimingTree::PushProfilingMarker(const std::string& name, Ref<D3D12CommandList> commandList);
-        static void PopProfilingMarker(Ref<D3D12CommandList> commandList);
+        static void NestedTimingTree::PushProfilingMarker(const std::string& name, CommandContext* context);
+        static void PopProfilingMarker(CommandContext* context);
+
+        static void Render(GraphicsContext& gfxContext);
 
         static void UpdateTimes() {
             uint64_t frame = D3D12Renderer::GetFrameCount();
@@ -168,6 +179,10 @@ namespace Hazel {
             s_TotalGpuTime.RecordStat(frame, totalGpuTime);
 
         }
+
+        static float GetCPUAverage() { return s_TotalCpuTime.GetAvg(); }
+        static float GetGPUAverage() { return s_TotalGpuTime.GetAvg(); }
+        static float GetFrameDelta() { return s_FrameDelta.GetAvg(); }
     private:
         std::string m_Name;
         NestedTimingTree* m_Parent;
@@ -205,19 +220,29 @@ namespace Hazel {
         NestedTimingTree::UpdateTimes();
     }
 
-    void Profiler::Render()
+    void Profiler::Render(CommandContext& context)
     {
+        GraphicsContext& gfxContext = context.GetGraphicsContext();
 
+        float cpuTime = NestedTimingTree::GetCPUAverage();
+        float gpuTime = NestedTimingTree::GetGPUAverage();
+        float frameDelta = NestedTimingTree::GetFrameDelta();
+        float fps = 1000.0f / cpuTime;
+
+        ImGui::Text("CPU %7.4f ms, GPU %7.4f ms, %4.2f FPS, Delta %7.4f\n",
+            cpuTime, gpuTime, fps, frameDelta);
+
+        NestedTimingTree::Render(gfxContext);
     }
 
-    void Profiler::BeginBlock(const std::string& name, Ref<D3D12CommandList> commandList /*= nullptr*/)
+    void Profiler::BeginBlock(const std::string& name, CommandContext* context /*= nullptr*/)
     {
-        NestedTimingTree::PushProfilingMarker(name, commandList);
+        NestedTimingTree::PushProfilingMarker(name, context);
     }
 
-    void Profiler::EndBlock(Ref<D3D12CommandList> commandList /*= nullptr*/)
+    void Profiler::EndBlock(CommandContext* context /*= nullptr*/)
     {
-        NestedTimingTree::PopProfilingMarker(commandList);
+        NestedTimingTree::PopProfilingMarker(context);
     }
 
 }
@@ -230,14 +255,45 @@ namespace Hazel {
     StatHistory NestedTimingTree::s_TotalGpuTime;
 
 
-    void NestedTimingTree::PushProfilingMarker(const std::string& name, Ref<D3D12CommandList> commandList) {
-        s_CurrentNode = s_CurrentNode->GetChild(name);
-        s_CurrentNode->StartTiming(commandList);
+    void NestedTimingTree::PushProfilingMarker(const std::string& name, CommandContext* context) {
+        auto temp = s_CurrentNode->GetChild(name);
+        HZ_CORE_ASSERT(temp != nullptr, "");
+        s_CurrentNode = temp;
+        s_CurrentNode->StartTiming(context);
     }
 
-    void NestedTimingTree::PopProfilingMarker(Ref<D3D12CommandList> commandList) {
-        s_CurrentNode->StopTiming(commandList);
+    void NestedTimingTree::PopProfilingMarker(CommandContext* context) {
+        s_CurrentNode->StopTiming(context);
         s_CurrentNode = s_CurrentNode->m_Parent;
+    }
 
+    void NestedTimingTree::Render(GraphicsContext& gfxContext) {
+        s_RootScope.RenderSelf(gfxContext);
+    }
+
+    void NestedTimingTree::RenderSelf(GraphicsContext& gfxContext) {
+        if (!m_Name.length()) {
+            for (auto child : m_Children)
+            {
+                child->RenderSelf(gfxContext);
+            }
+            return;
+        }
+
+        ImGuiTreeNodeFlags nodeFlags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth;
+
+        if (m_Children.size() == 0) {
+            nodeFlags |= ImGuiTreeNodeFlags_Leaf; // | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+        }
+
+        if (ImGui::TreeNodeEx(m_Name.c_str(), nodeFlags, "%s CPU: %7.4f ms GPU %7.4f ms", m_Name.c_str(), m_CPUTime.GetAvg(), m_GPUTime.GetAvg())) {
+
+            for (auto child : m_Children)
+            {
+                child->RenderSelf(gfxContext);
+            }
+
+            ImGui::TreePop();
+        }
     }
 }

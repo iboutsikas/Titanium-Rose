@@ -3,6 +3,7 @@
 
 #include "Platform/D3D12/Profiler/GpuTime.h"
 #include "Platform/D3D12/D3D12Renderer.h"
+#include "Platform/D3D12/CommandQueue.h"
 
 namespace Hazel { namespace GpuTime {
 
@@ -27,7 +28,7 @@ namespace Hazel { namespace GpuTime {
         c = D3D12Renderer::Context;
 
         uint64_t gpuFrequency;
-        D3D12::ThrowIfFailed(r->CommandQueue->GetTimestampFrequency(&gpuFrequency));
+        D3D12::ThrowIfFailed(D3D12Renderer::CommandQueueManager.GetCommandQueue()->GetTimestampFrequency(&gpuFrequency));
         s_GpuTickDelta = 1.0 / (double)gpuFrequency;
         
         s_ReadbackBuffer = CreateScope<ReadbackBuffer>(maxTimers * 2 * sizeof(uint64_t));
@@ -57,20 +58,19 @@ namespace Hazel { namespace GpuTime {
         return s_NumTimers++;
     }
 
-    void StartTimer(Ref<D3D12CommandList> commandList, uint32_t index)
+    void StartTimer(CommandContext& context, uint32_t index)
     {
-        commandList->GetRawPtr()->EndQuery(s_QueryHeap, D3D12_QUERY_TYPE_TIMESTAMP, index * 2);
+        context.GetCommandList()->EndQuery(s_QueryHeap, D3D12_QUERY_TYPE_TIMESTAMP, index * 2);
     }
 
-    void StopTimer(Ref<D3D12CommandList> commandList, uint32_t index)
+    void StopTimer(CommandContext& context, uint32_t index)
     {
-        commandList->GetRawPtr()->EndQuery(s_QueryHeap, D3D12_QUERY_TYPE_TIMESTAMP, index * 2 + 1);
+        context.GetCommandList()->EndQuery(s_QueryHeap, D3D12_QUERY_TYPE_TIMESTAMP, (index * 2) + 1);
     }
 
     void BeginReadBack(void)
     {
-        r->WorkerCommandList->Wait(r->CommandQueue, s_FenceValue);
-        r->WorkerCommandList->Reset(r->CommandAllocator);
+        D3D12Renderer::CommandQueueManager.WaitForFence(s_FenceValue);
 
         s_TimestampBuffer = s_ReadbackBuffer->Map<uint64_t*>(0, s_NumTimers * 2 * sizeof(uint64_t));
 
@@ -88,11 +88,11 @@ namespace Hazel { namespace GpuTime {
         s_ReadbackBuffer->Unmap();
         s_TimestampBuffer = nullptr;
 
-        r->WorkerCommandList->GetRawPtr()->EndQuery(s_QueryHeap, D3D12_QUERY_TYPE_TIMESTAMP, 1);
-        r->WorkerCommandList->GetRawPtr()->ResolveQueryData(s_QueryHeap, D3D12_QUERY_TYPE_TIMESTAMP, 0, s_NumTimers * 2, s_ReadbackBuffer->GetResource(), 0);
-        r->WorkerCommandList->GetRawPtr()->EndQuery(s_QueryHeap, D3D12_QUERY_TYPE_TIMESTAMP, 0);
-        s_FenceValue = r->WorkerCommandList->Execute(r->CommandQueue);
-        r->WorkerCommandList->Wait(r->CommandQueue, s_FenceValue);
+        CommandContext& context = CommandContext::Begin();
+        context.GetCommandList()->EndQuery(s_QueryHeap, D3D12_QUERY_TYPE_TIMESTAMP, 1);
+        context.GetCommandList()->ResolveQueryData(s_QueryHeap, D3D12_QUERY_TYPE_TIMESTAMP, 0, s_NumTimers * 2, s_ReadbackBuffer->GetResource(), 0);
+        context.GetCommandList()->EndQuery(s_QueryHeap, D3D12_QUERY_TYPE_TIMESTAMP, 0);
+        s_FenceValue = context.Finish();
     }
 
 

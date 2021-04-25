@@ -32,10 +32,10 @@ namespace Hazel {
 
         HZ_CORE_ASSERT(m_CurrentAllocator != nullptr, "This context has not been properly reset/initialized");
 
-        uint64_t fence = D3D12Renderer::CommandListManager.GetQueue(m_Type).ExecuteCommandList(m_CommandList);
+        uint64_t fence = D3D12Renderer::CommandQueueManager.GetQueue(m_Type).ExecuteCommandList(m_CommandList);
 
         if (waitForCompletion)
-            D3D12Renderer::CommandListManager.WaitForFence(fence);
+            D3D12Renderer::CommandQueueManager.WaitForFence(fence);
 
         m_CommandList->Reset(m_CurrentAllocator, nullptr);
 
@@ -50,18 +50,24 @@ namespace Hazel {
         HZ_CORE_ASSERT(m_Type == D3D12_COMMAND_LIST_TYPE_DIRECT || m_Type == D3D12_COMMAND_LIST_TYPE_COMPUTE, "Invalid command list type");
         FlushResourceBarriers();
 
-        // TODO: End profiling block here
+        if (m_Name.length()) {
+
+            Profiler::EndBlock(this);
+        }
 
         HZ_CORE_ASSERT(m_CurrentAllocator != nullptr, "");
 
-        CommandQueue& queue = D3D12Renderer::CommandListManager.GetQueue(m_Type);
+        CommandQueue& queue = D3D12Renderer::CommandQueueManager.GetQueue(m_Type);
 
         auto fence = queue.ExecuteCommandList(m_CommandList);
         queue.DiscardAllocator(fence, m_CurrentAllocator);
         m_CurrentAllocator = nullptr;
+        m_CpuLinearAllocator.CleanupUsedPages(fence);
+        m_GpuLinearAllocator.CleanupUsedPages(fence);
+
         ReturnAllocations();
         if (waitForCompletion)
-            D3D12Renderer::CommandListManager.WaitForFence(fence);
+            D3D12Renderer::CommandQueueManager.WaitForFence(fence);
 
         s_ContextManager.FreeContext(this);
         
@@ -70,7 +76,9 @@ namespace Hazel {
 
     void CommandContext::Initialize()
     {
-        D3D12Renderer::CommandListManager.CreateNewCommandList(m_Type, &m_CommandList, &m_CurrentAllocator);
+        D3D12Renderer::CommandQueueManager.CreateNewCommandList(m_Type, &m_CommandList, &m_CurrentAllocator);
+        // TODO: If we rework the descriptor heap mechanism we probably don't want to always bind them here
+        BindDescriptorHeaps();
     }
 
     GraphicsContext& CommandContext::GetGraphicsContext()
@@ -81,8 +89,12 @@ namespace Hazel {
 
     ComputeContext& CommandContext::GetComputeContext()
     {
-        HZ_CORE_ASSERT(m_Type == D3D12_COMMAND_LIST_TYPE_COMPUTE, "Not a compute context");
         return reinterpret_cast<ComputeContext&>(*this);
+    }
+
+    uint64_t CommandContext::GetCompletedFenceValue()
+    {
+        return D3D12Renderer::CommandQueueManager.GetQueue(m_Type).GetCompletedFenceValue();
     }
 
     void CommandContext::InitializeTexture(GpuResource& destination, uint32_t numSubresources, D3D12_SUBRESOURCE_DATA subData[])
@@ -110,7 +122,7 @@ namespace Hazel {
         ctx.Finish(true);
     }
 
-    inline void CommandContext::CopyBuffer(GpuResource& source, GpuResource& destination)
+    void CommandContext::CopyBuffer(GpuResource& source, GpuResource& destination)
     {
         TransitionResource(source, D3D12_RESOURCE_STATE_COPY_SOURCE);
         TransitionResource(destination, D3D12_RESOURCE_STATE_COPY_DEST);
@@ -118,11 +130,40 @@ namespace Hazel {
         m_CommandList->CopyResource(destination.GetResource(), source.GetResource());
     }
 
-    inline void CommandContext::CopyBufferRegion(GpuResource& destination, size_t offset, GpuResource& source, size_t srcOffset, size_t sizeInBytes)
+    void CommandContext::CopyBufferRegion(GpuResource& destination, size_t offset, GpuResource& source, size_t srcOffset, size_t sizeInBytes)
     {
         TransitionResource(destination, D3D12_RESOURCE_STATE_COPY_DEST);
         FlushResourceBarriers();
         m_CommandList->CopyBufferRegion(destination.GetResource(), offset, source.GetResource(), srcOffset, sizeInBytes);
+    }
+
+    void CommandContext::CopySubresource(GpuResource& destination, uint32_t destinationIndex, GpuResource& source, uint32_t sourceIndex)
+    {
+        FlushResourceBarriers();
+        m_CommandList->CopyTextureRegion(
+            &CD3DX12_TEXTURE_COPY_LOCATION(destination.GetResource(), destinationIndex), // Destination
+            0, 0, 0,
+            &CD3DX12_TEXTURE_COPY_LOCATION(source.GetResource(), sourceIndex), // Source
+            nullptr
+        );
+    }
+
+    void CommandContext::ReadbackTexture2D(GpuResource& readbackBuffer, Texture2D& texture)
+    {
+        D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = {};
+
+        // Realistically we only want the first mip, or we are reading back a color buffer, that will only have 1 mip anyway
+        D3D12Renderer::GetDevice()->GetCopyableFootprints(&texture.GetResource()->GetDesc(), 0, 1, 0, &footprint, nullptr, nullptr, nullptr);
+
+        CommandContext& context = CommandContext::Begin();
+        context.TransitionResource(texture, D3D12_RESOURCE_STATE_COPY_SOURCE, true);
+        context.m_CommandList->CopyTextureRegion(
+            &CD3DX12_TEXTURE_COPY_LOCATION(readbackBuffer.GetResource(), footprint),
+            0, 0, 0,
+            &CD3DX12_TEXTURE_COPY_LOCATION(texture.GetResource(), 0), 
+            nullptr
+        );
+        context.Finish(true);
     }
 
     void CommandContext::WriteBuffer(GpuResource& destination, size_t offset, const void* data, size_t sizeInBytes)
@@ -160,6 +201,7 @@ namespace Hazel {
             HZ_CORE_ASSERT(m_NumCachedBarriers < MAX_RESOURCE_BARRIERS, "Run out of space for cached barriers. Flush sooner!");
 
             D3D12_RESOURCE_BARRIER& desc = m_ResourceBarriers[m_NumCachedBarriers++];
+            desc.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
             desc.Transition.pResource = resource.GetResource();
             desc.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
             desc.Transition.StateBefore = oldState;
@@ -193,10 +235,24 @@ namespace Hazel {
             FlushResourceBarriers();
     }
 
+    void CommandContext::BeginEvent(const char* name, uint64_t color)
+    {
+        ::PIXBeginEvent(m_CommandList, color, name);
+    }
+
+    void CommandContext::EndEvent()
+    {
+        ::PIXEndEvent(m_CommandList);
+    }
+
     CommandContext& CommandContext::Begin(const std::string name /*= ""*/)
     {
         CommandContext* ctx = s_ContextManager.AllocateContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
         ctx->SetName(name);
+            
+        if (name.length()) {
+            Profiler::BeginBlock(name, ctx);
+        }
 
         // TODO: Start profiling here
         return *ctx;
@@ -231,7 +287,7 @@ namespace Hazel {
             D3D12Renderer::s_RenderTargetDescriptorHeap->Release(allocation);
         }
 
-        for (auto& allocation : m_ShaderAllocations)
+        for (auto& allocation : m_ResourceAllocations)
         {
             D3D12Renderer::s_ResourceDescriptorHeap->Release(allocation);
         }
@@ -240,7 +296,7 @@ namespace Hazel {
     void CommandContext::Reset()
     {
         HZ_CORE_ASSERT(m_CommandList != nullptr || m_CurrentAllocator == nullptr, "Allocator was not propery released before reset");
-        m_CurrentAllocator = D3D12Renderer::CommandListManager.GetQueue(m_Type).RequestAllocator();
+        m_CurrentAllocator = D3D12Renderer::CommandQueueManager.GetQueue(m_Type).RequestAllocator();
         m_CommandList->Reset(m_CurrentAllocator, nullptr);
 
         m_NumCachedBarriers = 0;
@@ -292,7 +348,9 @@ namespace Hazel {
         auto type = async ? D3D12_COMMAND_LIST_TYPE_COMPUTE : D3D12_COMMAND_LIST_TYPE_DIRECT;
         ComputeContext& context = s_ContextManager.AllocateContext(type)->GetComputeContext();
         context.SetName(name);
-        // TODO: Start profiling here
+        if (name.length()) {
+            Profiler::BeginBlock(name, &context);
+        }
 
         return context;
     }
@@ -304,7 +362,7 @@ namespace Hazel {
         m_CommandList->SetPipelineState(shader.GetPipelineState());
     }
 
-    inline void ComputeContext::SetDynamicContantBufferView(uint32_t rootIndex, size_t sizeInBytes, const void* data)
+    void ComputeContext::SetDynamicContantBufferView(uint32_t rootIndex, size_t sizeInBytes, const void* data)
     {
         HZ_CORE_ASSERT(data != nullptr, "");
 
@@ -313,7 +371,7 @@ namespace Hazel {
         m_CommandList->SetComputeRootConstantBufferView(rootIndex, alloc.GpuAddress);
     }
 
-    inline void GraphicsContext::SetDynamicContantBufferView(uint32_t rootIndex, size_t sizeInBytes, const void* data)
+    void GraphicsContext::SetDynamicContantBufferView(uint32_t rootIndex, size_t sizeInBytes, const void* data)
     {
         HZ_CORE_ASSERT(data != nullptr, "");
 

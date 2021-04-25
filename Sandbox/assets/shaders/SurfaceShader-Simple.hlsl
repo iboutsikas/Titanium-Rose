@@ -60,8 +60,8 @@ float4 PS_Main(PSInput input) : SV_TARGET
 
     uint index = feedbackY * FeedbackDims.x + feedbackX;
     InterlockedMin(FeedbackBuffer[index], idealMipLevel);
-    uint currentMip = FeedbackBuffer[index];
-    FeedbackBuffer[index] = min(currentMip, idealMipLevel);
+    // uint currentMip = FeedbackBuffer[index];
+    // FeedbackBuffer[index] = min(currentMip, idealMipLevel);
 
     // return MipDebugColor(idealMipLevel);
     // return float4(idealMipLevel / 10, 0, 0, 1);

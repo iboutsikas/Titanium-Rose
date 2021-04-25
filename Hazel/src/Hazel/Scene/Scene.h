@@ -2,14 +2,14 @@
 
 #include "Hazel/ComponentSystem/GameObject.h"
 #include "Hazel/ComponentSystem/Component.h"
+
 #include "Hazel/Renderer/PerspectiveCamera.h"
-#include "Platform/D3D12/D3D12Texture.h"
 
 namespace Hazel
 {
-    
+    class D3D12TextureCube;
 
-    struct Environment
+    struct FEnvironment
     {
         Ref<D3D12TextureCube> EnvironmentMap;
         Ref<D3D12TextureCube> IrradianceMap;
@@ -21,11 +21,11 @@ namespace Hazel
         Scene() = default;
         Scene(float exposure) : Exposure(exposure) {}
         ~Scene();
-        std::vector<Ref<GameObject>> Entities;
+        std::vector<Ref<HGameObject>> Entities;
         std::vector<Ref<LightComponent>> Lights;
         PerspectiveCamera* Camera;
         float Exposure;
-        Environment Environment;
+        FEnvironment Environment;
 
         void LoadEnvironment(std::string& filepath);
         void OnUpdate(Timestep ts);

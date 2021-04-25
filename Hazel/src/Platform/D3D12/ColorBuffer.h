@@ -16,6 +16,9 @@ namespace Hazel {
         glm::vec4 GetClearColor() const { return m_ClearColor; }
         const DXGI_FORMAT& GetFormat() const { return m_Format; }
 
+        void SetRTV(HeapAllocationDescription& rtv) { m_RTVAllocation = rtv; }
+        HeapAllocationDescription& GetRTV() { return m_RTVAllocation; }
+
     private:
         glm::vec4 m_ClearColor;
         DXGI_FORMAT m_Format;

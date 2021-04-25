@@ -1,6 +1,8 @@
 #include "hzpch.h"
 #include "SystemTime.h"
 
+#include "Platform/D3D12/D3D12Helpers.h"
+
 namespace Hazel {
     double SystemTime::s_CpuTickDelta = 0.0;
 
@@ -8,14 +10,17 @@ namespace Hazel {
     void SystemTime::Initialize(void)
     {
         LARGE_INTEGER frequency;
-        HZ_CORE_ASSERT(TRUE == QueryPerformanceFrequency(&frequency), "Unable to query performance counter frequency");
+        QueryPerformanceFrequency(&frequency);
+
+        HZ_CORE_INFO("Frequency.QuadPart: {0}", frequency.QuadPart);
         s_CpuTickDelta = 1.0 / static_cast<double>(frequency.QuadPart);
     }
 
     int64_t SystemTime::GetCurrentTick(void)
     {
         LARGE_INTEGER currentTick;
-        HZ_CORE_ASSERT(TRUE == QueryPerformanceCounter(&currentTick), "Unable to query performance counter value");
+        QueryPerformanceCounter(&currentTick);
+
         return static_cast<int64_t>(currentTick.QuadPart);
     }
 

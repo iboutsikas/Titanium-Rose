@@ -8,9 +8,6 @@
 #include "Platform/D3D12/D3D12Helpers.h"
 
 namespace Hazel {
-
-    class Texture2D;
-
     struct HeapAllocationDescription
     {
     public:

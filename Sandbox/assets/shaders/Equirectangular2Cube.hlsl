@@ -1,7 +1,7 @@
 #define RS \
 "RootFlags(0), " \
 "DescriptorTable(SRV(t0, numDescriptors = 1, flags = DATA_STATIC))," \
-"DescriptorTable(UAV(u0, numDescriptors = 1, flags = DATA_STATIC_WHILE_SET_AT_EXECUTE))," \
+"DescriptorTable(UAV(u0, numDescriptors = 1, flags = DATA_VOLATILE))," \
 "StaticSampler(s0, filter = FILTER_MIN_MAG_MIP_LINEAR)"
 
 #define BLOCK_SIZE 32

@@ -20,9 +20,9 @@
 namespace Hazel
 {
 
-    Ref<GameObject> ModelLoader::LoadFromFile(std::string& filepath, bool swapHandedness)
+    Ref<HGameObject> ModelLoader::LoadFromFile(std::string& filepath, bool swapHandedness)
     {
-        Ref<GameObject> rootGO = CreateRef<GameObject>();
+        Ref<HGameObject> rootGO = CreateRef<HGameObject>();
 
         Assimp::Importer importer;
 
@@ -95,7 +95,7 @@ namespace Hazel
         for (int c = 0; c < aScene->mRootNode->mNumChildren; c++)
         {
             auto child = aScene->mRootNode->mChildren[c];
-            auto childGO = CreateRef<GameObject>();
+            auto childGO = CreateRef<HGameObject>();
             scene.Entities.push_back(childGO);
 
             processNode(child, aScene, childGO, context, materials);
@@ -104,7 +104,7 @@ namespace Hazel
     }
 
     void ModelLoader::processNode(aiNode* node, const aiScene* scene,
-        Ref<GameObject> target,
+        Ref<HGameObject> target,
         CommandContext& context,
         std::vector<Ref<HMaterial>>& materials)
     {
@@ -212,7 +212,7 @@ namespace Hazel
         for (int c = 0; c < node->mNumChildren; c++)
         {
             auto child = node->mChildren[c];
-            auto childGO = CreateRef<GameObject>();
+            auto childGO = CreateRef<HGameObject>();
             target->AddChild(childGO);
 
             processNode(child, scene, childGO, context, materials);
@@ -261,18 +261,18 @@ namespace Hazel
                 std::string filepath = "assets/textures/" + filename;
 
                 HZ_INFO("\tUsing diffuse texture: {}", filename);
-                if (D3D12Renderer::TextureLibrary->Exists(filepath))
+                if (D3D12Renderer::g_TextureLibrary->Exists(filepath))
                 {
-                    albedoTexture = D3D12Renderer::TextureLibrary->GetAs<Texture2D>(filepath);
+                    albedoTexture = D3D12Renderer::g_TextureLibrary->GetAs<Texture2D>(filepath);
                 }
                 else
                 {
                     // Load the texture, get it into the Library
-                    Texture2D::TextureCreationOptions opts;
+                    TextureCreationOptions opts;
                     opts.Flags = D3D12_RESOURCE_FLAG_NONE;
                     opts.Path = filepath;
                     albedoTexture = Texture2D::CreateCommittedTexture(opts);
-                    D3D12Renderer::TextureLibrary->Add(albedoTexture);
+                    D3D12Renderer::g_TextureLibrary->Add(albedoTexture);
                 }
                 materials[i]->HasAlbedoTexture = true;
                 materials[i]->Color = glm::vec4(0.0f, 0.0f, 0.0f, 0.0f);
@@ -296,17 +296,17 @@ namespace Hazel
                 std::string filepath = "assets/textures/" + filename;
 
                 HZ_INFO("\tUsing diffuse texture: {}", filename);
-                if (D3D12Renderer::TextureLibrary->Exists(filepath))
+                if (D3D12Renderer::g_TextureLibrary->Exists(filepath))
                 {
-                    normalsTexture = D3D12Renderer::TextureLibrary->GetAs<Texture2D>(filepath);
+                    normalsTexture = D3D12Renderer::g_TextureLibrary->GetAs<Texture2D>(filepath);
                 }
                 else
                 {
-                    Texture2D::TextureCreationOptions opts;
+                    TextureCreationOptions opts;
                     opts.Flags = D3D12_RESOURCE_FLAG_NONE;
                     opts.Path = filepath;
                     normalsTexture = Texture2D::CreateCommittedTexture(opts);
-                    D3D12Renderer::TextureLibrary->Add(normalsTexture);
+                    D3D12Renderer::g_TextureLibrary->Add(normalsTexture);
                 }
                 materials[i]->HasNormalTexture = true;
             }
@@ -326,17 +326,17 @@ namespace Hazel
 
                 HZ_INFO("\tUsing roughness texture: {}", filename);
 
-                if (D3D12Renderer::TextureLibrary->Exists(filepath))
+                if (D3D12Renderer::g_TextureLibrary->Exists(filepath))
                 {
-                    roughnessTexture = D3D12Renderer::TextureLibrary->GetAs<Texture2D>(filepath);
+                    roughnessTexture = D3D12Renderer::g_TextureLibrary->GetAs<Texture2D>(filepath);
                 }
                 else
                 {
-                    Texture2D::TextureCreationOptions opts;
+                    TextureCreationOptions opts;
                     opts.Flags = D3D12_RESOURCE_FLAG_NONE;
                     opts.Path = filepath;
                     roughnessTexture = Texture2D::CreateCommittedTexture(opts);
-                    D3D12Renderer::TextureLibrary->Add(roughnessTexture);
+                    D3D12Renderer::g_TextureLibrary->Add(roughnessTexture);
                 }
                 materials[i]->HasRoughnessTexture = true;
             }
@@ -391,17 +391,17 @@ namespace Hazel
                 Ref<Texture2D> metallicTexture = nullptr;
                 HZ_INFO("\tUsing metallic texture: {}", filepath);
 
-                if (D3D12Renderer::TextureLibrary->Exists(filepath))
+                if (D3D12Renderer::g_TextureLibrary->Exists(filepath))
                 {
-                    metallicTexture = D3D12Renderer::TextureLibrary->GetAs<Texture2D>(filepath);
+                    metallicTexture = D3D12Renderer::g_TextureLibrary->GetAs<Texture2D>(filepath);
                 }
                 else
                 {
-                    Texture2D::TextureCreationOptions opts;
+                    TextureCreationOptions opts;
                     opts.Flags = D3D12_RESOURCE_FLAG_NONE;
                     opts.Path = filepath;
                     metallicTexture = Texture2D::CreateCommittedTexture(opts);
-                    D3D12Renderer::TextureLibrary->Add(metallicTexture);
+                    D3D12Renderer::g_TextureLibrary->Add(metallicTexture);
                 }
                 materials[i]->HasMatallicTexture = true;
                 materials[i]->MetallicTexture = metallicTexture;
