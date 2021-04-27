@@ -92,7 +92,8 @@ void BenchmarkLayer::OnDetach()
         task.wait();
     }
 
-    //Hazel::Profiler::GlobalProfiler.DumpDatabases(m_CaptureFolder + "timings.json");
+    if (m_CreationOptions.CaptureTiming)
+        Hazel::Profiler::SaveTimings("Frame Total", m_CaptureFolder + "timings.json");
 }
 
 void BenchmarkLayer::OnUpdate(Hazel::Timestep ts)

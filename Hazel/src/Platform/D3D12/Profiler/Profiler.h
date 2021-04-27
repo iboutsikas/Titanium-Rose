@@ -10,8 +10,7 @@
 #include <vector>
 #include <list>
 #include <unordered_map>
-
-#include "nlohmann/json.hpp"
+#include <string>
 
 namespace Hazel {
     class Profiler {
@@ -24,6 +23,8 @@ namespace Hazel {
 
         static void BeginBlock(const std::string& name, CommandContext* context = nullptr);
         static void EndBlock(CommandContext* context = nullptr);
+
+        static void SaveTimings(const std::string& blockName, const std::string& filePath);
     };
 
     class ScopedTimer {

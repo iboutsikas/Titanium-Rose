@@ -38,7 +38,7 @@ namespace Hazel {
                     count++;
                     m_Average += val;
                     m_Minimum = std::min(val, m_Minimum);
-                    m_Maximum = std::min(val, m_Maximum);
+                    m_Maximum = std::max(val, m_Maximum);
                 }
             }
 
@@ -94,6 +94,7 @@ namespace Hazel {
     };
 
     class NestedTimingTree {
+        friend class Profiler;
     public:
         NestedTimingTree(const std::string& name, NestedTimingTree* parent = nullptr)
             : m_Name(name), m_Parent(parent)
@@ -243,6 +244,53 @@ namespace Hazel {
     void Profiler::EndBlock(CommandContext* context /*= nullptr*/)
     {
         NestedTimingTree::PopProfilingMarker(context);
+    }
+
+    void Profiler::SaveTimings(const std::string& blockName, const std::string& filePath) {
+        using json = nlohmann::json;
+
+        auto node = NestedTimingTree::s_RootScope.GetChild(blockName);
+
+        HZ_CORE_ASSERT(node != nullptr, "This shouldn't really ever happen");
+
+        std::fstream file(filePath, std::fstream::out);
+        if (!file.is_open()) {
+            HZ_CORE_ERROR("Unable to open file: {0}", filePath);
+            return;
+        }
+
+        json output;
+
+        auto obj = json::object();
+        obj["block_name"] = blockName;
+        auto cpuObj = json::object();
+        cpuObj["min"] = node->m_CPUTime.GetMin();
+        cpuObj["max"] = node->m_CPUTime.GetMax();
+        cpuObj["avg"] = node->m_CPUTime.GetAvg();
+        cpuObj["values"] = json::array();
+
+        for (int i = 0; i < node->m_CPUTime.GetHistoryLength(); i++)
+        {
+            cpuObj["values"].emplace_back(node->m_CPUTime.GetHistory()[i]);
+        }
+
+        obj["cpu"] = cpuObj;
+
+        auto gpuObj = json::object();
+        gpuObj["min"] = node->m_GPUTime.GetMin();
+        gpuObj["max"] = node->m_GPUTime.GetMax();
+        gpuObj["avg"] = node->m_GPUTime.GetAvg();
+        gpuObj["values"] = json::array();
+
+        for (int i = 0; i < node->m_GPUTime.GetHistoryLength(); i++)
+        {
+            gpuObj["values"].emplace_back(node->m_GPUTime.GetHistory()[i]);
+        }
+        
+        obj["gpu"] = gpuObj;
+
+        file << obj.dump(4);
+        file.close();
     }
 
 }
