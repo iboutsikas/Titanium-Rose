@@ -18,7 +18,6 @@ namespace Hazel {
 		
 		~HMaterial() 
 		{
-			HZ_CORE_WARN("Material {0} destroyed", Name);
 		}
 
 		glm::vec3 Color;

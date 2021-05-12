@@ -96,6 +96,7 @@ namespace Hazel {
                 D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,   // I'm really not sure how to avoid this message.
                 D3D12_MESSAGE_ID_MAP_INVALID_NULLRANGE,                         // This warning occurs when using capture frame while graphics debugging.
                 D3D12_MESSAGE_ID_UNMAP_INVALID_NULLRANGE,                       // This warning occurs when using capture frame while graphics debugging.
+                D3D12_MESSAGE_ID_RESOLVE_QUERY_INVALID_QUERY_STATE,             // For the marking of invalid timestamps in our profiler
                 (D3D12_MESSAGE_ID)1008                                          // RESOURCE_BARRIER_DUPLICATE_SUBRESOURCE_TRANSITIONS
             };
 
