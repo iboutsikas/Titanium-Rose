@@ -90,7 +90,7 @@ void Hazel::D3D12ForwardRenderer::ImplRenderSubmitted(GraphicsContext& gfxContex
             gfxContext.GetCommandList()->SetGraphicsRootDescriptorTable(ShaderIndices_Roughness, go->Material->RoughnessTexture->SRVAllocation.GPUHandle);
         }
 
-        if (go->Material->HasMatallicTexture) {
+        if (go->Material->HasMetallicTexture) {
             gfxContext.GetCommandList()->SetGraphicsRootDescriptorTable(ShaderIndices_Metalness, go->Material->MetallicTexture->SRVAllocation.GPUHandle);
         }
 

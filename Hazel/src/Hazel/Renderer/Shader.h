@@ -14,7 +14,7 @@ namespace Hazel {
 		Geometry	= 0x00000001,
 		Vertex		= 0x00000010,
 		Fragment	= 0x00000100,
-		Compute		= 0x00001000	
+		Compute		= 0x00001000
 	};
 	ENABLE_BITMASK_OPERATORS(ShaderType);
 

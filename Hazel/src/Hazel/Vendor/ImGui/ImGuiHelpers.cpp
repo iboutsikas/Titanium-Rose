@@ -100,11 +100,11 @@ void ImGui::MaterialControl(Hazel::Ref<Hazel::HMaterial> material)
 
     // ------ Metallic ------
     ImGui::Separator();
-    bool useMetallic = material->HasMatallicTexture;
+    bool useMetallic = material->HasMetallicTexture;
     Property("Use metallic texture", useMetallic);
 
-    if (useMetallic != material->HasMatallicTexture) {
-        material->HasMatallicTexture = useMetallic;
+    if (useMetallic != material->HasMetallicTexture) {
+        material->HasMetallicTexture = useMetallic;
     }
 
     if (!useMetallic) {

@@ -125,7 +125,7 @@ namespace Hazel
                 gfxContext.GetCommandList()->SetGraphicsRootDescriptorTable(ShaderIndices_Roughness, obj->Material->RoughnessTexture->SRVAllocation.GPUHandle);
             }
 
-            if (obj->Material->HasMatallicTexture) {
+            if (obj->Material->HasMetallicTexture) {
                 gfxContext.GetCommandList()->SetGraphicsRootDescriptorTable(ShaderIndices_Metalness, obj->Material->MetallicTexture->SRVAllocation.GPUHandle);
             }
 

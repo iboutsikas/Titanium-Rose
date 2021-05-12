@@ -29,7 +29,7 @@ namespace Hazel {
 		bool HasAlbedoTexture;
 		bool HasNormalTexture;
 		bool HasRoughnessTexture;
-		bool HasMatallicTexture;
+		bool HasMetallicTexture;
 		bool IsTransparent;
 
 		Hazel::Ref<Hazel::Texture2D> AlbedoTexture;
@@ -37,6 +37,29 @@ namespace Hazel {
 		Hazel::Ref<Hazel::Texture2D> RoughnessTexture;
 		Hazel::Ref<Hazel::Texture2D> MetallicTexture;
 		std::string Name;
+
+		Ref<HMaterial> MakeInstanceCopy() {
+			auto copy = CreateRef<HMaterial>();
+
+            copy->Color = this->Color;
+            copy->EmissiveColor = this->EmissiveColor;
+            copy->Roughness = this->Roughness;
+            copy->Metallic = this->Metallic;
+
+            copy->HasAlbedoTexture = this->HasAlbedoTexture;
+            copy->HasNormalTexture = this->HasNormalTexture;
+            copy->HasRoughnessTexture = this->HasRoughnessTexture;
+            copy->HasMetallicTexture = this->HasMetallicTexture;
+            copy->IsTransparent = this->IsTransparent;
+
+            copy->AlbedoTexture = this->AlbedoTexture;
+            copy->NormalTexture = this->NormalTexture;
+            copy->RoughnessTexture = this->RoughnessTexture;
+            copy->MetallicTexture = this->MetallicTexture;
+
+            copy->Name = this->Name;
+			return copy;
+		}
 	};
 #if 0
 	class HMaterialInstance 
