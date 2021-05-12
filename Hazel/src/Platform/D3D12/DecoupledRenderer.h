@@ -84,7 +84,8 @@ namespace Hazel
         struct alignas(16) HPerObjectDataSimple {
             glm::mat4 LocalToWorld;
             glm::ivec2 FeedbackDims;
-            glm::ivec2 _padding;
+            //uint32_t EntityID;
+            uint32_t __padding[2];
         };
 
         struct DilateTextureInfo 

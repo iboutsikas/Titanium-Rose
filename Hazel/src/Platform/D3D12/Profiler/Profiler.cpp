@@ -1,6 +1,7 @@
 #include "hzpch.h"
 
 #include "Hazel/Core/SystemTime.h"
+#include "Hazel/Core/Log.h"
 
 #include "Platform/D3D12/d3dx12.h"
 #include "Platform/D3D12/D3D12Renderer.h"
@@ -174,8 +175,9 @@ namespace Hazel {
             s_FrameDelta.RecordStat(frame, GpuTime::GetTime(0));
             GpuTime::EndReadBack();
 
-            float totalCpuTime, totalGpuTime;
+            float totalCpuTime = 0, totalGpuTime = 0;
             s_RootScope.SumInclusiveTimes(totalCpuTime, totalGpuTime);
+            //HZ_CORE_TRACE("{}, {}", totalCpuTime, totalGpuTime);
             s_TotalCpuTime.RecordStat(frame, totalCpuTime);
             s_TotalGpuTime.RecordStat(frame, totalGpuTime);
 

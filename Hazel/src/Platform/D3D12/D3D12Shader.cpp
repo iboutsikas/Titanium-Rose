@@ -6,6 +6,26 @@
 #include "d3dcompiler.h"
 #include <sstream>
 
+
+enum ShaderProfile {
+	GEOMETRY,
+	VERTEX,
+	PIXEL,
+	COMPUTE,
+	COUNT
+};
+
+
+// This matches ShaderType 1-1 for now
+constexpr char* TARGET_PROFILES[] = {
+	"gs_5_1",
+	"vs_5_1",
+	"ps_5_1",
+	"cs_5_1"
+};
+
+
+
 namespace Hazel {
 
 	D3D12Shader::D3D12Shader(const std::string& filepath, CD3DX12_PIPELINE_STATE_STREAM pipelineStream, ShaderType shaderTypes)
@@ -89,7 +109,7 @@ namespace Hazel {
 	{
 		if (pipelineStream != nullptr)
 		{
-			// copy anything we need from the new stream. Currently we don't need anythign for compute
+			// copy anything we need from the new stream. Currently we don't need anything for compute
 		}
 
 		m_CompilationState.reset(new CompilationSate());
@@ -97,7 +117,7 @@ namespace Hazel {
 		m_Errors.clear();
 		std::wstring stemp = std::wstring(m_Path.begin(), m_Path.end());
 
-		if (FAILED(Compile(stemp, "CS_Main", "cs_5_1", &m_CompilationState->computeBlob))) {
+		if (FAILED(Compile(stemp, "CS_Main", TARGET_PROFILES[ShaderProfile::COMPUTE], &m_CompilationState->computeBlob))) {
 			goto r_cleanup;
 		}
 
@@ -132,15 +152,15 @@ namespace Hazel {
 		m_Warnings.clear();
 		std::wstring stemp = std::wstring(m_Path.begin(), m_Path.end());
 
-		if (FAILED(Compile(stemp, "VS_Main", "vs_5_1", &m_CompilationState->vertexBlob))) {
+		if (FAILED(Compile(stemp, "VS_Main", TARGET_PROFILES[ShaderProfile::VERTEX], &m_CompilationState->vertexBlob))) {
 			goto r_cleanup;
 		}
-		if (FAILED(Compile(stemp, "PS_Main", "ps_5_1", &m_CompilationState->fragmentBlob))) {
+		if (FAILED(Compile(stemp, "PS_Main", TARGET_PROFILES[ShaderProfile::PIXEL], &m_CompilationState->fragmentBlob))) {
 			goto r_cleanup;
 		}
 
 		if ((m_ShaderTypes & ShaderType::Geometry) == ShaderType::Geometry) {
-			if (FAILED(Compile(stemp, "GS_Main", "gs_5_1", &m_CompilationState->geometryBlob))) {
+			if (FAILED(Compile(stemp, "GS_Main", TARGET_PROFILES[ShaderProfile::GEOMETRY], &m_CompilationState->geometryBlob))) {
 				goto r_cleanup;
 			}
 		}

@@ -50,6 +50,9 @@ namespace Hazel
             uint32_t HasRoughness;
             float Roughness;
             // ----- 16 bytes -----
+            //uint32_t EntityID;
+            //uint32_t _padding[3];
+            //// ----- 16 bytes -----
         };
 
         struct alignas(16) HPassData {
