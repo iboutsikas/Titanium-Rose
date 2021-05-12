@@ -166,10 +166,19 @@ void ImGui::DecoupledTextureControl(Hazel::DecoupledTextureComponent& component)
     ImGui::Columns(2);
     //static bool useTexture = false;
     bool useTexture = component.UseDecoupledTexture;
+    bool overwrite = component.OverwriteRefreshRate;
     std::string name;
 
     Property("Use decoupled texture", useTexture);
     component.UseDecoupledTexture = useTexture;
+
+    Property("Overwrite update rate", overwrite);
+
+    if (overwrite) {
+        Property("Update rate", component.UpdateFrequency, 0, 250, PropertyFlag::InputProperty);
+    }
+    
+    component.OverwriteRefreshRate = overwrite;
 
     // TODO: We could notify somehow here that the texture is no longer used
     if (!useTexture)
@@ -358,6 +367,22 @@ void ImGui::Property(const std::string& name, int& value, int min, int max, Prop
         ImGui::DragInt(id.c_str(), &value, 1.0f, min, max);
     else
         ImGui::SliderInt(id.c_str(), &value, min, max);
+
+    ImGui::PopItemWidth();
+    ImGui::NextColumn();
+}
+
+void ImGui::Property(const std::string& name, uint64_t& value, uint64_t min, uint64_t max, PropertyFlag flags)
+{
+    ImGui::Text(name.c_str());
+    ImGui::NextColumn();
+    ImGui::PushItemWidth(-1);
+
+    std::string id = "##" + name;
+    if ((int)flags & (int)PropertyFlag::InputProperty)
+        ImGui::DragInt(id.c_str(), (int*)&value, 1.0f, min, max);
+    else
+        ImGui::SliderInt(id.c_str(), (int*)&value, min, max);
 
     ImGui::PopItemWidth();
     ImGui::NextColumn();

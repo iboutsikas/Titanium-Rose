@@ -15,11 +15,11 @@ namespace Hazel
     // 
     void DecoupledRenderer::ImplRenderVirtualTextures(GraphicsContext& gfxContext)
     {
-        for (auto& info : m_DilationQueue)
-        {
-            TilePool->ReleaseTexture(*info.Temporary);
-            TilePool->RemoveTexture(*info.Temporary);
-        }
+        //for (auto& info : m_DilationQueue)
+        //{
+        //    TilePool->ReleaseTexture(*info.Temporary);
+        //    TilePool->RemoveTexture(*info.Temporary);
+        //}
         
         m_DilationQueue.clear();
 
@@ -51,7 +51,8 @@ namespace Hazel
         for (int i = 0; i < s_DecoupledOpaqueObjects.size(); i++)
         {
             auto obj = s_DecoupledOpaqueObjects[i];
-                
+            s_SimpleOpaqueObjects.push_back(obj);
+
             if (obj == nullptr) {
                 continue;
             }
@@ -61,7 +62,7 @@ namespace Hazel
             }
             auto virtualTexture = obj->DecoupledComponent.VirtualTexture;
 
-            //ScopedTimer timer("Virtual Pass::Render::" + tex->GetIdentifier(), commandList);
+            ScopedTimer timer(obj->Name, gfxContext);
             auto mips = virtualTexture->GetMipsUsed();
 
             auto targetWidth = virtualTexture->GetWidth() >> mips.FinestMip;
@@ -100,7 +101,7 @@ namespace Hazel
             objectData.HasAlbedo = obj->Material->HasAlbedoTexture;
             objectData.EmissiveColor = obj->Material->EmissiveColor;
             objectData.HasNormal = obj->Material->HasNormalTexture;
-            objectData.HasMetallic = obj->Material->HasMatallicTexture;
+            objectData.HasMetallic = obj->Material->HasMetallicTexture;
             objectData.Metallic = obj->Material->Metallic;
             objectData.HasRoughness = obj->Material->HasRoughnessTexture;
             objectData.Roughness = obj->Material->Roughness;
@@ -181,7 +182,7 @@ namespace Hazel
 
     void DecoupledRenderer::ImplRenderSubmitted(GraphicsContext& gfxContext)
     {
-        if (s_DecoupledOpaqueObjects.empty())
+        if (s_SimpleOpaqueObjects.empty())
             return;
 
         
@@ -192,7 +193,7 @@ namespace Hazel
         passData.ViewProjection = s_CommonData.Scene->Camera->GetViewProjectionMatrix();
 
 
-        //Profiler::BeginBlock("Simple Pass", commandList);
+        ScopedTimer timer("Simple Pass", gfxContext);
 
         gfxContext.GetCommandList()->SetPipelineState(shader->GetPipelineState());
         gfxContext.GetCommandList()->SetGraphicsRootSignature(shader->GetRootSignature());
@@ -202,9 +203,9 @@ namespace Hazel
         gfxContext.GetCommandList()->OMSetRenderTargets(1, &framebuffer->RTVAllocation.CPUHandle, true, &framebuffer->DSVAllocation.CPUHandle);
         gfxContext.SetDynamicContantBufferView(ShaderIndicesSimple_Pass, sizeof(passData), &passData);
 
-        for (size_t i = 0; i < s_DecoupledOpaqueObjects.size(); i++)
+        for (size_t i = 0; i < s_SimpleOpaqueObjects.size(); i++)
         {
-            auto go = s_DecoupledOpaqueObjects[i];
+            auto go = s_SimpleOpaqueObjects[i];
 
             if (go == nullptr) {
                 continue;
@@ -214,7 +215,10 @@ namespace Hazel
                 continue;
             }
 
+            ScopedTimer timer(go->Name, gfxContext);
+
             auto tex = go->DecoupledComponent.VirtualTexture;
+
 
             //ScopedTimer timer(tex->GetIdentifier(), commandList);
 
@@ -222,11 +226,13 @@ namespace Hazel
 
             auto fm = tex->GetFeedbackMap();
 
-            CreateSRV(std::static_pointer_cast<Texture>(tex), 0);
+            CreateSRV(*tex, 0);
+
 
             HPerObjectDataSimple objectData;
             objectData.LocalToWorld = go->Transform.LocalToWorldMatrix();
             objectData.FeedbackDims = fm->GetDimensions();
+            //objectData.EntityID = go->ID;
 
             auto vb = go->Mesh->vertexBuffer->GetView();
             vb.StrideInBytes = sizeof(Vertex);

@@ -96,7 +96,7 @@ namespace Hazel
         {
             auto child = aScene->mRootNode->mChildren[c];
             auto childGO = CreateRef<HGameObject>();
-            scene.Entities.push_back(childGO);
+            scene.AddEntity(childGO);
 
             processNode(child, aScene, childGO, context, materials);
         }
@@ -403,13 +403,13 @@ namespace Hazel
                     metallicTexture = Texture2D::CreateCommittedTexture(opts);
                     D3D12Renderer::g_TextureLibrary->Add(metallicTexture);
                 }
-                materials[i]->HasMatallicTexture = true;
+                materials[i]->HasMetallicTexture = true;
                 materials[i]->MetallicTexture = metallicTexture;
             }
             else
             {
                 HZ_WARN("\tNot using roughness map");
-                materials[i]->HasMatallicTexture = false;
+                materials[i]->HasMetallicTexture = false;
                 materials[i]->Metallic = metalness;
             }
 

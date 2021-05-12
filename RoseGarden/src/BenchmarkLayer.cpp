@@ -82,6 +82,8 @@ void BenchmarkLayer::OnAttach()
     oss << m_DebugName << '-' << "Decoupled update rate: " << m_CreationOptions.UpdateRate;
 
     Hazel::Application::Get().GetWindow().SetTitle(oss.str().c_str());
+
+    Hazel::D3D12Renderer::SetDecoupledUpdateRate(m_CreationOptions.UpdateRate);
 }
 
 void BenchmarkLayer::OnDetach()
@@ -128,20 +130,15 @@ void BenchmarkLayer::OnRender(Hazel::Timestep ts, Hazel::GraphicsContext& gfxCon
         D3D12Renderer::BeginScene(m_Scene);
     }
 
- 
-    //Profiler::BeginBlock("Submit", r->WorkerCommandList);
-
-    for (auto& obj : m_Scene.Entities)
+    for (auto& obj : m_Scene.GetEntities())
     {
         D3D12Renderer::Submit(obj);
     }
 
-    //Profiler::EndBlock(r->WorkerCommandList);
-
-    if (m_CreationOptions.UpdateRate == 0 || (D3D12Renderer::GetFrameCount() % m_CreationOptions.UpdateRate) == 0)
-    {
-        D3D12Renderer::ShadeDecoupled();
-    }
+    //if (m_CreationOptions.UpdateRate == 0 || (D3D12Renderer::GetFrameCount() % m_CreationOptions.UpdateRate) == 0)
+    //{
+    //}
+    D3D12Renderer::ShadeDecoupled();
 
     D3D12Renderer::ClearVirtualMaps();
 
@@ -197,7 +194,15 @@ void BenchmarkLayer::OnImGuiRender(Hazel::GraphicsContext& uiContext)
     ImGui::Columns(2);
     ImGui::AlignTextToFramePadding();
     ImGui::Property("Exposure", m_Scene.Exposure, 0.0f, 5.0f);
-    ImGui::Property("Texture update rate", m_CreationOptions.UpdateRate, 0, 3000.0f, ImGui::PropertyFlag::InputProperty);
+    int32_t updateRate = D3D12Renderer::GetDecoupledUpdateRate();
+    ImGui::Property("Texture update rate", updateRate, 0, 3000, ImGui::PropertyFlag::InputProperty);
+    D3D12Renderer::SetDecoupledUpdateRate(updateRate);
+
+    uint64_t objectsPerFrame = D3D12Renderer::GetPerFrameDecoupledCap();
+    auto entitiesInScene = m_Scene.GetEntities().size();
+    ImGui::Property("Updated objects per frame", objectsPerFrame, 0, entitiesInScene, ImGui::PropertyFlag::InputProperty);
+    D3D12Renderer::SetPerFrameDecoupledCap(objectsPerFrame);
+
     ImGui::Columns(1);
     ImGui::End();
 
@@ -223,7 +228,7 @@ void BenchmarkLayer::OnFrameEnd()
             }), m_CaptureTasks.end());
         auto frames = m_CapturedFrames.load();
         bool shouldTerminate = (m_EnableCapture && m_CapturedFrames > m_CreationOptions.CaptureLimit) ||
-                                (m_CreationOptions.CaptureTiming && m_FrameCounter > m_CreationOptions.CaptureLimit);
+                                (m_CreationOptions.CaptureTiming && D3D12Renderer::GetFrameCount() > m_CreationOptions.CaptureLimit);
 
         if (m_EnableCapture && m_CapturedFrames <= m_CreationOptions.CaptureLimit)
             CaptureLastFramebuffer();
@@ -247,7 +252,7 @@ void BenchmarkLayer::OnEvent(Hazel::Event& e)
 bool BenchmarkLayer::OnMouseButtonPressed(Hazel::MouseButtonPressedEvent& event)
 {
     using namespace Hazel;
-#if 0
+#if 1
     auto [mx, my] = Input::GetMousePosition();
     //ImGui::IsAnyWindowHovered();
 

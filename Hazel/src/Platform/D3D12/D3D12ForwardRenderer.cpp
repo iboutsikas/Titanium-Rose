@@ -30,7 +30,7 @@ void Hazel::D3D12ForwardRenderer::ImplRenderSubmitted(GraphicsContext& gfxContex
 
     auto framebuffer = ResolveFrameBuffer();
     
-    //ScopedTimer passTimer("Forward Pass", commandList);
+    ScopedTimer passTimer("Forward Pass", gfxContext);
 
     gfxContext.GetCommandList()->SetPipelineState(shader->GetPipelineState());
     gfxContext.GetCommandList()->SetGraphicsRootSignature(shader->GetRootSignature());
@@ -56,7 +56,7 @@ void Hazel::D3D12ForwardRenderer::ImplRenderSubmitted(GraphicsContext& gfxContex
             continue;
         }
 
-        //ScopedTimer objectTimer(go->Name, commandList);
+        ScopedTimer objectTimer(go->Name, gfxContext);
 
         HPerObjectData objectData;
         objectData.LocalToWorld = go->Transform.LocalToWorldMatrix();
@@ -65,11 +65,11 @@ void Hazel::D3D12ForwardRenderer::ImplRenderSubmitted(GraphicsContext& gfxContex
         objectData.HasAlbedo = go->Material->HasAlbedoTexture;
         objectData.EmissiveColor = go->Material->EmissiveColor;
         objectData.HasNormal = go->Material->HasNormalTexture;
-        objectData.HasMetallic = go->Material->HasMatallicTexture;
+        objectData.HasMetallic = go->Material->HasMetallicTexture;
         objectData.Metallic = go->Material->Metallic;
         objectData.HasRoughness = go->Material->HasRoughnessTexture;
         objectData.Roughness = go->Material->Roughness;
-        
+        //objectData.EntityID = go->ID;
 
         auto vb = go->Mesh->vertexBuffer->GetView();
         vb.StrideInBytes = sizeof(Vertex);

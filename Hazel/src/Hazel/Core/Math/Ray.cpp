@@ -77,9 +77,12 @@ namespace Hazel
     {
         std::vector<RaycastHit> hits;
 
-        for (auto& e : scene.Entities)
+        for (auto& e : scene.GetEntities())
         {
+            //if (e->Name == "Plane")
+            //    __debugbreak();
             Raycast(e, ray, hits);
+
         }
         
         if (hits.size() > 0) {

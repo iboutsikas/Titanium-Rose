@@ -21,7 +21,6 @@ namespace Hazel
         Scene() = default;
         Scene(float exposure) : Exposure(exposure) {}
         ~Scene();
-        std::vector<Ref<HGameObject>> Entities;
         std::vector<Ref<LightComponent>> Lights;
         PerspectiveCamera* Camera;
         float Exposure;
@@ -29,6 +28,12 @@ namespace Hazel
 
         void LoadEnvironment(std::string& filepath);
         void OnUpdate(Timestep ts);
+        Ref<HGameObject> AddEntity(Ref<HGameObject> go);
+        std::vector<Ref<HGameObject>>& GetEntities();
+
+    private:
+        std::vector<Ref<HGameObject>> m_Entities;
+        uint32_t m_EntityCounter = 0;
     };
 }
 

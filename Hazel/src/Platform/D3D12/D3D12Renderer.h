@@ -27,7 +27,7 @@ namespace Hazel
     {
     public:
 
-        static constexpr uint8_t MaxSupportedLights = 4;
+        static constexpr uint8_t MaxSupportedLights = 2000;
         static constexpr uint8_t MipsPerIteration = 4;
         static constexpr uint8_t FrameLatency = 3;
 
@@ -94,7 +94,7 @@ namespace Hazel
         static void DoToneMapping(GraphicsContext& gfxContext);
 
         static void GenerateMips(Ref<Texture> texture, uint32_t mostDetailedMip = 0);
-        static void GenerateMips(CommandContext& context, Ref<Texture> texture, uint32_t mostDetailedMip = 0);
+        static void GenerateMips(CommandContext& context, Ref<Texture> texture, uint32_t mostDetailedMip = 0, int32_t leastDetailedMip = -1);
         static void ClearUAV(ID3D12GraphicsCommandList* cmdlist, Ref<D3D12FeedbackMap>& resource, uint32_t value);
         static void UpdateVirtualTextures();
         static void RenderVirtualTextures();
@@ -123,10 +123,16 @@ namespace Hazel
         //static void CreateDSV(Ref<D3D12Texture> texture);
         static void CreateDSV(Ref<Texture> texture, HeapAllocationDescription& description);
         static void CreateMissingVirtualTextures();
+        static void CreateVirtualTexture(HGameObject& texture);
         static inline HeapAllocationDescription GetImguiAllocation() { return s_ImGuiAllocation; }
 
         static void Init();
         static void Shutdown();
+
+        static void SetPerFrameDecoupledCap(uint64_t cap) { s_PerFrameDecoupledCap = cap; }
+        static uint64_t GetPerFrameDecoupledCap() { return s_PerFrameDecoupledCap; }
+        static void SetDecoupledUpdateRate(int32_t rate) { s_DecoupledUpdateRate = rate; }
+        static int32_t GetDecoupledUpdateRate() { return s_DecoupledUpdateRate; }
 
         static inline uint64_t GetFrameCount() { return s_FrameCount; }
 
@@ -182,10 +188,14 @@ namespace Hazel
         static uint32_t s_InputLayoutCount;
         static uint32_t s_CurrentFrameBuffer;
         static uint64_t s_FrameCount;
+        static uint64_t s_PerFrameDecoupledCap;
+        static int32_t s_DecoupledUpdateRate;
 
         static std::vector<Ref<HGameObject>> s_ForwardOpaqueObjects;
         static std::vector<Ref<HGameObject>> s_ForwardTransparentObjects;
         static std::vector<Ref<HGameObject>> s_DecoupledOpaqueObjects;
+        static std::vector<Ref<HGameObject>> s_SimpleOpaqueObjects;
+
         static std::vector<D3D12Renderer*> s_AvailableRenderers;
         static std::vector<Ref<FrameBuffer>> s_Framebuffers;
         static Scope<D3D12UploadBuffer<RendererLight>> s_LightsBuffer;

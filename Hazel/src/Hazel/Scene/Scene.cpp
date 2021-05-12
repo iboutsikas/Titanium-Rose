@@ -35,8 +35,21 @@ void Hazel::Scene::LoadEnvironment(std::string& filepath)
 
 void Hazel::Scene::OnUpdate(Timestep ts)
 {
-    for (auto e : Entities)
+    for (auto e : m_Entities)
     {
         e->Update(ts);
     }
+}
+
+Hazel::Ref<Hazel::HGameObject> Hazel::Scene::AddEntity(Ref<HGameObject> go)
+{
+    HZ_CORE_ASSERT(go->ID == -1, "Entity has already been added!");
+    go->ID = m_EntityCounter++;
+    m_Entities.push_back(go);
+    return go;
+}
+
+std::vector<Hazel::Ref<Hazel::HGameObject>>& Hazel::Scene::GetEntities()
+{
+    return m_Entities;
 }

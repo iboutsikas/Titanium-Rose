@@ -20,6 +20,9 @@ namespace Hazel {
     struct DecoupledTextureComponent
     {
         bool UseDecoupledTexture = false;
+		bool OverwriteRefreshRate = false;
+		uint64_t LastFrameUpdated = 0;
+		uint64_t UpdateFrequency = 1;
         Ref<VirtualTexture2D> VirtualTexture = nullptr;
     };
 
@@ -63,6 +66,8 @@ namespace Hazel {
 		}
 
 		std::string Name;
+
+		uint32_t ID = -1;
 		
 
 	private:

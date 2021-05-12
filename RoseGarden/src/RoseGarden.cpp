@@ -2,8 +2,9 @@
 #include <Hazel/Core/EntryPoint.h>
 
 #include "BunnySceneLayer.h"
-#include "SingleBunnyLayer.h"
 #include "EmptyLayer.h"
+#include "QualityBenchmarkLayer.h"
+#include "TimingBenchmarkLayer.h"
 
 class RoseGarden : public Hazel::Application
 {
@@ -32,46 +33,79 @@ public:
 
 	virtual void OnInit(cxxopts::ParseResult& options) override 
 	{
-		SingleBunnyLayer::CreationOptions opts;
-
-		if (options.count("patrol")) {
-			opts.EnablePatrol = true;
-		}
-
-        if (options.count("decoupled")) {
-            opts.EnableDecoupled = true;
-        }
-
+		
 		if (options.count("timing")) {
-			opts.CaptureTiming = true;
+			TimingBenchmarkLayer::CreationOptions opts;
+            opts.CaptureTiming = true;
+
+            if (options.count("decoupled")) {
+                opts.EnableDecoupled = true;
+            }
+
+            if (options.count("update")) {
+                opts.UpdateRate = options["update"].as<int32_t>();
+            }
+
+            if (options.count("frames")) {
+                opts.CaptureLimit = options["frames"].as<int32_t>();
+            }
+            else {
+                // We are probably debugging so we do not want to terminate
+                opts.CaptureTiming = false;
+            }
+
+            if (options.count("group")) {
+                opts.ExperimentGroup = options["group"].as<std::string>();
+            }
+
+            if (options.count("experiment")) {
+                opts.ExperimentName = options["experiment"].as<std::string>();
+            }
+
+            if (options.count("scene")) {
+                opts.Scene = options["scene"].as<std::string>();
+            }
+
+            PushLayer(new TimingBenchmarkLayer(opts));
 		}
+		else {
+            QualityBenchmarkLayer::CreationOptions opts;
+            opts.CaptureTiming = false;
 
-		if (options.count("update")) {
-			opts.UpdateRate = options["update"].as<int32_t>();
+            if (options.count("patrol")) {
+                opts.EnablePatrol = true;
+            }
+
+            if (options.count("decoupled")) {
+                opts.EnableDecoupled = true;
+            }
+            if (options.count("update")) {
+                opts.UpdateRate = options["update"].as<int32_t>();
+            }
+
+            if (options.count("capture")) {
+                opts.CaptureRate = options["capture"].as<uint32_t>();
+            }
+
+            if (options.count("frames")) {
+                opts.CaptureLimit = options["frames"].as<int32_t>();
+            }
+
+            if (options.count("group")) {
+                opts.ExperimentGroup = options["group"].as<std::string>();
+            }
+
+            if (options.count("experiment")) {
+                opts.ExperimentName = options["experiment"].as<std::string>();
+            }
+
+            if (options.count("scene")) {
+                opts.Scene = options["scene"].as<std::string>();
+            }
+
+            PushLayer(new QualityBenchmarkLayer(opts));
+
 		}
-
-        if (options.count("capture")) {
-			opts.CaptureRate = options["capture"].as<uint32_t>();
-        }
-
-        if (options.count("frames")) {
-            opts.CaptureLimit = options["frames"].as<int32_t>();
-        }
-
-        if (options.count("group")) {
-			opts.ExperimentGroup = options["group"].as<std::string>();
-        }
-		
-        if (options.count("experiment")) {
-			opts.ExperimentName = options["experiment"].as<std::string>();
-        }
-		
-        if (options.count("scene")) {
-            opts.Scene = options["scene"].as<std::string>();
-        }
-
-		//PushLayer(new BunnySceneLayer());
-		PushLayer(new SingleBunnyLayer(opts));
 		//PushLayer(new EmptyLayer());
 	}
 
