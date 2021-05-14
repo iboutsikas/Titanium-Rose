@@ -33,6 +33,7 @@ namespace Hazel
             ShaderIndices_Normal,
             ShaderIndices_Metalness,
             ShaderIndices_Roughness,
+            ShaderIndices_ObjectLightsList,
             ShaderIndices_EnvRadiance,
             ShaderIndices_EnvIrradiance,
             ShaderIndices_BRDFLUT,
@@ -59,7 +60,8 @@ namespace Hazel
             float Roughness;
             // ----- 16 bytes -----
             uint32_t FinestMip;
-            glm::ivec3 _Padding;
+            uint32_t NumObjectLights;
+            glm::ivec2 _Padding;
         };
 
         struct alignas(16) HPassData {

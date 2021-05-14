@@ -32,7 +32,7 @@ namespace Hazel {
 	};
 #if 1
 	template<typename T>
-	class D3D12UploadBuffer
+	class D3D12UploadBuffer: public GpuResource
 	{
 	public:
 
@@ -45,16 +45,16 @@ namespace Hazel {
 				m_ElementByteSize = D3D12::AlignUp(m_ElementByteSize);
 			}
 
-			D3D12::ThrowIfFailed(D3D12Renderer::Context->DeviceResources->Device->CreateCommittedResource(
+			D3D12::ThrowIfFailed(D3D12Renderer::GetDevice()->CreateCommittedResource(
 				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 				D3D12_HEAP_FLAG_NONE,
 				&CD3DX12_RESOURCE_DESC::Buffer(m_ElementByteSize * elementCount),
 				D3D12_RESOURCE_STATE_GENERIC_READ,
 				nullptr,
-				IID_PPV_ARGS(&m_UploadBuffer)
+				IID_PPV_ARGS(&m_Resource)
 			));
 
-			D3D12::ThrowIfFailed(m_UploadBuffer->Map(0, nullptr, reinterpret_cast<void**>(&m_MappedData)));
+			D3D12::ThrowIfFailed(m_Resource->Map(0, nullptr, reinterpret_cast<void**>(&m_MappedData)));
 		}
 
 		D3D12UploadBuffer(TComPtr<ID3D12Device> device, uint32_t elementCount, bool isConstantBuffer)
@@ -72,10 +72,10 @@ namespace Hazel {
 				&CD3DX12_RESOURCE_DESC::Buffer(m_ElementByteSize * elementCount),
 				D3D12_RESOURCE_STATE_GENERIC_READ,
 				nullptr,
-				IID_PPV_ARGS(&m_UploadBuffer)
+				IID_PPV_ARGS(&m_Resource)
 			));
 
-			D3D12::ThrowIfFailed(m_UploadBuffer->Map(0, nullptr, reinterpret_cast<void**>(&m_MappedData)));
+			D3D12::ThrowIfFailed(m_Resource->Map(0, nullptr, reinterpret_cast<void**>(&m_MappedData)));
 		}
 
 		D3D12UploadBuffer(const D3D12UploadBuffer& rhs) = delete;
@@ -83,19 +83,21 @@ namespace Hazel {
 		
 		~D3D12UploadBuffer()
 		{
-			if (m_UploadBuffer != nullptr)
-				m_UploadBuffer->Unmap(0, nullptr);
+			if (m_Resource != nullptr)
+				m_Resource->Unmap(0, nullptr);
 
 			m_MappedData = nullptr;
 		}
 
-		inline ID3D12Resource* ResourceRaw() const { return m_UploadBuffer.Get(); }
-		inline TComPtr<ID3D12Resource> Resource() { return m_UploadBuffer; }
-
 		inline size_t CalculateOffset(uint32_t numElements) const { return numElements * m_ElementByteSize; }
 
 		inline size_t GetOffset(uint32_t numElements) const {
-			return m_UploadBuffer->GetGPUVirtualAddress() + (numElements * m_ElementByteSize);
+			return m_Resource->GetGPUVirtualAddress() + (numElements * m_ElementByteSize);
+		}
+
+		void CopyDataBlock(int count, const T* data, int offset = 0) {
+			auto size = sizeof(T);
+			memcpy(m_MappedData + offset, data, size * count);
 		}
 
 		void CopyData(int elementIndex, const T& data)
@@ -111,7 +113,6 @@ namespace Hazel {
 		}
 
 	private:
-		TComPtr<ID3D12Resource> m_UploadBuffer;
 		uint8_t* m_MappedData = nullptr;
 
 		uint32_t m_ElementByteSize = 0;

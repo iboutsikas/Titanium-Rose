@@ -4,7 +4,10 @@
 
 #include "Platform/D3D12/ComPtr.h"
 #include "Platform/D3D12/D3D12Context.h"
-#include "d3d12.h"
+
+#include <d3d12.h>
+#include <dxcapi.h>
+
 
 #define DECLARE_SHADER_NAMED(name, variablename)\
     static constexpr char* ShaderName##variablename = name;\
@@ -43,10 +46,10 @@ namespace Hazel {
 		std::string ReadFile(const std::string& filepath);
 
 		struct CompilationSate {
-			TComPtr<ID3DBlob> vertexBlob;
-			TComPtr<ID3DBlob> fragmentBlob;
-			TComPtr<ID3DBlob> geometryBlob;
-			TComPtr<ID3DBlob> computeBlob;
+			TComPtr<IDxcBlob> vertexBlob;
+			TComPtr<IDxcBlob> fragmentBlob;
+			TComPtr<IDxcBlob> geometryBlob;
+			TComPtr<IDxcBlob> computeBlob;
 			TComPtr<ID3D12RootSignature> rootSignature;
 			TComPtr<ID3D12PipelineState> pipelineState;
 		};
@@ -55,8 +58,8 @@ namespace Hazel {
 		bool RecompileGraphics(CD3DX12_PIPELINE_STATE_STREAM* pipelineStream);
 
 
-		HRESULT Compile(const std::wstring& filepathW, LPCSTR entryPoint, LPCSTR profile, ID3DBlob** blob);
-		HRESULT ExtractRootSignature(CompilationSate* state, TComPtr<ID3DBlob> shaderBlob);
+		HRESULT Compile(const std::wstring& filepathW, LPCWSTR entryPoint, LPCWSTR profile, IDxcBlob** blob);
+		HRESULT ExtractRootSignature(CompilationSate* state, TComPtr<IDxcBlob> shaderBlob);
 		HRESULT BuildPSO(CompilationSate* state, CD3DX12_PIPELINE_STATE_STREAM* pipelineStream);
 	private:
 		TComPtr<ID3DBlob> m_VertexBlob;

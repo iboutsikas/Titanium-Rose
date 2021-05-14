@@ -113,6 +113,7 @@ namespace Hazel
         static void CreateSRV(Ref<Texture> texture, HeapAllocationDescription& description, uint32_t mostDetailedMip = 0, uint32_t mips = 0, bool forceArray = false);
         static void CreateSRV(Texture& resource, uint32_t mostDetailedMip = 0, uint32_t mips = 0, bool forceArray = false);
         static void CreateSRV(Texture& resource, HeapAllocationDescription& description, uint32_t mostDetailedMip = 0, uint32_t mips = 0, bool forceArray = false);
+        static void CreateBufferSRV(GpuResource& buffer, uint32_t numElements, uint32_t stride);
 
         static void CreateRTV(Ref<Texture> texture, uint32_t mip = 0);
         static void CreateRTV(Ref<Texture> texture, HeapAllocationDescription& description, uint32_t mip = 0);

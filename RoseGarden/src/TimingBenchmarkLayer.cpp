@@ -37,7 +37,7 @@ TimingBenchmarkLayer::TimingBenchmarkLayer(CreationOptions& opts)
     cameraTransform.RotateAround(cameraTransform.Right(), 35.0f);
 
     const float offset = 7.0f;
-    const int bound = 1;
+    const int bound = 4;
     const int num_bunnies = (2 * bound) * (2 * bound);
 
     auto meshesPerFrame = std::ceil((float)num_bunnies / m_CreationOptions.UpdateRate);

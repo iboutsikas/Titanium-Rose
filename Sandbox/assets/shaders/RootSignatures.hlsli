@@ -39,6 +39,7 @@
 "DescriptorTable ( SRV(t5), visibility = SHADER_VISIBILITY_PIXEL ),"\
 "DescriptorTable ( SRV(t6), visibility = SHADER_VISIBILITY_PIXEL ),"\
 "DescriptorTable ( SRV(t7), visibility = SHADER_VISIBILITY_PIXEL ),"\
+"DescriptorTable ( SRV(t8), visibility = SHADER_VISIBILITY_PIXEL ),"\
 "CBV(b0),"\
 "CBV(b1),"\
 "StaticSampler(s0," \

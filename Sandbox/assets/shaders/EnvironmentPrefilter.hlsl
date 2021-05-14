@@ -1,6 +1,6 @@
 // The SRV is set last since it doesn't change across invocations
 
-#define RS\
+#define RS \
 "RootFlags(0), " \
 "RootConstants(b0, num32BitConstants = 1), " \
 "DescriptorTable(UAV(u0, numDescriptors = 1, flags = DESCRIPTORS_VOLATILE))," \

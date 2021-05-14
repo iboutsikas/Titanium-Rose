@@ -132,9 +132,20 @@ namespace Hazel {
 			textureDesc.SampleDesc.Quality = 0;
 			textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 
+
+			D3D12_HEAP_FLAGS heapFlags = D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES;
+
+			if (opts.Flags & D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE) {
+				heapFlags = D3D12_HEAP_FLAG_NONE;
+			}
+
+			if (opts.IsDepthStencil) {
+				ret->BypassAndSetState(D3D12_RESOURCE_STATE_DEPTH_WRITE);
+			}
+
 			Hazel::D3D12::ThrowIfFailed(D3D12Renderer::GetDevice()->CreateCommittedResource(
 				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-				D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES,
+				heapFlags,
 				&textureDesc,
 				ret->m_CurrentState,
 				opts.IsDepthStencil ? &CD3DX12_CLEAR_VALUE(opts.Format, 1.0f, 0) : nullptr,

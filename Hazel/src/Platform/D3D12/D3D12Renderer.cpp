@@ -347,8 +347,10 @@ namespace Hazel {
 		if (s_DecoupledOpaqueObjects.size() == 0)
 			return;
 
+
 		DecoupledRenderer* renderer = dynamic_cast<DecoupledRenderer*>(s_AvailableRenderers[RendererType_TextureSpace]);
 		CreateMissingVirtualTextures();
+		HeapValidationMark mark(s_ResourceDescriptorHeap);
 
 		D3D12Renderer::UpdateVirtualTextures();
 
@@ -905,7 +907,7 @@ namespace Hazel {
 			HZ_CORE_ASSERT((sizeof(RendererLight) % 16) == 0, "The size of the light struct should be 128-bit aligned");
 
 			s_LightsBuffer = CreateScope<D3D12UploadBuffer<RendererLight>>(MaxSupportedLights, false);
-			s_LightsBuffer->ResourceRaw()->SetName(L"Lights buffer");
+			s_LightsBuffer->GetResource()->SetName(L"Lights buffer");
 
 			s_LightsBufferAllocation = s_ResourceDescriptorHeap->Allocate(1);
 			HZ_CORE_ASSERT(s_LightsBufferAllocation.Allocated, "Could not allocate the light buffer");
@@ -921,7 +923,7 @@ namespace Hazel {
 			desc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
 
 			Context->DeviceResources->Device->CreateShaderResourceView(
-				s_LightsBuffer->ResourceRaw(),
+				s_LightsBuffer->GetResource(),
 				&desc,
 				s_LightsBufferAllocation.CPUHandle
 			);
@@ -1145,6 +1147,29 @@ namespace Hazel {
         );
 	}
 
+	void D3D12Renderer::CreateBufferSRV(GpuResource& buffer, uint32_t numElements, uint32_t stride)
+	{
+		if (!buffer.SRVAllocation.Allocated) {
+			buffer.SRVAllocation = s_ResourceDescriptorHeap->Allocate(1);
+			HZ_CORE_ASSERT(buffer.SRVAllocation.Allocated, "");
+		}
+
+		D3D12_SHADER_RESOURCE_VIEW_DESC desc;
+		desc.Format = DXGI_FORMAT_UNKNOWN;
+		desc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+        desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        desc.Buffer.FirstElement = 0;
+        desc.Buffer.NumElements = numElements;
+        desc.Buffer.StructureByteStride = stride;
+        desc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+
+		GetDevice()->CreateShaderResourceView(
+			buffer.GetResource(),
+			&desc,
+			buffer.SRVAllocation.CPUHandle
+		);
+	}
+
 	void D3D12Renderer::CreateRTV(Ref<Texture> texture, uint32_t mip)
 	{
 		if (!texture->RTVAllocation.Allocated)
@@ -1248,8 +1273,10 @@ namespace Hazel {
         opts.Height = height;
         opts.MipLevels = mips;
         opts.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
-        opts.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET
-            | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+        //opts.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET
+        //    | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+        opts.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
         auto tex = Hazel::Texture2D::CreateVirtualTexture(opts);
         auto fb = Hazel::Texture2D::CreateFeedbackMap(*tex);
         tex->SetFeedbackMap(fb);
@@ -1272,8 +1299,7 @@ namespace Hazel {
             &fbUAVDesc,
             fb->UAVAllocation.CPUHandle
         );
-        CreateSRV(std::static_pointer_cast<Texture>(tex), 0);
-        CreateRTV(std::static_pointer_cast<Texture>(tex), 0);
+        CreateSRV(tex, 0);
 	}
 
 	void D3D12Renderer::GenerateMips(Ref<Texture> texture, uint32_t mostDetailedMip)
@@ -1477,7 +1503,9 @@ namespace Hazel {
 			TilePool->MapTexture(*tex);
             auto mip = mips.FinestMip >= tex->GetMipLevels() ? tex->GetMipLevels() - 1 : mips.FinestMip;
 
-            CreateSRV(std::static_pointer_cast<Texture>(tex), mip);
+			if (tex->SRVAllocation.Allocated)
+				s_ResourceDescriptorHeap->Release(tex->SRVAllocation);
+            CreateSRV(tex, mip);
 		}		
 	}
 

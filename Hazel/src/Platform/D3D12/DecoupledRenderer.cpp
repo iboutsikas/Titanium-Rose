@@ -15,16 +15,6 @@ namespace Hazel
     // 
     void DecoupledRenderer::ImplRenderVirtualTextures(GraphicsContext& gfxContext)
     {
-        //for (auto& info : m_DilationQueue)
-        //{
-        //    TilePool->ReleaseTexture(*info.Temporary);
-        //    TilePool->RemoveTexture(*info.Temporary);
-        //}
-        
-        m_DilationQueue.clear();
-
-        //HeapValidationMark srvMark(s_ResourceDescriptorHeap);
-
         auto shader = GetShader();
         auto envRad = s_CommonData.Scene->Environment.EnvironmentMap;
         auto envIrr = s_CommonData.Scene->Environment.IrradianceMap;
@@ -62,7 +52,35 @@ namespace Hazel
             }
             auto virtualTexture = obj->DecoupledComponent.VirtualTexture;
 
+            std::vector<uint32_t> lights;
+
+            for (uint32_t i = 0; i < s_CommonData.Scene->Lights.size(); i++)
+            {
+                auto l = s_CommonData.Scene->Lights[i];
+                
+                auto v = l->gameObject->Transform.Position() - obj->Transform.Position();
+
+                auto d = glm::length(v);
+
+                if (d <= l->Range * 2) {
+                    lights.push_back(i);
+                }
+                
+            }
+
+            D3D12UploadBuffer<uint32_t>* objectLightsList = new D3D12UploadBuffer<uint32_t>(
+                lights.size(),
+                false
+            );
+            objectLightsList->CopyDataBlock(lights.size(), lights.data());
+            CreateBufferSRV(*objectLightsList, lights.size(), sizeof(uint32_t));
+            gfxContext.GetCommandList()->SetGraphicsRootDescriptorTable(ShaderIndices_ObjectLightsList, objectLightsList->SRVAllocation.GPUHandle);
+            gfxContext.TrackResource(objectLightsList);
+            gfxContext.TrackAllocation(objectLightsList->SRVAllocation);
+
+
             ScopedTimer timer(obj->Name, gfxContext);
+
             auto mips = virtualTexture->GetMipsUsed();
 
             auto targetWidth = virtualTexture->GetWidth() >> mips.FinestMip;
@@ -81,7 +99,7 @@ namespace Hazel
             dilateTextureInfo.Temporary = temporaryRenderTarget;
 
             CreateRTV(*temporaryRenderTarget, 0);
-            //gfxContext.TrackAllocation(temporaryRenderTarget->RTVAllocation, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+            gfxContext.TrackAllocation(temporaryRenderTarget->RTVAllocation, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
             m_DilationQueue.emplace_back(dilateTextureInfo);
 
@@ -106,6 +124,7 @@ namespace Hazel
             objectData.HasRoughness = obj->Material->HasRoughnessTexture;
             objectData.Roughness = obj->Material->Roughness;
             objectData.FinestMip = mips.FinestMip;
+            objectData.NumObjectLights = lights.size();
             
 
             auto vb = obj->Mesh->vertexBuffer->GetView();
@@ -131,7 +150,6 @@ namespace Hazel
             }
 
             gfxContext.SetDynamicContantBufferView(ShaderIndices_PerObject, sizeof(objectData), &objectData);
-
             gfxContext.GetCommandList()->DrawIndexedInstanced(obj->Mesh->indexBuffer->GetCount(), 1, 0, 0, 0);
         }
     }
@@ -157,10 +175,10 @@ namespace Hazel
             gfxContext.TransitionResource(*info.Target, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
             CreateSRV(*(info.Temporary));
-            //gfxContext.TrackAllocation(info.Temporary->SRVAllocation);
+            gfxContext.TrackAllocation(info.Temporary->SRVAllocation);
 
-            CreateUAV(std::static_pointer_cast<Texture>(info.Target), mips.FinestMip);
-            //gfxContext.TrackAllocation(info.Target->UAVAllocation);
+            CreateUAV(info.Target, mips.FinestMip);
+            gfxContext.TrackAllocation(info.Target->UAVAllocation);
 
             glm::vec4 dims = { width, height, 1.0f / width, 1.0f / height };
             gfxContext.GetCommandList()->SetComputeRoot32BitConstants(0, sizeof(dims) / sizeof(float), &dims[0], 0);
@@ -305,10 +323,9 @@ namespace Hazel
     {
         uint64_t fenceValue = D3D12Renderer::CommandQueueManager.GetGraphicsQueue().GetCompletedFenceValue();
 
-
         for (auto& info : m_DilationQueue)
         {
-            s_ResourceDescriptorHeap->Release(info.Target->UAVAllocation);
+            s_RenderTargetDescriptorHeap->Release(info.Temporary->RTVAllocation);
             TextureManager::DiscardTexture(info.Temporary, fenceValue);
         }
         m_DilationQueue.clear();

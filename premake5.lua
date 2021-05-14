@@ -10,7 +10,7 @@ workspace "Hazel"
 		"Dist"
 	}
 	
-	startproject "Sandbox"
+	startproject "RoseGarden"
 	
 	flags
 	{
@@ -25,19 +25,22 @@ IncludeDir["GLFW"] 		= "Hazel/vendor/GLFW/include"
 IncludeDir["ImGui"] 	= "Hazel/vendor/imgui"
 IncludeDir["glm"] 		= "Hazel/vendor/glm"
 IncludeDir["assimp"] 	= "Hazel/vendor/assimp"
-IncludeDir["winpix"] 	= "Hazel/vendor/winpixeventruntime/Include"
 IncludeDir["spdlog"]	= "Hazel/vendor/spdlog/include"
 IncludeDir["assimp"]	= "Hazel/vendor/assimp/include"
 IncludeDir["stbi"] 		= "Hazel/vendor/stb_image"
 IncludeDir["cxxopts"] 	= "Hazel/vendor/cxxopts/include"
 IncludeDir["json"] 		= "Hazel/vendor/json/single_include"
 
+-- Windows Only
+IncludeDir["winpix"] 	= "Hazel/vendor/winpixeventruntime/Include"
+IncludeDir["d3d12a"]	= "Hazel/vendor/d3d12/include"
 
-include "Hazel/vendor/GLFW"
--- include "Hazel/vendor/Glad"
-include "Hazel/vendor/imgui"
+group "Dependancies"
+	include "Hazel/vendor/GLFW"
+	-- include "Hazel/vendor/Glad"
+	include "Hazel/vendor/imgui"
 
--- group ""
+group ""
 
 project "Hazel"
 	location "Hazel"
@@ -88,18 +91,26 @@ project "Hazel"
 		-- "Glad",
 		"ImGui",
 		-- "opengl32.lib",
-		"D3DCompiler",
-		"dxguid",
-		"d3d12",
-		"dxgi"
+		
 	}
 
 	filter "system:windows"
 		systemversion "latest"
-		libdirs { "Hazel/vendor/winpixeventruntime/bin/x64" }
-		links {  "WinPixEventRuntime.lib" }
+		libdirs { 
+			"Hazel/vendor/winpixeventruntime/bin/x64",
+			"Hazel/vendor/D3D12/bin"
+		}
+		links {  
+			"WinPixEventRuntime.lib",
+			-- "D3DCompiler",
+			"dxcompiler.lib",
+			"dxguid",
+			"d3d12",
+			"dxgi"
+		}
 		includedirs {
-			"%{IncludeDir.winpix}"
+			"%{IncludeDir.winpix}",
+			"%{IncludeDir.d3d12a}"
 		}
 		defines {
 			"HZ_BUILD_DLL",
@@ -122,8 +133,8 @@ project "Hazel"
 		runtime "Release"
 		optimize "on"
 
-project "Sandbox"
-	location "Sandbox"
+project "RoseGarden"
+	location "RoseGarden"
 	kind "ConsoleApp"
 	language "C++"
 	cppdialect "C++17"
@@ -171,7 +182,11 @@ project "Sandbox"
 		}
 
 		postbuildcommands {
-			'{COPY} "../Hazel/vendor/winpixeventruntime/bin/x64/WinPixEventRuntime.dll" "%{cfg.targetdir}"'
+			'{COPY} "../Hazel/vendor/winpixeventruntime/bin/x64/WinPixEventRuntime.dll" "%{cfg.targetdir}"',
+			'{COPY} "../Hazel/vendor/d3d12/bin/D3D12Core.dll" "%{cfg.targetdir}/D3D12/"',
+			'{COPY} "../Hazel/vendor/d3d12/bin/D3D12SDKLayers.dll" "%{cfg.targetdir}/D3D12/"',
+			'{COPY} "../Hazel/vendor/d3d12/bin/dxcompiler.dll" "%{cfg.targetdir}"',
+			'{COPY} "../Hazel/vendor/d3d12/bin/dxil.dll" "%{cfg.targetdir}"'
 		}
 
 		defines {

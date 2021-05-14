@@ -1,4 +1,4 @@
-#define RS\
+#define RS \
 "RootFlags(0), " \
 "DescriptorTable(UAV(u0, numDescriptors = 1, flags = DESCRIPTORS_VOLATILE))," \
 "DescriptorTable(SRV(t0, numDescriptors = 1, flags = DESCRIPTORS_VOLATILE))," \

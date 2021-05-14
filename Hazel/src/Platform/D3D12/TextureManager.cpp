@@ -59,8 +59,8 @@ namespace Hazel {
             if (readyTexture.FenceValue <= fenceValue) {
                 texture = readyTexture.TexturePtr;
                 readyQueue.pop();
-                D3D12Renderer::s_RenderTargetDescriptorHeap->Release(texture->RTVAllocation);
-                D3D12Renderer::s_ResourceDescriptorHeap->Release(texture->SRVAllocation);
+                HZ_CORE_ASSERT(!texture->RTVAllocation.Allocated, "");
+                HZ_CORE_ASSERT(!texture->SRVAllocation.Allocated, "");
             }
 
         }

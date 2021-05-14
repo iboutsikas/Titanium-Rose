@@ -2,11 +2,11 @@
 #include "Hazel/Core/Core.h"
 
 #include "Platform/D3D12/ComPtr.h"
-
-#include <d3d12.h>
+#include "Platform/D3D12/HeapAllocationDescription.h"
 
 namespace Hazel
 {
+
     class GpuResource
     {
         friend class CommandContext;
@@ -29,6 +29,9 @@ namespace Hazel
         // set by some other API outside the direct engine code (i.e. DDSTextureLoader
         inline void BypassAndSetState(D3D12_RESOURCE_STATES newState) { m_CurrentState = newState; }
 
+        HeapAllocationDescription SRVAllocation;
+        HeapAllocationDescription UAVAllocation;
+        HeapAllocationDescription RTVAllocation;
 
     protected:
         D3D12_RESOURCE_STATES m_CurrentState;

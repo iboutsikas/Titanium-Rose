@@ -34,8 +34,13 @@ namespace Hazel {
 
         uint64_t fence = D3D12Renderer::CommandQueueManager.GetQueue(m_Type).ExecuteCommandList(m_CommandList);
 
-        if (waitForCompletion)
+        if (waitForCompletion) {
             D3D12Renderer::CommandQueueManager.WaitForFence(fence);
+            for (auto r : m_TransientResources) {
+                delete r;
+            }
+            m_TransientResources.clear();
+        }
 
         m_CommandList->Reset(m_CurrentAllocator, nullptr);
 
@@ -66,9 +71,13 @@ namespace Hazel {
         m_GpuLinearAllocator.CleanupUsedPages(fence);
 
         ReturnAllocations();
-        if (waitForCompletion)
+        if (waitForCompletion) {
             D3D12Renderer::CommandQueueManager.WaitForFence(fence);
-
+            for (auto r : m_TransientResources) {
+                delete r;
+            }
+            m_TransientResources.clear();
+        }
         s_ContextManager.FreeContext(this);
         
         return fence;
@@ -235,6 +244,15 @@ namespace Hazel {
             FlushResourceBarriers();
     }
 
+    void CommandContext::TrackResource(GpuResource* resource)
+    {
+        for (auto r : m_TransientResources)
+            if (r == resource)
+                return;
+
+        m_TransientResources.push_back(resource);
+    }
+
     void CommandContext::BeginEvent(const char* name, uint64_t color)
     {
         ::PIXBeginEvent(m_CommandList, color, name);
@@ -301,6 +319,11 @@ namespace Hazel {
 
         m_NumCachedBarriers = 0;
         BindDescriptorHeaps();
+
+        for (auto r : m_TransientResources) {
+            delete r;
+        }
+        m_TransientResources.clear();
     }
 
     CommandContext* ContextManager::AllocateContext(D3D12_COMMAND_LIST_TYPE type)
@@ -378,6 +401,17 @@ namespace Hazel {
         DynamicAllocation alloc = m_CpuLinearAllocator.Allocate(sizeInBytes);
         ::memcpy(alloc.CpuAddress, data, sizeInBytes);
         m_CommandList->SetGraphicsRootConstantBufferView(rootIndex, alloc.GpuAddress);
+    }
+
+    void GraphicsContext::SetDynamicBufferAsTable(uint32_t rootIndex, size_t sizeInBytes, const void* data)
+    {
+        HZ_CORE_ASSERT(false, "Do not use, does not work");
+        HZ_CORE_ASSERT(data != nullptr, "");
+
+        DynamicAllocation alloc = m_CpuLinearAllocator.Allocate(sizeInBytes);
+        ::memcpy(alloc.CpuAddress, data, sizeInBytes);
+        D3D12_GPU_DESCRIPTOR_HANDLE handle{ alloc.GpuAddress };
+        m_CommandList->SetGraphicsRootDescriptorTable(rootIndex, handle);
     }
 
 }

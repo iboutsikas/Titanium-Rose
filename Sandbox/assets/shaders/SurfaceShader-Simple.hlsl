@@ -23,7 +23,8 @@ cbuffer cbPass : register(b1) {
 cbuffer cbPerObject : register(b0) {
     matrix  LocalToWorld;
     uint2   FeedbackDims;
-    uint2   _padding;
+    uint    EntityID;
+    uint   _padding;
 }
 
 Texture2D ColorTexture : register(t0);

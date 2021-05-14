@@ -47,11 +47,6 @@ namespace Hazel {
         inline bool HasMips() const { return m_MipLevels > 1; }
         inline uint64_t GetGPUSizeInBytes() const { return m_ResourceAllocationInfo.SizeInBytes; }
 
-        HeapAllocationDescription SRVAllocation;
-        HeapAllocationDescription UAVAllocation;
-        HeapAllocationDescription RTVAllocation;
-
-
     protected:
         uint32_t m_MipLevels;
         bool m_IsCube;

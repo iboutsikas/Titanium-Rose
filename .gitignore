@@ -4,6 +4,7 @@
 !Hazel/vendor/assimp/bin
 !Hazel/vendor/winpixeventruntime/bin
 bin-int/
+*.pdb
 
 # Hazel files
 *.log

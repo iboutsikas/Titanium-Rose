@@ -32,7 +32,7 @@ namespace Hazel {
             textureOpts.Height = opts.Height;
             textureOpts.Depth = 1;
             textureOpts.MipLevels = 1;
-            textureOpts.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+            textureOpts.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL | D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
             textureOpts.IsDepthStencil = true;
 
             depthStencilTexture = Texture2D::CreateCommittedTexture(textureOpts);

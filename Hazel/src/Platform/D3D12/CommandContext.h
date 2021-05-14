@@ -97,16 +97,18 @@ namespace Hazel {
         void TransitionResource(GpuResource& resource, D3D12_RESOURCE_STATES newState, bool flushImmediate = false);
         void InsertUAVBarrier(GpuResource& resource, bool flushImmediate);
 
-        inline void TrackAllocation(const HeapAllocationDescription& allocation, D3D12_DESCRIPTOR_HEAP_TYPE type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)
+        inline void TrackAllocation(HeapAllocationDescription& allocation, D3D12_DESCRIPTOR_HEAP_TYPE type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)
         {
             
             switch (type)
             {
             case D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV:
                 m_ResourceAllocations.push_back(allocation);
+                allocation.Allocated = false;
                 break;
             case D3D12_DESCRIPTOR_HEAP_TYPE_RTV:
                 m_RTVAllocations.push_back(allocation);
+                allocation.Allocated = false;
                 break;
             default:
                 HZ_CORE_ASSERT(false, "Unsupported heap type");
@@ -114,21 +116,13 @@ namespace Hazel {
             }
 
         }
-        inline void TrackAllocation(const std::vector<HeapAllocationDescription>& allocations, D3D12_DESCRIPTOR_HEAP_TYPE type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)
+        inline void TrackAllocation(std::vector<HeapAllocationDescription>& allocations, D3D12_DESCRIPTOR_HEAP_TYPE type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)
         {
-            switch (type)
-            {
-            case D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV:
-                m_ResourceAllocations.insert(std::end(m_ResourceAllocations), std::begin(allocations), std::end(allocations));
-                break;
-            case D3D12_DESCRIPTOR_HEAP_TYPE_RTV:
-                m_RTVAllocations.insert(std::end(m_RTVAllocations), std::begin(allocations), std::end(allocations));
-                break;
-            default:
-                HZ_CORE_ASSERT(false, "Unsupported heap type");
-                break;
-            }
+            for (auto& allocation : allocations)
+                TrackAllocation(allocation, type);
         }
+
+        void TrackResource(GpuResource* resource);
 
         void BeginEvent(const char* name, uint64_t color = 0 /*PIX_COLOR_DEFAULT*/);
         void EndEvent();
@@ -160,6 +154,7 @@ namespace Hazel {
 
         std::vector<HeapAllocationDescription> m_RTVAllocations;
         std::vector<HeapAllocationDescription> m_ResourceAllocations;
+        std::vector<GpuResource*> m_TransientResources;
     };
 
 
@@ -170,6 +165,7 @@ namespace Hazel {
         }
 
         void SetDynamicContantBufferView(uint32_t rootIndex, size_t sizeInBytes, const void* data);
+        void SetDynamicBufferAsTable(uint32_t rootIndex, size_t sizeInBytes, const void* data);
     };
 
     class ComputeContext : public CommandContext {

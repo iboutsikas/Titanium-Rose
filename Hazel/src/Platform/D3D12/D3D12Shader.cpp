@@ -3,7 +3,10 @@
 
 #include "Platform/D3D12/D3D12Renderer.h"
 #include "Platform/D3D12/D3D12Shader.h"
-#include "d3dcompiler.h"
+
+#include <dxcapi.h>
+#include <d3d12shader.h>
+
 #include <sstream>
 
 
@@ -17,11 +20,11 @@ enum ShaderProfile {
 
 
 // This matches ShaderType 1-1 for now
-constexpr char* TARGET_PROFILES[] = {
-	"gs_5_1",
-	"vs_5_1",
-	"ps_5_1",
-	"cs_5_1"
+constexpr LPCWSTR TARGET_PROFILES[] = {
+	L"gs_6_0",
+	L"vs_6_0",
+	L"ps_6_0",
+	L"cs_6_0"
 };
 
 
@@ -33,16 +36,16 @@ namespace Hazel {
 	{
 		HZ_PROFILE_FUNCTION();
 
+        // Extract name from filepath
+        auto lastSlash = filepath.find_last_of("/\\");
+        lastSlash = lastSlash == std::string::npos ? 0 : lastSlash + 1;
+        auto lastDot = filepath.rfind('.');
+        auto count = lastDot == std::string::npos ? filepath.size() - lastSlash : lastDot - lastSlash;
+        m_Name = filepath.substr(lastSlash, count);
+
 		bool compilationResult = Recompile(&m_PipelineDesc);
 		HZ_CORE_ASSERT(compilationResult, "Shader compilation failed");
 		UpdateReferences();
-
-		// Extract name from filepath
-		auto lastSlash = filepath.find_last_of("/\\");
-		lastSlash = lastSlash == std::string::npos ? 0 : lastSlash + 1;
-		auto lastDot = filepath.rfind('.');
-		auto count = lastDot == std::string::npos ? filepath.size() - lastSlash : lastDot - lastSlash;
-		m_Name = filepath.substr(lastSlash, count);
 	}
 
 	D3D12Shader::D3D12Shader(const std::string& name, const std::string& vertexSrc, const std::string& fragmentSrc) {
@@ -83,17 +86,30 @@ namespace Hazel {
 		if (m_CompilationState != nullptr) {
 			m_RootSignature = m_CompilationState->rootSignature;
 			m_PipelineState = m_CompilationState->pipelineState;
-
+			
+			HRESULT hr;
 			if ((m_ShaderTypes & ShaderType::Vertex) == ShaderType::Vertex) {
-				m_VertexBlob = m_CompilationState->vertexBlob;
+				hr = m_CompilationState->vertexBlob->QueryInterface(IID_PPV_ARGS(&m_VertexBlob));
+
+				if (FAILED(hr)) {
+					HZ_CORE_ERROR("Failed to convert vertex shader during recompilation");
+				}
 			}
 
 			if ((m_ShaderTypes & ShaderType::Fragment) == ShaderType::Fragment) {
-				m_FragmentBlob = m_CompilationState->fragmentBlob;
+                hr = m_CompilationState->fragmentBlob->QueryInterface(IID_PPV_ARGS(&m_FragmentBlob));
+
+                if (FAILED(hr)) {
+                    HZ_CORE_ERROR("Failed to convert fragment shader during recompilation");
+                }
 			}
 
 			if ((m_ShaderTypes & ShaderType::Geometry) == ShaderType::Geometry) {
-				m_GeometryBlob = m_CompilationState->geometryBlob;
+                hr = m_CompilationState->geometryBlob->QueryInterface(IID_PPV_ARGS(&m_GeometryBlob));
+
+                if (FAILED(hr)) {
+                    HZ_CORE_ERROR("Failed to convert geometry shader during recompilation");
+                }
 			}
 			m_CompilationState = nullptr;
 		}
@@ -117,7 +133,7 @@ namespace Hazel {
 		m_Errors.clear();
 		std::wstring stemp = std::wstring(m_Path.begin(), m_Path.end());
 
-		if (FAILED(Compile(stemp, "CS_Main", TARGET_PROFILES[ShaderProfile::COMPUTE], &m_CompilationState->computeBlob))) {
+		if (FAILED(Compile(stemp, L"CS_Main", TARGET_PROFILES[ShaderProfile::COMPUTE], &m_CompilationState->computeBlob))) {
 			goto r_cleanup;
 		}
 
@@ -152,15 +168,15 @@ namespace Hazel {
 		m_Warnings.clear();
 		std::wstring stemp = std::wstring(m_Path.begin(), m_Path.end());
 
-		if (FAILED(Compile(stemp, "VS_Main", TARGET_PROFILES[ShaderProfile::VERTEX], &m_CompilationState->vertexBlob))) {
+		if (FAILED(Compile(stemp, L"VS_Main", TARGET_PROFILES[ShaderProfile::VERTEX], &m_CompilationState->vertexBlob))) {
 			goto r_cleanup;
 		}
-		if (FAILED(Compile(stemp, "PS_Main", TARGET_PROFILES[ShaderProfile::PIXEL], &m_CompilationState->fragmentBlob))) {
+		if (FAILED(Compile(stemp, L"PS_Main", TARGET_PROFILES[ShaderProfile::PIXEL], &m_CompilationState->fragmentBlob))) {
 			goto r_cleanup;
 		}
 
 		if ((m_ShaderTypes & ShaderType::Geometry) == ShaderType::Geometry) {
-			if (FAILED(Compile(stemp, "GS_Main", TARGET_PROFILES[ShaderProfile::GEOMETRY], &m_CompilationState->geometryBlob))) {
+			if (FAILED(Compile(stemp, L"GS_Main", TARGET_PROFILES[ShaderProfile::GEOMETRY], &m_CompilationState->geometryBlob))) {
 				goto r_cleanup;
 			}
 		}
@@ -181,8 +197,90 @@ namespace Hazel {
 		return false;
 	}
 
-	HRESULT D3D12Shader::Compile(const std::wstring& filepathW, LPCSTR entryPoint, LPCSTR profile, ID3DBlob** blob)
+	HRESULT D3D12Shader::Compile(const std::wstring& filepathW, LPCWSTR entryPoint, LPCWSTR profile, IDxcBlob** blob)
 	{
+		static TComPtr<IDxcUtils> utils = nullptr;
+		static TComPtr<IDxcCompiler3> compiler = nullptr;
+		static TComPtr<IDxcIncludeHandler> includeHandler = nullptr;
+
+		if (!utils) DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&utils));
+		if (!compiler) DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&compiler));
+		if (!includeHandler) utils->CreateDefaultIncludeHandler(&includeHandler);
+
+		
+		std::wstring pdbName(m_Name.begin(), m_Name.end());
+		pdbName.append(L".pdb");
+
+		std::vector<LPCWSTR> args = {
+			filepathW.c_str(),
+			L"-E", entryPoint,
+			L"-T", profile,
+			L"-Zi",
+			L"-Fd", pdbName.c_str(),
+			L"-Od"
+		};
+
+		TComPtr<IDxcBlobEncoding> source = nullptr;
+		D3D12::ThrowIfFailed(utils->LoadFile(filepathW.c_str(), nullptr, &source));
+		
+		DxcBuffer buffer;
+		buffer.Ptr = source->GetBufferPointer();
+		buffer.Size = source->GetBufferSize();
+        buffer.Encoding = DXC_CP_ACP;
+        //buffer.Encoding = DXC_CP_UTF8;
+
+
+		TComPtr<IDxcResult> results;
+		D3D12::ThrowIfFailed(compiler->Compile(
+			&buffer,
+			args.data(),
+			args.size(),
+			includeHandler.Get(),
+			IID_PPV_ARGS(&results)
+		));
+
+		/*
+		* We are always grabbing the errors first anyway, as warnings will be in this blob as well.
+		* We want to print warnings, even if they didn't break compilation.
+		*/
+        TComPtr<IDxcBlobUtf8> errors = nullptr;
+        results->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&errors), nullptr);
+		
+
+		HRESULT compilationStatus;
+		results->GetStatus(&compilationStatus);
+
+		if (FAILED(compilationStatus)) {
+			HZ_CORE_ASSERT(errors != nullptr, "errors should not be null, as compilation failed");
+			HZ_CORE_ASSERT(errors->GetStringLength() != 0, "String length should not be 0 as compilation failed");
+			// Anything in errors is considered an error now
+			HZ_CORE_ERROR("Error compiling shader: {}", errors->GetStringPointer());
+			m_Errors.push_back(errors->GetStringPointer());
+			return compilationStatus;
+		}
+		else {
+			// Anything in errors is considered a warning now, as compilation succeeded.
+			if (errors->GetStringLength() != 0) {
+				m_Warnings.push_back(errors->GetStringPointer());
+				HZ_CORE_WARN("Warnings compiling shader: {}", errors->GetStringPointer());
+			}
+			results->GetResult(blob);
+
+			TComPtr<IDxcBlob> pdb = nullptr;
+			TComPtr<IDxcBlobUtf16> pdbName = nullptr;
+
+			results->GetOutput(DXC_OUT_PDB, IID_PPV_ARGS(&pdb), &pdbName);
+			std::wstring pdbFilePath = L"assets/shaders/";
+			pdbFilePath.append(pdbName->GetStringPointer());
+			// TODO: Get rid of C api
+			FILE* fp = NULL;
+			_wfopen_s(&fp, pdbFilePath.c_str(), L"wb");
+			fwrite(pdb->GetBufferPointer(), pdb->GetBufferSize(), 1, fp);
+			fclose(fp);
+		}
+
+		return compilationStatus;
+#if 0
 		UINT flags = D3DCOMPILE_ENABLE_STRICTNESS;
 #if defined( HZ_DEBUG)
 		flags |= D3DCOMPILE_DEBUG;
@@ -229,10 +327,33 @@ namespace Hazel {
 		*blob = shaderBlob;
 
 		return hr;
+#endif
 	}
 	
-	HRESULT D3D12Shader::ExtractRootSignature(CompilationSate* state, TComPtr<ID3DBlob> shaderBlob)
+	HRESULT D3D12Shader::ExtractRootSignature(CompilationSate* state, TComPtr<IDxcBlob> shaderBlob)
 	{
+
+		// With the new compiler, we do not need to extract anything. We can pass the same blob into
+		// CreateRootSignature.
+        HRESULT hr;
+        hr = D3D12Renderer::Context->DeviceResources->Device->CreateRootSignature(
+            0,
+			shaderBlob->GetBufferPointer(),
+			shaderBlob->GetBufferSize(),
+            IID_PPV_ARGS(&state->rootSignature)
+        );
+
+        if (FAILED(hr))
+        {
+            std::stringstream ss;
+            ss << "Failed to create Root Signature for " << m_Name << '\n';
+            m_Errors.push_back(ss.str());
+            return hr;
+        }
+
+        return S_OK;
+
+#if 0
 		TComPtr<ID3DBlob> rootSignatureBlob;
 		HRESULT hr;
 
@@ -266,7 +387,7 @@ namespace Hazel {
 		}
 
 		return S_OK;
-		
+#endif		
 	}
 
 
@@ -276,19 +397,19 @@ namespace Hazel {
 
 		
 		if ((m_ShaderTypes & ShaderType::Vertex) == ShaderType::Vertex) {
-			pipelineStream->VS = CD3DX12_SHADER_BYTECODE(state->vertexBlob.Get());
+			pipelineStream->VS = CD3DX12_SHADER_BYTECODE((ID3DBlob*)state->vertexBlob.Get());
 		}
 
 		if ((m_ShaderTypes & ShaderType::Fragment) == ShaderType::Fragment) {
-			pipelineStream->PS = CD3DX12_SHADER_BYTECODE(state->fragmentBlob.Get());
+			pipelineStream->PS = CD3DX12_SHADER_BYTECODE((ID3DBlob*)state->fragmentBlob.Get());
 		}
 
 		if ((m_ShaderTypes & ShaderType::Geometry) == ShaderType::Geometry) {
-			pipelineStream->GS = CD3DX12_SHADER_BYTECODE(state->geometryBlob.Get());
+			pipelineStream->GS = CD3DX12_SHADER_BYTECODE((ID3DBlob*)state->geometryBlob.Get());
 		}
 
 		if ((m_ShaderTypes & ShaderType::Compute) == ShaderType::Compute) {
-			pipelineStream->CS = CD3DX12_SHADER_BYTECODE(state->computeBlob.Get());
+			pipelineStream->CS = CD3DX12_SHADER_BYTECODE((ID3DBlob*)state->computeBlob.Get());
 		}
 
 
