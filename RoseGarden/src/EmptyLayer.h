@@ -1,12 +1,12 @@
 #pragma once
-#include "Hazel/Core/Layer.h"
+#include "TitaniumRose/Core/Layer.h"
 
-class EmptyLayer: public Hazel::Layer
+class EmptyLayer: public Roses::Layer
 {
     virtual void OnAttach() override;
     virtual void OnDetach() override;
-    virtual void OnUpdate(Hazel::Timestep ts) override;
-    virtual void OnRender(Hazel::Timestep ts, Hazel::GraphicsContext& gfxContext) override;
+    virtual void OnUpdate(Roses::Timestep ts) override;
+    virtual void OnRender(Roses::Timestep ts, Roses::GraphicsContext& gfxContext) override;
 
 };
 

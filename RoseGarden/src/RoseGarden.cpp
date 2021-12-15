@@ -1,15 +1,15 @@
-#include <Hazel.h>
-#include <Hazel/Core/EntryPoint.h>
+#include <Roses.h>
+#include <TitaniumRose/Core/EntryPoint.h>
 
 #include "BunnySceneLayer.h"
 #include "EmptyLayer.h"
 #include "QualityBenchmarkLayer.h"
 #include "TimingBenchmarkLayer.h"
 
-class RoseGarden : public Hazel::Application
+class RoseGarden : public Roses::Application
 {
 public:
-	RoseGarden(const Hazel::Application::ApplicationOptions& opts): Hazel::Application(opts)
+	RoseGarden(const Roses::Application::ApplicationOptions& opts): Roses::Application(opts)
 	{
 		//PushLayer(new ExampleLayer());
 	}
@@ -114,7 +114,7 @@ public:
 	}
 };
 
-Hazel::Application* Hazel::CreateApplication()
+Roses::Application* Roses::CreateApplication()
 {
 	return new RoseGarden({ 1920, 1080, "Titanium Rose" });
 }

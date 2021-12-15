@@ -8,11 +8,11 @@
 #include <filesystem>
 
 
-#include "Hazel/Core/Application.h"
-#include "Hazel/Core/Math/Ray.h"
-#include "Hazel/Mesh/ModelLoader.h"
-#include "Hazel/Renderer/Vertex.h"
-#include "Hazel/Vendor/ImGui/ImGuiHelpers.h"
+#include "TitaniumRose/Core/Application.h"
+#include "TitaniumRose/Core/Math/Ray.h"
+#include "TitaniumRose/Mesh/ModelLoader.h"
+#include "TitaniumRose/Renderer/Vertex.h"
+#include "TitaniumRose/Vendor/ImGui/ImGuiHelpers.h"
 
 #include "Platform/D3D12/D3D12Context.h"
 #include "Platform/D3D12/D3D12DescriptorHeap.h"
@@ -38,9 +38,9 @@ BenchmarkLayer::BenchmarkLayer(const std::string& name, CreationOptions options)
     m_CameraController(glm::vec3(-30.0f, 7.0f, 0.0f), 62.0f, (1280.0f / 720.0f), 0.1f, 1000.0f),
     m_CreationOptions(options)
 {
-    using namespace Hazel;
-    auto width = Hazel::Application::Get().GetWindow().GetWidth();
-    auto height = Hazel::Application::Get().GetWindow().GetHeight();
+    using namespace Roses;
+    auto width = Roses::Application::Get().GetWindow().GetWidth();
+    auto height = Roses::Application::Get().GetWindow().GetHeight();
 
     
     m_LastFrameBuffer = D3D12Renderer::ResolveFrameBuffer();
@@ -71,7 +71,7 @@ BenchmarkLayer::BenchmarkLayer(const std::string& name, CreationOptions options)
 
 void BenchmarkLayer::OnAttach()
 {
-    ImGui::RegisterRenderingFunction<Hazel::LightComponent>(ImGui::LightComponentPanel);
+    ImGui::RegisterRenderingFunction<Roses::LightComponent>(ImGui::LightComponentPanel);
     ImGui::RegisterRenderingFunction<PatrolComponent>(RenderPatrolComponent);
 
     if (m_EnableCapture || m_CreationOptions.CaptureTiming) {
@@ -81,9 +81,9 @@ void BenchmarkLayer::OnAttach()
     std::ostringstream oss;
     oss << m_DebugName << '-' << "Decoupled update rate: " << m_CreationOptions.UpdateRate;
 
-    Hazel::Application::Get().GetWindow().SetTitle(oss.str().c_str());
+    Roses::Application::Get().GetWindow().SetTitle(oss.str().c_str());
 
-    Hazel::D3D12Renderer::SetDecoupledUpdateRate(m_CreationOptions.UpdateRate);
+    Roses::D3D12Renderer::SetDecoupledUpdateRate(m_CreationOptions.UpdateRate);
 }
 
 void BenchmarkLayer::OnDetach()
@@ -95,12 +95,12 @@ void BenchmarkLayer::OnDetach()
     }
 
     if (m_CreationOptions.CaptureTiming)
-        Hazel::Profiler::SaveTimings("Frame Total", m_CaptureFolder + "timings.json");
+        Roses::Profiler::SaveTimings("Frame Total", m_CaptureFolder + "timings.json");
 }
 
-void BenchmarkLayer::OnUpdate(Hazel::Timestep ts)
+void BenchmarkLayer::OnUpdate(Roses::Timestep ts)
 {
-    using namespace Hazel;
+    using namespace Roses;
         
     {
         //ScopedTimer timer("BenchmarkLayer::Camera update");
@@ -112,9 +112,9 @@ void BenchmarkLayer::OnUpdate(Hazel::Timestep ts)
     }
 }
 
-void BenchmarkLayer::OnRender(Hazel::Timestep ts, Hazel::GraphicsContext& gfxContext)
+void BenchmarkLayer::OnRender(Roses::Timestep ts, Roses::GraphicsContext& gfxContext)
 {
-    using namespace Hazel;
+    using namespace Roses;
     auto r = D3D12Renderer::Context->DeviceResources.get();
     auto fr = D3D12Renderer::Context->CurrentFrameResource;
 
@@ -153,9 +153,9 @@ void BenchmarkLayer::OnRender(Hazel::Timestep ts, Hazel::GraphicsContext& gfxCon
     D3D12Renderer::EndScene();
 }
 
-void BenchmarkLayer::OnImGuiRender(Hazel::GraphicsContext& uiContext)
+void BenchmarkLayer::OnImGuiRender(Roses::GraphicsContext& uiContext)
 {
-    using namespace Hazel;
+    using namespace Roses;
 #if 1
     ImGui::Begin("Shader Control Center");    
     ImGui::Columns(2);
@@ -212,7 +212,7 @@ void BenchmarkLayer::OnImGuiRender(Hazel::GraphicsContext& uiContext)
 
 void BenchmarkLayer::OnFrameEnd()
 {
-    using namespace Hazel;
+    using namespace Roses;
 
     m_CaptureCounter++;
     m_FrameCounter++;
@@ -239,19 +239,19 @@ void BenchmarkLayer::OnFrameEnd()
     }
 }
 
-void BenchmarkLayer::OnEvent(Hazel::Event& e)
+void BenchmarkLayer::OnEvent(Roses::Event& e)
 {
-    Hazel::EventDispatcher dispatcher(e);
+    Roses::EventDispatcher dispatcher(e);
 
-    dispatcher.Dispatch<Hazel::MouseButtonPressedEvent>(HZ_BIND_EVENT_FN(BenchmarkLayer::OnMouseButtonPressed));
-    dispatcher.Dispatch<Hazel::WindowResizeEvent>(HZ_BIND_EVENT_FN(BenchmarkLayer::OnResize));
+    dispatcher.Dispatch<Roses::MouseButtonPressedEvent>(HZ_BIND_EVENT_FN(BenchmarkLayer::OnMouseButtonPressed));
+    dispatcher.Dispatch<Roses::WindowResizeEvent>(HZ_BIND_EVENT_FN(BenchmarkLayer::OnResize));
 
     m_CameraController.OnEvent(e);
 }
 
-bool BenchmarkLayer::OnMouseButtonPressed(Hazel::MouseButtonPressedEvent& event)
+bool BenchmarkLayer::OnMouseButtonPressed(Roses::MouseButtonPressedEvent& event)
 {
-    using namespace Hazel;
+    using namespace Roses;
 #if 1
     auto [mx, my] = Input::GetMousePosition();
     //ImGui::IsAnyWindowHovered();
@@ -284,11 +284,11 @@ bool BenchmarkLayer::OnMouseButtonPressed(Hazel::MouseButtonPressedEvent& event)
     return false;
 }
 
-bool BenchmarkLayer::OnResize(Hazel::WindowResizeEvent& event)
+bool BenchmarkLayer::OnResize(Roses::WindowResizeEvent& event)
 {
-    using namespace Hazel;
-    auto width = Hazel::Application::Get().GetWindow().GetWidth();
-    auto height = Hazel::Application::Get().GetWindow().GetHeight();
+    using namespace Roses;
+    auto width = Roses::Application::Get().GetWindow().GetWidth();
+    auto height = Roses::Application::Get().GetWindow().GetHeight();
 
     // TODO: Hard coded to float. We need a way to get this out of the texture hopefully
     m_ReadbackBuffer = CreateRef<ReadbackBuffer>(width * height * sizeof(float));
@@ -297,7 +297,7 @@ bool BenchmarkLayer::OnResize(Hazel::WindowResizeEvent& event)
 
 void BenchmarkLayer::CaptureLastFramebuffer()
 {
-    using namespace Hazel;
+    using namespace Roses;
     auto framebuffer = m_LastFrameBuffer;
     auto readback = m_ReadbackBuffer;
     auto frameCounter = m_FrameCounter;

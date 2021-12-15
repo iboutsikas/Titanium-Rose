@@ -12,15 +12,15 @@ void EmptyLayer::OnDetach()
 {
 }
 static glm::vec4 color(1, 0, 1, 1);
-void EmptyLayer::OnUpdate(Hazel::Timestep ts)
+void EmptyLayer::OnUpdate(Roses::Timestep ts)
 {
     
     //
 }
 
-void EmptyLayer::OnRender(Hazel::Timestep ts, Hazel::GraphicsContext& gfxContext)
+void EmptyLayer::OnRender(Roses::Timestep ts, Roses::GraphicsContext& gfxContext)
 {
-    using namespace Hazel;
+    using namespace Roses;
 
     D3D12Renderer::PrepareBackBuffer(gfxContext, color);
 

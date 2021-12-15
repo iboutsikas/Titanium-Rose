@@ -1,4 +1,4 @@
-workspace "Hazel"
+workspace "TitaniumRose"
 	architecture "x64"
 	targetdir "build"
 
@@ -21,29 +21,29 @@ outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
 
 -- Include directories relative to root folder (solution directory)
 IncludeDir = {}
-IncludeDir["GLFW"] 		= "Hazel/vendor/GLFW/include"
-IncludeDir["ImGui"] 	= "Hazel/vendor/imgui"
-IncludeDir["glm"] 		= "Hazel/vendor/glm"
-IncludeDir["assimp"] 	= "Hazel/vendor/assimp"
-IncludeDir["spdlog"]	= "Hazel/vendor/spdlog/include"
-IncludeDir["assimp"]	= "Hazel/vendor/assimp/include"
-IncludeDir["stbi"] 		= "Hazel/vendor/stb_image"
-IncludeDir["cxxopts"] 	= "Hazel/vendor/cxxopts/include"
-IncludeDir["json"] 		= "Hazel/vendor/json/single_include"
+IncludeDir["GLFW"] 		= "TitaniumRose/vendor/GLFW/include"
+IncludeDir["ImGui"] 	= "TitaniumRose/vendor/imgui"
+IncludeDir["glm"] 		= "TitaniumRose/vendor/glm"
+IncludeDir["assimp"] 	= "TitaniumRose/vendor/assimp"
+IncludeDir["spdlog"]	= "TitaniumRose/vendor/spdlog/include"
+IncludeDir["assimp"]	= "TitaniumRose/vendor/assimp/include"
+IncludeDir["stbi"] 		= "TitaniumRose/vendor/stb_image"
+IncludeDir["cxxopts"] 	= "TitaniumRose/vendor/cxxopts/include"
+IncludeDir["json"] 		= "TitaniumRose/vendor/json/single_include"
 
 -- Windows Only
-IncludeDir["winpix"] 	= "Hazel/vendor/winpixeventruntime/Include"
-IncludeDir["d3d12a"]	= "Hazel/vendor/d3d12/include"
+IncludeDir["winpix"] 	= "TitaniumRose/vendor/winpixeventruntime/Include"
+IncludeDir["d3d12a"]	= "TitaniumRose/vendor/d3d12/include"
 
 group "Dependancies"
-	include "Hazel/vendor/GLFW"
-	-- include "Hazel/vendor/Glad"
-	include "Hazel/vendor/imgui"
+	include "TitaniumRose/vendor/GLFW"
+	-- include "TitaniumRose/vendor/Glad"
+	include "TitaniumRose/vendor/imgui"
 
 group ""
 
-project "Hazel"
-	location "Hazel"
+project "TitaniumRose"
+	location "TitaniumRose"
 	kind "StaticLib"
 	language "C++"
 	cppdialect "C++17"
@@ -52,8 +52,8 @@ project "Hazel"
 	targetdir ("bin/" .. outputdir .. "/%{prj.name}")
 	objdir ("bin-int/" .. outputdir .. "/%{prj.name}")
 
-	pchheader "hzpch.h"
-	pchsource "Hazel/src/hzpch.cpp"
+	pchheader "trpch.h"
+	pchsource "TitaniumRose/src/trpch.cpp"
 
 	files
 	{
@@ -97,8 +97,8 @@ project "Hazel"
 	filter "system:windows"
 		systemversion "latest"
 		libdirs { 
-			"Hazel/vendor/winpixeventruntime/bin/x64",
-			"Hazel/vendor/D3D12/bin"
+			"TitaniumRose/vendor/winpixeventruntime/bin/x64",
+			"TitaniumRose/vendor/D3D12/bin"
 		}
 		links {  
 			"WinPixEventRuntime.lib",
@@ -153,8 +153,8 @@ project "RoseGarden"
 	{
 		"%{IncludeDir.GLFW}",
 		"%{prj.name}/src",
-		"Hazel/src",
-		"Hazel/vendor",
+		"TitaniumRose/src",
+		"TitaniumRose/vendor",
 		"%{IncludeDir.glm}",
 		"%{IncludeDir.spdlog}",
 		"%{IncludeDir.assimp}",
@@ -170,23 +170,23 @@ project "RoseGarden"
 
 	links
 	{
-		"Hazel"
+		"TitaniumRose"
 	}
 
 	filter "system:windows"
 		systemversion "latest"
-		libdirs { "Hazel/vendor/winpixeventruntime/bin/x64" }
+		libdirs { "TitaniumRose/vendor/winpixeventruntime/bin/x64" }
 		links {  "WinPixEventRuntime.lib" }
 		includedirs {
 			"%{IncludeDir.winpix}"
 		}
 
 		postbuildcommands {
-			'{COPY} "../Hazel/vendor/winpixeventruntime/bin/x64/WinPixEventRuntime.dll" "%{cfg.targetdir}"',
-			'{COPY} "../Hazel/vendor/d3d12/bin/D3D12Core.dll" "%{cfg.targetdir}/D3D12/"',
-			'{COPY} "../Hazel/vendor/d3d12/bin/D3D12SDKLayers.dll" "%{cfg.targetdir}/D3D12/"',
-			'{COPY} "../Hazel/vendor/d3d12/bin/dxcompiler.dll" "%{cfg.targetdir}"',
-			'{COPY} "../Hazel/vendor/d3d12/bin/dxil.dll" "%{cfg.targetdir}"'
+			'{COPY} "../TitaniumRose/vendor/winpixeventruntime/bin/x64/WinPixEventRuntime.dll" "%{cfg.targetdir}"',
+			'{COPY} "../TitaniumRose/vendor/d3d12/bin/D3D12Core.dll" "%{cfg.targetdir}/D3D12/"',
+			'{COPY} "../TitaniumRose/vendor/d3d12/bin/D3D12SDKLayers.dll" "%{cfg.targetdir}/D3D12/"',
+			'{COPY} "../TitaniumRose/vendor/d3d12/bin/dxcompiler.dll" "%{cfg.targetdir}"',
+			'{COPY} "../TitaniumRose/vendor/d3d12/bin/dxil.dll" "%{cfg.targetdir}"'
 		}
 
 		defines {
@@ -198,10 +198,10 @@ project "RoseGarden"
 		runtime "Debug"
 		symbols "on"
 
-		links { "Hazel/vendor/assimp/bin/Debug/assimpd.lib" }
+		links { "TitaniumRose/vendor/assimp/bin/Debug/assimpd.lib" }
 
 		postbuildcommands {
-			'{COPY} "../Hazel/vendor/assimp/bin/Debug/assimpd.dll" "%{cfg.targetdir}"'
+			'{COPY} "../TitaniumRose/vendor/assimp/bin/Debug/assimpd.dll" "%{cfg.targetdir}"'
 		}
 		
 	filter "configurations:Release"
@@ -209,10 +209,10 @@ project "RoseGarden"
 		runtime "Release"
 		optimize "on"
 
-		links { "Hazel/vendor/assimp/bin/Release/assimp.lib" }
+		links { "TitaniumRose/vendor/assimp/bin/Release/assimp.lib" }
 
 		postbuildcommands {
-			'{COPY} "../Hazel/vendor/assimp/bin/Release/assimp.dll" "%{cfg.targetdir}"'
+			'{COPY} "../TitaniumRose/vendor/assimp/bin/Release/assimp.dll" "%{cfg.targetdir}"'
 		}
 
 	filter "configurations:Dist"

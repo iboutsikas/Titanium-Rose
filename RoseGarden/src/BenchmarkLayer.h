@@ -1,17 +1,17 @@
 #pragma once
 
-#include "Hazel.h"
-#include "Hazel/ComponentSystem/GameObject.h"
-#include "Hazel/ComponentSystem/Component.h"
-#include "Hazel/Renderer/PerspectiveCameraController.h"
-#include "Hazel/Scene/Scene.h"
+#include "Roses.h"
+#include "TitaniumRose/ComponentSystem/GameObject.h"
+#include "TitaniumRose/ComponentSystem/Component.h"
+#include "TitaniumRose/Renderer/PerspectiveCameraController.h"
+#include "TitaniumRose/Scene/Scene.h"
 
 #include "Platform/D3D12/D3D12Buffer.h"
 #include "Platform/D3D12/FrameBuffer.h"
 
 #include <future>
 #include <atomic>
-class BenchmarkLayer : public Hazel::Layer
+class BenchmarkLayer : public Roses::Layer
 {
 public:
 
@@ -28,15 +28,15 @@ public:
 	virtual void OnAttach() override;
 	virtual void OnDetach() override;
 
-	void OnUpdate(Hazel::Timestep ts) override;
-	void OnRender(Hazel::Timestep ts, Hazel::GraphicsContext& gfxContext) override;
+	void OnUpdate(Roses::Timestep ts) override;
+	void OnRender(Roses::Timestep ts, Roses::GraphicsContext& gfxContext) override;
 
-	virtual void OnImGuiRender(Hazel::GraphicsContext& uiContext) override;
+	virtual void OnImGuiRender(Roses::GraphicsContext& uiContext) override;
 	virtual void OnFrameEnd() override;
-	void OnEvent(Hazel::Event& e) override;
+	void OnEvent(Roses::Event& e) override;
 
-	bool OnMouseButtonPressed(Hazel::MouseButtonPressedEvent& event);
-	bool OnResize(Hazel::WindowResizeEvent& event);
+	bool OnMouseButtonPressed(Roses::MouseButtonPressedEvent& event);
+	bool OnResize(Roses::WindowResizeEvent& event);
 
 protected:
 	void CaptureLastFramebuffer();
@@ -46,12 +46,12 @@ protected:
 
 	void AppendCapturePath(std::string& suffix);
 	
-	Hazel::Scene m_Scene;
-	Hazel::PerspectiveCameraController m_CameraController;
+	Roses::Scene m_Scene;
+	Roses::PerspectiveCameraController m_CameraController;
 
-    Hazel::Ref<Hazel::HGameObject> m_Selection = nullptr;
-    Hazel::Ref<Hazel::FrameBuffer> m_LastFrameBuffer = nullptr;
-    Hazel::Ref<Hazel::ReadbackBuffer> m_ReadbackBuffer = nullptr;
+    Roses::Ref<Roses::HGameObject> m_Selection = nullptr;
+    Roses::Ref<Roses::FrameBuffer> m_LastFrameBuffer = nullptr;
+    Roses::Ref<Roses::ReadbackBuffer> m_ReadbackBuffer = nullptr;
 
     int m_EnvironmentLevel = 0;
 	float m_LastFrameTime;

@@ -1,7 +1,7 @@
 #include "TimingBenchmarkLayer.h"
 
-#include "Hazel/Mesh/ModelLoader.h"
-#include "Hazel/Core/Log.h"
+#include "TitaniumRose/Mesh/ModelLoader.h"
+#include "TitaniumRose/Core/Log.h"
 
 #include "Platform/D3D12/D3D12Renderer.h"
 #include "Components/PatrolComponent.h"
@@ -14,7 +14,7 @@
 TimingBenchmarkLayer::TimingBenchmarkLayer(CreationOptions& opts)
     : BenchmarkLayer(opts.ExperimentGroup, opts), m_CreationOptions(opts)
 {
-    using namespace Hazel;
+    using namespace Roses;
     using nlohmann::json;
 
     m_EnableCapture = opts.CaptureRate > 0;

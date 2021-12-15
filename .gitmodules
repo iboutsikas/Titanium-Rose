@@ -1,22 +1,22 @@
-[submodule "Hazel/vendor/spdlog"]
-	path = Hazel/vendor/spdlog
+[submodule "TitaniumRose/vendor/spdlog"]
+	path = TitaniumRose/vendor/spdlog
 	url = https://github.com/gabime/spdlog
 	branch = v1.x
-[submodule "Hazel/vendor/GLFW"]
-	path = Hazel/vendor/GLFW
+[submodule "TitaniumRose/vendor/GLFW"]
+	path = TitaniumRose/vendor/GLFW
 	url = https://github.com/TheCherno/glfw
 	branch = master
-[submodule "Hazel/vendor/glm"]
-	path = Hazel/vendor/glm
+[submodule "TitaniumRose/vendor/glm"]
+	path = TitaniumRose/vendor/glm
 	url = https://github.com/g-truc/glm
 	branch = master
-[submodule "Hazel/vendor/imgui"]
-	path = Hazel/vendor/imgui
+[submodule "TitaniumRose/vendor/imgui"]
+	path = TitaniumRose/vendor/imgui
 	url = https://github.com/Zinadore/imgui
 	branch = docking
-[submodule "Hazel/vendor/cxxopts"]
-	path = Hazel/vendor/cxxopts
+[submodule "TitaniumRose/vendor/cxxopts"]
+	path = TitaniumRose/vendor/cxxopts
 	url = git@github.com:jarro2783/cxxopts.git
-[submodule "Hazel/vendor/json"]
-	path = Hazel/vendor/json
+[submodule "TitaniumRose/vendor/json"]
+	path = TitaniumRose/vendor/json
 	url = git@github.com:nlohmann/json.git

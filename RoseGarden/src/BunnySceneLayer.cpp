@@ -1,6 +1,6 @@
 #include "BunnySceneLayer.h"
 
-#include "Hazel/Mesh/ModelLoader.h"
+#include "TitaniumRose/Mesh/ModelLoader.h"
 
 #include "Platform/D3D12/D3D12Renderer.h"
 
@@ -8,7 +8,7 @@ BunnySceneLayer::BunnySceneLayer()
     : BenchmarkLayer("BunnySceneLayer")
 {
 #if 0
-    using namespace Hazel;
+    using namespace Roses;
 
     m_EnableCapture = false;
 
