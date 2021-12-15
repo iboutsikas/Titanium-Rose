@@ -25,6 +25,7 @@ namespace Hazel
             ShaderIndices_Normal,
             ShaderIndices_Metalness,
             ShaderIndices_Roughness,
+            ShaderIndices_ObjectLightsList,
             ShaderIndices_EnvRadiance,
             ShaderIndices_EnvIrradiance,
             ShaderIndices_BRDFLUT,
@@ -50,8 +51,8 @@ namespace Hazel
             uint32_t HasRoughness;
             float Roughness;
             // ----- 16 bytes -----
-            //uint32_t EntityID;
-            //uint32_t _padding[3];
+            uint32_t NumObjectLights;
+            uint32_t _padding[3];
             //// ----- 16 bytes -----
         };
 

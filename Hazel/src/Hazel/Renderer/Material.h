@@ -30,6 +30,7 @@ namespace Hazel {
 		bool HasRoughnessTexture;
 		bool HasMetallicTexture;
 		bool IsTransparent;
+		bool IncludeAllLights = false;
 
 		Hazel::Ref<Hazel::Texture2D> AlbedoTexture;
 		Hazel::Ref<Hazel::Texture2D> NormalTexture;
@@ -50,6 +51,7 @@ namespace Hazel {
             copy->HasRoughnessTexture = this->HasRoughnessTexture;
             copy->HasMetallicTexture = this->HasMetallicTexture;
             copy->IsTransparent = this->IsTransparent;
+			copy->IncludeAllLights = this->IncludeAllLights;
 
             copy->AlbedoTexture = this->AlbedoTexture;
             copy->NormalTexture = this->NormalTexture;

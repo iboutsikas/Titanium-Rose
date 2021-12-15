@@ -5,14 +5,18 @@
 // Constant normal incidence Fresnel factor for all dielectrics.
 static const float3 Fdielectric = 0.04;
 
-Texture2D<float3> AlbedoTexture     : register(t0);
-Texture2D<float3> NormalTexture     : register(t1);
-Texture2D<float> MetalnessTexture   : register(t2);
-Texture2D<float> RoughnessTexture   : register(t3);
-TextureCube EnvRadianceTexture      : register(t4);
-TextureCube EnvIrradianceTExture    : register(t5);
-Texture2D<float2> BRDFLUT           : register(t6);
-StructuredBuffer<Light> SceneLights : register(t7);
+// Per Object
+Texture2D<float3> AlbedoTexture : register(t0);
+Texture2D<float3> NormalTexture : register(t1);
+Texture2D<float> MetalnessTexture : register(t2);
+Texture2D<float> RoughnessTexture : register(t3);
+StructuredBuffer<uint> ObjectLightsList: register(t4);
+
+// Global
+TextureCube EnvRadianceTexture : register(t5);
+TextureCube EnvIrradianceTexture : register(t6);
+Texture2D<float2> BRDFLUT : register(t7);
+StructuredBuffer<Light> SceneLights : register(t8);
 
 SamplerState someSampler: register(s0);
 SamplerState brdfSampler: register(s1);
@@ -37,6 +41,8 @@ cbuffer cbPerObject : register(b0) {
     float MaterialMetallic;
     bool HasRoughness;
     float MaterialRoughness;
+    uint NumObjectLights;
+    uint3 _padding;
 };
 
 cbuffer cbPass : register(b1) {
@@ -68,13 +74,11 @@ PSInput VS_Main(VSInput input)
 [RootSignature(PBR_RS)]
 float4 PS_Main(PSInput input) : SV_TARGET
 {
-   float3 Albedo = HasAlbedo ? AlbedoTexture.Sample(someSampler, input.uv) : MaterialColor;
-   float  Metalness = HasMetallic ? MetalnessTexture.Sample(someSampler, input.uv).r : MaterialMetallic;
-   float  Roughness = HasRoughness ? RoughnessTexture.Sample(someSampler, input.uv).r : MaterialRoughness;
-
+    float Metalness = HasMetallic ? MetalnessTexture.Sample(someSampler, input.uv).r : MaterialMetallic;
+ 
     float3 Normal = normalize(input.normal);
-    
-    if (HasNormal) {
+    if (HasNormal)
+    {
         float3 N = NormalTexture.Sample(someSampler, input.uv).rgb;
         N = 2.0 * N - 1.0;
         Normal = normalize(mul(N, input.TBN));
@@ -86,25 +90,28 @@ float4 PS_Main(PSInput input) : SV_TARGET
     // Specular reflection vector.
     float3 Lr = 2.0 * cosLo * Normal - FragmentToCamera;
 
+    float3 Albedo = HasAlbedo ? AlbedoTexture.Sample(someSampler, input.uv) : MaterialColor;
+
     // Fresnel reflectance at normal incidence (for metals use albedo color).
     float3 F0 = lerp(Fdielectric, Albedo, Metalness);
 
+    float Roughness = HasRoughness ? RoughnessTexture.Sample(someSampler, input.uv).r : MaterialRoughness;
+
     float3 directLighting = 0.0;
-    #if 1
-    for(uint i = 0; i < NumLights; i++)
+#if 1
+    for (uint i = 0; i < NumObjectLights; i++)
     {
-        Light l = SceneLights[i];
-        
-        float3 V = l.Position.xyz - input.WorldPosition;
+        uint index = ObjectLightsList[i];
+
+        float3 V = SceneLights[index].Position.xyz - input.WorldPosition;
 
         float d = length(V);
 
-
-        if (d > l.Range) {
+        if (d > SceneLights[index].Range) {
             continue;
         }
 
-        float attenuation = CalculateAttenuation(l.Range, d);
+        float attenuation = CalculateAttenuation(SceneLights[index].Range, d);
 
         float shadowFactor = step(0, dot(input.normal, FragmentToCamera));
 
@@ -125,6 +132,7 @@ float4 PS_Main(PSInput input) : SV_TARGET
 
         float3 kd = lerp(float3(1, 1, 1) - F, float3(0, 0, 0), Metalness);
 
+
         // Lambert diffuse BRDF.
         // We don't scale by 1/PI for lighting & material units to be more convenient.
         // See: https://seblagarde.wordpress.com/2012/01/08/pi-or-not-to-pi-in-game-lighting-equation/
@@ -134,14 +142,15 @@ float4 PS_Main(PSInput input) : SV_TARGET
         float3 specularBRDF = (F * D * G) / max(Epsilon, 4.0 * cosLi * cosLo);
 
         // Total contribution for this light.
-        directLighting += (diffuseBRDF + specularBRDF) * l.Color * l.Intensity * cosLi * attenuation * shadowFactor;
+        directLighting += (diffuseBRDF + specularBRDF) * SceneLights[index].Color * SceneLights[index].Intensity * 
+                                cosLi * attenuation * shadowFactor;
     }
-    #endif
+#endif
     // Ambient lighting (IBL).
     float3 ambientLighting;
     {
         // Sample diffuse irradiance at normal direction.
-        float3 irradiance = EnvIrradianceTExture.Sample(someSampler, Normal).rgb;
+        float3 irradiance = EnvIrradianceTexture.Sample(someSampler, Normal).rgb;
 
         // Calculate Fresnel term for ambient lighting.
         // Since we use pre-filtered cubemap(s) and irradiance is coming from many directions
@@ -169,10 +178,8 @@ float4 PS_Main(PSInput input) : SV_TARGET
         // Total ambient lighting contribution.
         ambientLighting = diffuseIBL + specularIBL;
     }
-
-    // return float4(MaterialEmissive, 1.0);
-    // float mip = AlbedoTexture.CalculateLevelOfDetail(someSampler, input.uv);
-    // return MipDebugColor(uint(mip));
-
+    
+    // return float4(1, 0, 0, 1);
+    // return float4(ambientLighting + MaterialEmissive, 1.0);
     return float4(directLighting + ambientLighting + MaterialEmissive, 1);
 }

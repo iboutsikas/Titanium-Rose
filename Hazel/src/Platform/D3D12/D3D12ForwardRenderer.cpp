@@ -56,6 +56,37 @@ void Hazel::D3D12ForwardRenderer::ImplRenderSubmitted(GraphicsContext& gfxContex
             continue;
         }
 
+        std::vector<uint32_t> lights;
+
+        for (uint32_t i = 0; i < s_CommonData.Scene->Lights.size(); i++)
+        {
+#if 0
+            lights.push_back(i);
+#else
+            auto l = s_CommonData.Scene->Lights[i];
+
+            auto v = l->gameObject->Transform.Position() - go->Transform.Position();
+
+            auto d = glm::length(v);
+
+            if (d <= l->Range * 2 || go->Material->IncludeAllLights) {
+                lights.push_back(i);
+            }
+#endif
+        }
+
+        D3D12UploadBuffer<uint32_t>* objectLightsList = new D3D12UploadBuffer<uint32_t>(
+            lights.size(),
+            false
+            );
+
+        objectLightsList->CopyDataBlock(lights.size(), lights.data());
+        CreateBufferSRV(*objectLightsList, lights.size(), sizeof(uint32_t));
+        gfxContext.GetCommandList()->SetGraphicsRootDescriptorTable(ShaderIndices_ObjectLightsList, objectLightsList->SRVAllocation.GPUHandle);
+        gfxContext.TrackResource(objectLightsList);
+        gfxContext.TrackAllocation(objectLightsList->SRVAllocation);
+
+
         ScopedTimer objectTimer(go->Name, gfxContext);
 
         HPerObjectData objectData;
@@ -69,7 +100,7 @@ void Hazel::D3D12ForwardRenderer::ImplRenderSubmitted(GraphicsContext& gfxContex
         objectData.Metallic = go->Material->Metallic;
         objectData.HasRoughness = go->Material->HasRoughnessTexture;
         objectData.Roughness = go->Material->Roughness;
-        //objectData.EntityID = go->ID;
+        objectData.NumObjectLights = lights.size();
 
         auto vb = go->Mesh->vertexBuffer->GetView();
         vb.StrideInBytes = sizeof(Vertex);

@@ -111,6 +111,10 @@ float4 PS_Main(PSInput input) : SV_TARGET
 
         float d = length(V);
 
+        if (d > SceneLights[index].Range) {
+            continue;
+        }
+
         float attenuation = CalculateAttenuation(SceneLights[index].Range, d);
 
         float shadowFactor = step(0, dot(input.normal, FragmentToCamera));

@@ -56,6 +56,9 @@ namespace Hazel
 
             for (uint32_t i = 0; i < s_CommonData.Scene->Lights.size(); i++)
             {
+#if 0
+                lights.push_back(i);
+#else
                 auto l = s_CommonData.Scene->Lights[i];
                 
                 auto v = l->gameObject->Transform.Position() - obj->Transform.Position();
@@ -65,7 +68,7 @@ namespace Hazel
                 if (d <= l->Range * 2) {
                     lights.push_back(i);
                 }
-                
+#endif           
             }
 
             D3D12UploadBuffer<uint32_t>* objectLightsList = new D3D12UploadBuffer<uint32_t>(

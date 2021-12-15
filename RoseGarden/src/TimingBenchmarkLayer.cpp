@@ -76,6 +76,7 @@ TimingBenchmarkLayer::TimingBenchmarkLayer(CreationOptions& opts)
     plane->Transform.SetScale(35, 1, 35);
     plane->Material->Roughness = 1.0f;
     plane->Material->Metallic = 0.0f;
+    plane->Material->IncludeAllLights = true;
     m_Scene.AddEntity(plane);
 
     // Lights
