@@ -363,7 +363,7 @@ namespace Roses
         uint32_t numTiles = size / D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
 
         Ref<TilePage> newPage = CreateRef<TilePage>(numTiles, m_Pages.size());
-        newPage->PageIndex = m_Pages.size();
+        newPage->PageIndex = static_cast<uint16_t>(m_Pages.size());
         newPage->Heap = heap;
         m_Pages.push_back(newPage);
         return newPage;

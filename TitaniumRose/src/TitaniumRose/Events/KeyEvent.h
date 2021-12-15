@@ -3,6 +3,9 @@
 #include "TitaniumRose/Events/Event.h"
 #include "TitaniumRose/Core/Input.h"
 
+#include <string>
+#include <sstream>
+
 namespace Roses {
 
 	class KeyEvent : public Event

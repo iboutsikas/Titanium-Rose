@@ -1,9 +1,9 @@
 #pragma once
 
-#include "trpch.h"
-
 #include "TitaniumRose/Core/Core.h"
 #include "TitaniumRose/Events/Event.h"
+
+#include <functional>
 
 namespace Roses {
 	class GraphicsContext;

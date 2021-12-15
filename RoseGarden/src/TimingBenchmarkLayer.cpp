@@ -7,9 +7,11 @@
 #include "Components/PatrolComponent.h"
 
 #include <unordered_map>
-#include <windows.h>
+#include <Windows.h>
+#include <fstream>
 
 #include "nlohmann/json.hpp"
+
 
 TimingBenchmarkLayer::TimingBenchmarkLayer(CreationOptions& opts)
     : BenchmarkLayer(opts.ExperimentGroup, opts), m_CreationOptions(opts)
@@ -40,9 +42,13 @@ TimingBenchmarkLayer::TimingBenchmarkLayer(CreationOptions& opts)
     const int bound = 4;
     const int num_bunnies = (2 * bound) * (2 * bound);
 
-    auto meshesPerFrame = std::ceil((float)num_bunnies / m_CreationOptions.UpdateRate);
+    if (m_CreationOptions.UpdateRate >= 0)
+    {
+        auto meshesPerFrame = std::ceil((float)num_bunnies / m_CreationOptions.UpdateRate);
 
-    D3D12Renderer::SetPerFrameDecoupledCap(meshesPerFrame);
+        D3D12Renderer::SetPerFrameDecoupledCap(meshesPerFrame);    
+    }
+    
 #if 1
     auto mesh = ModelLoader::LoadFromFile(opts.Scene);
     for (int z = -bound; z < bound; z++) {
@@ -99,12 +105,12 @@ TimingBenchmarkLayer::TimingBenchmarkLayer(CreationOptions& opts)
         go->Transform.SetScale(0.3f, 0.3f, 0.3f);
         go->Transform.SetPosition(position);
         go->Name = "Scene Light #" + std::to_string(index);
-        auto light = go->AddComponent<LightComponent>();
-        light->Range = 6.5f;
-        light->Intensity = 1.0f;
-        light->Color = color;
+        auto lightComponent = go->AddComponent<LightComponent>();
+        lightComponent->Range = 6.5f;
+        lightComponent->Intensity = 1.0f;
+        lightComponent->Color = color;
         m_Scene.AddEntity(go);
-        m_Scene.Lights.push_back(light);
+        m_Scene.Lights.push_back(lightComponent);
         index++;
     }
 #endif

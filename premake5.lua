@@ -133,6 +133,10 @@ project "TitaniumRose"
 		runtime "Release"
 		optimize "on"
 
+
+
+
+
 project "RoseGarden"
 	location "RoseGarden"
 	kind "ConsoleApp"
@@ -151,14 +155,12 @@ project "RoseGarden"
 
 	includedirs
 	{
-		"%{IncludeDir.GLFW}",
 		"%{prj.name}/src",
 		"TitaniumRose/src",
 		"TitaniumRose/vendor",
 		"%{IncludeDir.glm}",
 		"%{IncludeDir.spdlog}",
-		"%{IncludeDir.assimp}",
-		"%{IncludeDir.stbi}",
+		"%{IncludeDir.stbi}", -- Needed since the layers are writing images
 		"%{IncludeDir.json}"
 	}
 

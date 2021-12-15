@@ -64,7 +64,7 @@ namespace Roses
         glm::vec3 E2 = V2 - V0;
         glm::vec3 N = cross(E1, E2);
         float det = -glm::dot(m_Direction, N);
-        float invdet = 1.0 / det;
+        float invdet = 1.0f / det;
         glm::vec3 AO = m_Origin -V0;
         glm::vec3 DAO = glm::cross(AO, m_Direction);
         float u = glm::dot(E2, DAO) * invdet;
@@ -99,16 +99,17 @@ namespace Roses
 
     bool Ray::Raycast(Ref<HGameObject> entity, Ray& ray, std::vector<RaycastHit>& hits)
     {
-        if (entity->Mesh == nullptr)
-        {
-            goto Raycast_Children;
-        }
         auto transform = entity->Transform.LocalToWorldMatrix();
 
         Ray r = {
                 glm::inverse(transform) * glm::vec4(ray.m_Origin, 1.0f),
                 glm::inverse(glm::mat3(transform)) * ray.m_Direction
         };
+
+        if (entity->Mesh == nullptr)
+        {
+            goto Raycast_Children;
+        }
 
         float t;
         auto& mesh = entity->Mesh;

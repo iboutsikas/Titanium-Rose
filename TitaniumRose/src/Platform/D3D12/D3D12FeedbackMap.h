@@ -22,8 +22,8 @@ namespace Roses
 		/// </summary>
 		/// <returns>The dimensions of the resource</returns>
 		inline glm::ivec3 GetDimensions() const { return glm::ivec3(m_Width, m_Height, m_ElementSize); }
-		inline const uint32_t GetElementSize() const { return m_ElementSize; }
-		inline const uint32_t GetSize() const { return m_ActualSize; }
+		inline const size_t GetElementSize() const { return m_ElementSize; }
+		inline const size_t GetSize() const { return m_ActualSize; }
 
 		void Update(CommandContext& context);
 

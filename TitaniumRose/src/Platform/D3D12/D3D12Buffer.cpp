@@ -41,7 +41,7 @@ namespace Roses {
 	D3D12IndexBuffer::D3D12IndexBuffer(CommandContext& context, uint32_t* indices, uint32_t count)
 		: m_Count(count)
 	{
-		auto size = sizeof(uint32_t) * count;
+		const uint32_t size = sizeof(uint32_t) * count;
 
 		D3D12::ThrowIfFailed(D3D12Renderer::GetDevice()->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),

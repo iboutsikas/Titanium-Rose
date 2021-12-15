@@ -156,14 +156,14 @@ namespace Roses {
 		s_CommonData.NumLights = 0;
 		for (size_t i = 0; i < scene.Lights.size(); i++)
 		{
-			auto& l = scene.Lights[i];
+            const auto& l = scene.Lights[i];
 
-			RendererLight rl;
+			RendererLight rl{};
 			rl.Color = l->Color;
 			rl.Position = glm::vec4(l->gameObject->Transform.Position(), 1.0f);
 			rl.Range = l->Range;
 			rl.Intensity = l->Intensity;
-			s_LightsBuffer->CopyData(i, rl);
+			s_LightsBuffer->CopyData(static_cast<int>(i), rl);
 
 			s_CommonData.NumLights++;
 		}
@@ -177,17 +177,17 @@ namespace Roses {
 
 	void D3D12Renderer::ResizeViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height)
 	{
-		Context->Viewport.TopLeftX = x;
-		Context->Viewport.TopLeftY = y;
-		Context->Viewport.Width = width;
-		Context->Viewport.Height = height;
+		Context->Viewport.TopLeftX = static_cast<FLOAT>(x);
+		Context->Viewport.TopLeftY = static_cast<FLOAT>(y);
+		Context->Viewport.Width = static_cast<FLOAT>(width);
+		Context->Viewport.Height = static_cast<FLOAT>(height);
 		Context->Viewport.MinDepth = 0.0f;
 		Context->Viewport.MaxDepth = 1.0f;
 
-		Context->ScissorRect.left = x;
-		Context->ScissorRect.top = y;
-		Context->ScissorRect.right = width;
-		Context->ScissorRect.bottom = height;
+		Context->ScissorRect.left = static_cast<LONG>(x);
+		Context->ScissorRect.top = static_cast<LONG>(y);
+		Context->ScissorRect.right = static_cast<LONG>(width);
+		Context->ScissorRect.bottom = static_cast<LONG>(height);
 
 		Context->WaitForGpu();
 		
@@ -607,7 +607,7 @@ namespace Roses {
 			context.TransitionResource(*envUnfiltered, D3D12_RESOURCE_STATE_COPY_SOURCE, true);
 
 			// 6 faces
-			for (size_t i = 0; i < 6; i++)
+			for (UINT i = 0; i < 6; i++)
 			{
 				uint32_t index = D3D12CalcSubresource(0, i, 0, envFiltered->GetMipLevels(), 6);
 				context.CopySubresource(*envFiltered, index, *envUnfiltered, index);
@@ -872,8 +872,9 @@ namespace Roses {
 
 		std::vector<uint32_t> indices = { 0, 1, 2, 2, 3, 0 };
 
-		s_FullscreenQuadVB = new D3D12VertexBuffer(context, (float*)verts.data(), verts.size() * sizeof(QuadVertex));
-		s_FullscreenQuadIB = new D3D12IndexBuffer(context, indices.data(), indices.size());
+		s_FullscreenQuadVB = new D3D12VertexBuffer(context, reinterpret_cast<float*>(verts.data()),
+                                                   sizeof(QuadVertex) * verts.size()); // NOLINT(clang-diagnostic-shorten-64-to-32)
+		s_FullscreenQuadIB = new D3D12IndexBuffer(context, indices.data(), indices.size());  // NOLINT(clang-diagnostic-shorten-64-to-32)
 
 		context.Finish(true);
 
@@ -986,7 +987,7 @@ namespace Roses {
 			s_RenderTargetDescriptorHeap->Release(desc);
 			HZ_CORE_ASSERT(desc.Allocated == false, "Could not release dynamic render targets");
 
-			s_CommonData.DynamicRenderTargets == 0;
+			//s_CommonData.DynamicRenderTargets = 0;
 		}
 	}
 
@@ -995,8 +996,8 @@ namespace Roses {
 		for (int i = 0; i < s_Framebuffers.size(); i++)
 		{
 			FrameBufferOptions opts;
-			opts.Width = Context->Viewport.Width;
-			opts.Height = Context->Viewport.Height;
+			opts.Width = static_cast<uint32_t>(Context->Viewport.Width);
+			opts.Height = static_cast<uint32_t>(Context->Viewport.Height);
 			opts.ColourFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
 			opts.DepthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 			opts.Name = "Framebuffer[" + std::to_string(i) + "]";
@@ -1318,7 +1319,7 @@ namespace Roses {
 		uint64_t totalMipLevels = texture->GetMipLevels();
 
 		if (leastDetailedMip == -1)
-			leastDetailedMip = totalMipLevels - 1;
+			leastDetailedMip = static_cast<uint32_t>(totalMipLevels - 1);
 		// Since mostDetailedMip <= leastDetailsMip we just flip the subtraction here to always
 		// get positive
 		uint32_t remainingMips = (leastDetailedMip - mostDetailedMip);
@@ -1377,10 +1378,10 @@ namespace Roses {
 			uint32_t srcHeight	= texture->GetHeight() >> srcMip;
 			uint32_t dstWidth	= static_cast<uint32_t>(srcWidth >> 1);
 			uint32_t dstHeight	= static_cast<uint32_t>(srcHeight >> 1);
-			uint32_t mipCount = std::min<uint32_t>(MipsPerIteration, remainingMips);
+			uint64_t mipCount = std::min<uint64_t>(MipsPerIteration, remainingMips);
 
 			// Clamp our variables
-			mipCount = (srcMip + mipCount) >= totalMipLevels ? totalMipLevels - srcMip - 1 : mipCount;
+			mipCount = (static_cast<uint64_t>(srcMip) + mipCount) >= totalMipLevels ? totalMipLevels - srcMip - 1 : mipCount;
 			dstWidth = std::max<uint32_t>(1, dstWidth);
 			dstHeight = std::max<uint32_t>(1, dstHeight);
 

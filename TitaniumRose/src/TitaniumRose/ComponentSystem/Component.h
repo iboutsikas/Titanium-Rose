@@ -46,7 +46,7 @@ inline Roses::ComponentID GetTypeID() override { return ID; }
     public:
         DEFINE_COMPONENT_ID(LightComponent);
 
-        int32_t Range;
+        float Range;
         float Intensity;
         glm::vec3 Color;
 

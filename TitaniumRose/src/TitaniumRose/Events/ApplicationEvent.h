@@ -2,6 +2,8 @@
 
 #include "TitaniumRose/Events/Event.h"
 
+#include <string>
+#include <sstream>
 namespace Roses {
 
 	class WindowResizeEvent : public Event

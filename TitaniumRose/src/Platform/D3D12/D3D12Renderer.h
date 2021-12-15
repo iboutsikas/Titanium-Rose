@@ -27,7 +27,7 @@ namespace Roses
     {
     public:
 
-        static constexpr uint8_t MaxSupportedLights = 2000;
+        static constexpr uint16_t MaxSupportedLights = 2000;
         static constexpr uint8_t MipsPerIteration = 4;
         static constexpr uint8_t FrameLatency = 3;
 

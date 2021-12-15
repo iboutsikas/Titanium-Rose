@@ -19,8 +19,8 @@ namespace Roses {
         StatHistory()
             : m_Average(0.0f), m_Minimum(0.0f), m_Maximum(0.0f), m_Recent(0.0f)
         {
-            memset(m_RecentHistory, 0.0f, HistorySize * sizeof(float));
-            memset(m_ExtendedHistory, 0.0f, ExtendedHistorySize * sizeof(float));
+            memset(m_RecentHistory, 0, HistorySize * sizeof(float));
+            memset(m_ExtendedHistory, 0, ExtendedHistorySize * sizeof(float));
         }
 
         void RecordStat(uint32_t frame, float value)
@@ -140,7 +140,7 @@ namespace Roses {
         }
 
         void GatherTimes(uint32_t frame) {
-            m_CPUTime.RecordStat(frame, 1000.0f * SystemTime::TimeBetweenTicks(m_StartTick, m_EndTick));
+            m_CPUTime.RecordStat(frame, static_cast<float>(1000.0 * SystemTime::TimeBetweenTicks(m_StartTick, m_EndTick)));
             m_GPUTime.RecordStat(frame, 1000.0f * m_GpuTimer.GetTime());
 
             for (auto child : m_Children)
@@ -169,7 +169,7 @@ namespace Roses {
         static void Render(GraphicsContext& gfxContext);
 
         static void UpdateTimes() {
-            uint64_t frame = D3D12Renderer::GetFrameCount();
+            const auto frame = static_cast<uint32_t>(D3D12Renderer::GetFrameCount());
             GpuTime::BeginReadBack();
             s_RootScope.GatherTimes(frame);
             s_FrameDelta.RecordStat(frame, GpuTime::GetTime(0));
@@ -271,7 +271,7 @@ namespace Roses {
         cpuObj["avg"] = node->m_CPUTime.GetAvg();
         cpuObj["values"] = json::array();
 
-        for (int i = 0; i < node->m_CPUTime.GetHistoryLength(); i++)
+        for (uint32_t i = 0; i < node->m_CPUTime.GetHistoryLength(); i++)
         {
             cpuObj["values"].emplace_back(node->m_CPUTime.GetHistory()[i]);
         }
@@ -284,7 +284,7 @@ namespace Roses {
         gpuObj["avg"] = node->m_GPUTime.GetAvg();
         gpuObj["values"] = json::array();
 
-        for (int i = 0; i < node->m_GPUTime.GetHistoryLength(); i++)
+        for (uint32_t i = 0; i < node->m_GPUTime.GetHistoryLength(); i++)
         {
             gpuObj["values"].emplace_back(node->m_GPUTime.GetHistory()[i]);
         }

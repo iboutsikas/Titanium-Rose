@@ -1,5 +1,4 @@
 #pragma once
-#include "trpch.h"
 
 #include "TitaniumRose/Core/Core.h"
 
