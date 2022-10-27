@@ -253,6 +253,7 @@ namespace Roses
             HPerObjectDataSimple objectData;
             objectData.LocalToWorld = go->Transform.LocalToWorldMatrix();
             objectData.FeedbackDims = fm->GetDimensions();
+            objectData.Mips = glm::ivec2(tex->GetMipsUsed().CoarsestMip, tex->GetMipsUsed().FinestMip);
             //objectData.EntityID = go->ID;
 
             auto vb = go->Mesh->vertexBuffer->GetView();

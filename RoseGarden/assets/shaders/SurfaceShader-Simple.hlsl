@@ -23,8 +23,7 @@ cbuffer cbPass : register(b1) {
 cbuffer cbPerObject : register(b0) {
     matrix  LocalToWorld;
     uint2   FeedbackDims;
-    uint    EntityID;
-    uint   _padding;
+    uint2   Mips;
 }
 
 Texture2D ColorTexture : register(t0);
@@ -63,10 +62,10 @@ float4 PS_Main(PSInput input) : SV_TARGET
     InterlockedMin(FeedbackBuffer[index], idealMipLevel);
     // uint currentMip = FeedbackBuffer[index];
     // FeedbackBuffer[index] = min(currentMip, idealMipLevel);
-
+    uint sampleMip = min(Mips.y, min(Mips.x, idealMipLevel));
     // return MipDebugColor(idealMipLevel);
     // return float4(idealMipLevel / 10, 0, 0, 1);
     // float4 smpl = ColorTexture.SampleLevel(g_sampler, input.uv, 3);
-    return ColorTexture.Sample(g_sampler, input.uv);
+    return ColorTexture.SampleLevel(g_sampler, input.uv, sampleMip);
 
 }

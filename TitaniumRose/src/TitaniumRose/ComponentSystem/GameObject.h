@@ -21,7 +21,7 @@ namespace Roses {
     {
         bool UseDecoupledTexture = false;
 		bool OverwriteRefreshRate = false;
-		uint64_t LastFrameUpdated = 0;
+		int64_t LastFrameUpdated = -1;
 		uint64_t UpdateFrequency = 1;
         Ref<VirtualTexture2D> VirtualTexture = nullptr;
     };

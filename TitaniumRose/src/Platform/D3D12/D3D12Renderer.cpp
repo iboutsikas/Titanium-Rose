@@ -302,15 +302,28 @@ namespace Roses {
 				s_ForwardTransparentObjects.push_back(gameObject);
 			}
 			else if (gameObject->DecoupledComponent.UseDecoupledTexture) {
+
+				/**
+                 * If there is a cap of 0, but we do have decoupled objects
+                 * it probably means we activated a virtual texture after initialization.
+                 * So we will set the cap to at least 1
+                 */
+                if (s_PerFrameDecoupledCap == 0)
+                {
+					SetPerFrameDecoupledCap(1);
+                }
+
+
 				auto diff = GetFrameCount() - gameObject->DecoupledComponent.LastFrameUpdated;
 				auto updateFreq = gameObject->DecoupledComponent.OverwriteRefreshRate ?
 					gameObject->DecoupledComponent.UpdateFrequency :
 					s_DecoupledUpdateRate;
 
-				bool isFirstUpdate = GetFrameCount() <= updateFreq;
+				
+				bool isFirstUpdate = gameObject->DecoupledComponent.LastFrameUpdated == -1;
 
 				bool timeToUpdate = diff >= updateFreq;
-				bool canShadeMoreObjectsThisFrame = s_DecoupledOpaqueObjects.size() < s_PerFrameDecoupledCap;
+                bool canShadeMoreObjectsThisFrame = s_DecoupledOpaqueObjects.size() < s_PerFrameDecoupledCap;
 
 				if ( (isFirstUpdate || timeToUpdate) && canShadeMoreObjectsThisFrame) {
 
@@ -1502,6 +1515,8 @@ namespace Roses {
 			auto mips = tex->ExtractMipsUsed();
             //ScopedTimer t("Texture Map", commandList);
 			TilePool->MapTexture(*tex);
+			tex->UpdateFromDescription();
+
             auto mip = mips.FinestMip >= tex->GetMipLevels() ? tex->GetMipLevels() - 1 : mips.FinestMip;
 
 			if (tex->SRVAllocation.Allocated)
