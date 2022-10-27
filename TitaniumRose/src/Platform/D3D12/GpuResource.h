@@ -22,6 +22,7 @@ namespace Roses
         inline std::string& GetIdentifier() { return m_Identifier; }
 
         void Reset();
+        void Release();
        
         void SetName(std::string name);
 

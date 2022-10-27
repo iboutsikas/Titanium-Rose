@@ -1,8 +1,6 @@
 #include <Roses.h>
 #include <TitaniumRose/Core/EntryPoint.h>
 
-#include "BunnySceneLayer.h"
-#include "EmptyLayer.h"
 #include "QualityBenchmarkLayer.h"
 #include "TimingBenchmarkLayer.h"
 
@@ -32,9 +30,10 @@ public:
 	}
 
 	virtual void OnInit(cxxopts::ParseResult& options) override 
-	{
-		
+	{		
 		if (options.count("timing")) {
+            m_UseFixedTimestep = false;
+
 			TimingBenchmarkLayer::CreationOptions opts;
             opts.CaptureTiming = true;
 
@@ -66,9 +65,14 @@ public:
                 opts.Scene = options["scene"].as<std::string>();
             }
 
+            /*opts.EnableDecoupled = true;
+            opts.UpdateRate = 3;*/
+
             PushLayer(new TimingBenchmarkLayer(opts));
 		}
 		else {
+            m_UseFixedTimestep = true;
+
             QualityBenchmarkLayer::CreationOptions opts;
             opts.CaptureTiming = false;
 
@@ -110,7 +114,7 @@ public:
 	}
 
 	~RoseGarden()
-	{
+    {
 	}
 };
 

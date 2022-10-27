@@ -8,6 +8,17 @@
 static Roses::ContextManager s_ContextManager;
 
 namespace Roses {
+
+    CommandContext::CommandContext():
+        m_Type(D3D12_COMMAND_LIST_TYPE_DIRECT),
+        m_CommandList(nullptr), 
+        m_CurrentAllocator(nullptr),
+        m_NumCachedBarriers(0),
+        m_CpuLinearAllocator(LinearAllocator::AllocatorType::CpuWritable),
+        m_GpuLinearAllocator(LinearAllocator::AllocatorType::GpuExclusive)
+    {
+
+    }
     CommandContext::CommandContext(D3D12_COMMAND_LIST_TYPE type)
         : m_Type(type), m_CommandList(nullptr), 
         m_CurrentAllocator(nullptr),
@@ -24,6 +35,39 @@ namespace Roses {
     {
         if (m_CommandList != nullptr)
             m_CommandList->Release();
+    }
+
+    CommandContext& CommandContext::operator=(CommandContext&& other)
+    {
+        m_Type = other.m_Type;
+        m_CommandList = other.m_CommandList;
+        m_CurrentAllocator = other.m_CurrentAllocator;
+
+        for (uint8_t r = 0; r < MAX_RESOURCE_BARRIERS; r++)
+        {
+            m_ResourceBarriers[r] = other.m_ResourceBarriers[r];
+            
+        }
+        m_NumCachedBarriers = other.m_NumCachedBarriers;
+        
+        for(uint8_t h = 0; h < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES; h++)
+        {
+            m_DescriptorHeaps[h] = other.m_DescriptorHeaps[h];
+        }
+
+        m_CpuLinearAllocator = other.m_CpuLinearAllocator;
+        m_GpuLinearAllocator = other.m_GpuLinearAllocator;
+
+        m_Name = other.m_Name;
+
+        m_RTVAllocations = other.m_RTVAllocations;
+        m_ResourceAllocations = other.m_ResourceAllocations;
+
+        m_TransientResources.swap(other.m_TransientResources);
+
+        other.Invalidate();
+
+        return *this;
     }
 
     uint64_t CommandContext::Flush(bool waitForCompletion /*= false*/)
@@ -175,6 +219,23 @@ namespace Roses {
         context.Finish(true);
     }
 
+    void CommandContext::ReadbackTexture2D(CommandContext& context, GpuResource& readbackBuffer, Texture2D& texture)
+    {
+        D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = {};
+
+        // Realistically we only want the first mip, or we are reading back a color buffer, that will only have 1 mip anyway
+        D3D12Renderer::GetDevice()->GetCopyableFootprints(&texture.GetResource()->GetDesc(), 0, 1, 0, &footprint, nullptr, nullptr, nullptr);
+
+        context.TransitionResource(texture, D3D12_RESOURCE_STATE_COPY_SOURCE, true);
+        context.m_CommandList->CopyTextureRegion(
+            &CD3DX12_TEXTURE_COPY_LOCATION(readbackBuffer.GetResource(), footprint),
+            0, 0, 0,
+            &CD3DX12_TEXTURE_COPY_LOCATION(texture.GetResource(), 0),
+            nullptr
+        );
+        context.Flush(true);
+    }
+
     void CommandContext::WriteBuffer(GpuResource& destination, size_t offset, const void* data, size_t sizeInBytes)
     {
         HZ_CORE_ASSERT(data != nullptr, "Data was null");
@@ -324,6 +385,11 @@ namespace Roses {
             delete r;
         }
         m_TransientResources.clear();
+    }
+
+    void CommandContext::Invalidate()
+    {
+        m_CommandList = nullptr;
     }
 
     CommandContext* ContextManager::AllocateContext(D3D12_COMMAND_LIST_TYPE type)

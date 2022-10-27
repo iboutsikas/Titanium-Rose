@@ -6,6 +6,7 @@
 #include "TitaniumRose/Renderer/PerspectiveCameraController.h"
 #include "TitaniumRose/Scene/Scene.h"
 
+#include "Platform/D3D12/CommandContext.h"
 #include "Platform/D3D12/D3D12Buffer.h"
 #include "Platform/D3D12/FrameBuffer.h"
 
@@ -62,6 +63,7 @@ protected:
 	
 	std::vector<std::shared_future<void>> m_CaptureTasks;
 	CreationOptions m_CreationOptions;
+
 private:
 	glm::vec4 m_ClearColor;
 	std::string m_CaptureFolder;

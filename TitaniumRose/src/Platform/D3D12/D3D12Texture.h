@@ -46,6 +46,7 @@ namespace Roses {
         inline uint32_t GetMipLevels() const { return  m_MipLevels; }
         inline bool HasMips() const { return m_MipLevels > 1; }
         inline uint64_t GetGPUSizeInBytes() const { return m_ResourceAllocationInfo.SizeInBytes; }
+        void UpdateFromDescription();
 
     protected:
         uint32_t m_MipLevels;
@@ -56,7 +57,6 @@ namespace Roses {
 
         D3D12_RESOURCE_ALLOCATION_INFO m_ResourceAllocationInfo;
 
-        void UpdateFromDescription();
     };
 
     class Texture2D : public Texture

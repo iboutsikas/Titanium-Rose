@@ -75,16 +75,20 @@ void Roses::D3D12ForwardRenderer::ImplRenderSubmitted(GraphicsContext& gfxContex
 #endif
         }
 
-        D3D12UploadBuffer<uint32_t>* objectLightsList = new D3D12UploadBuffer<uint32_t>(
+        if (!lights.empty())
+        {
+            D3D12UploadBuffer<uint32_t>* objectLightsList = new D3D12UploadBuffer<uint32_t>(
             lights.size(),
             false
             );
 
-        objectLightsList->CopyDataBlock(lights.size(), lights.data());
-        CreateBufferSRV(*objectLightsList, lights.size(), sizeof(uint32_t));
-        gfxContext.GetCommandList()->SetGraphicsRootDescriptorTable(ShaderIndices_ObjectLightsList, objectLightsList->SRVAllocation.GPUHandle);
-        gfxContext.TrackResource(objectLightsList);
-        gfxContext.TrackAllocation(objectLightsList->SRVAllocation);
+            objectLightsList->CopyDataBlock(lights.size(), lights.data());
+            CreateBufferSRV(*objectLightsList, lights.size(), sizeof(uint32_t));
+            gfxContext.GetCommandList()->SetGraphicsRootDescriptorTable(ShaderIndices_ObjectLightsList, objectLightsList->SRVAllocation.GPUHandle);
+            gfxContext.TrackResource(objectLightsList);
+            gfxContext.TrackAllocation(objectLightsList->SRVAllocation);
+        }
+        
 
 
         ScopedTimer objectTimer(go->Name, gfxContext);

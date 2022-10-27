@@ -12,6 +12,7 @@
 
 #include "nlohmann/json.hpp"
 
+static Roses::Ref<Roses::HGameObject> lightGO = nullptr;
 
 TimingBenchmarkLayer::TimingBenchmarkLayer(CreationOptions& opts)
     : BenchmarkLayer(opts.ExperimentGroup, opts), m_CreationOptions(opts)
@@ -48,7 +49,12 @@ TimingBenchmarkLayer::TimingBenchmarkLayer(CreationOptions& opts)
 
         D3D12Renderer::SetPerFrameDecoupledCap(meshesPerFrame);    
     }
-    
+    else
+    {
+        D3D12Renderer::SetPerFrameDecoupledCap(num_bunnies); 
+    }
+
+
 #if 1
     auto mesh = ModelLoader::LoadFromFile(opts.Scene);
     for (int z = -bound; z < bound; z++) {
@@ -92,6 +98,8 @@ TimingBenchmarkLayer::TimingBenchmarkLayer(CreationOptions& opts)
     in >> j;
     uint32_t index = 0;
 
+    lightGO = ModelLoader::LoadFromFile(std::string("assets/models/test_sphere.fbx"));
+
     for (auto light : j) {
         auto p = light["position"];
         auto c = light["color"];
@@ -99,9 +107,10 @@ TimingBenchmarkLayer::TimingBenchmarkLayer(CreationOptions& opts)
         glm::vec3 position = { p[0], p[1], p[2] };
         glm::vec3 color = { c[0], c[1], c[2]  };
 
-        auto go = CreateRef<HGameObject>();
-        go->Material = CreateRef<HMaterial>();
         //auto go = ModelLoader::LoadFromFile(std::string("assets/models/test_sphere.fbx"));
+        auto go = CreateRef<HGameObject>();
+        //go->Mesh = lightGO->Mesh;
+        go->Material = CreateRef<HMaterial>();
         go->Transform.SetScale(0.3f, 0.3f, 0.3f);
         go->Transform.SetPosition(position);
         go->Name = "Scene Light #" + std::to_string(index);
@@ -112,6 +121,8 @@ TimingBenchmarkLayer::TimingBenchmarkLayer(CreationOptions& opts)
         m_Scene.AddEntity(go);
         m_Scene.Lights.push_back(lightComponent);
         index++;
+        //if (index == 50)
+        //    break;
     }
 #endif
     

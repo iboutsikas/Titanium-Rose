@@ -37,7 +37,7 @@ namespace Roses {
         if (m_Offset + actualSize > m_PageSize) {
             HZ_CORE_ASSERT(m_CurrentPage != nullptr, "We've got an offset but no page?!");
             m_RetiredPages.push_back(m_CurrentPage);
-            m_CurrentPage == nullptr;
+            m_CurrentPage = nullptr;
         }
 
         if (m_CurrentPage == nullptr) {
@@ -47,9 +47,11 @@ namespace Roses {
 
         DynamicAllocation alloc(*m_CurrentPage, actualSize, m_Offset);
         alloc.CpuAddress = (uint8_t*)m_CurrentPage->m_CpuVirtualAddress + m_Offset;
-        alloc.GpuAddress = m_CurrentPage->m_GpuVirtualAddress + m_Offset;
+        alloc.GpuAddress = m_CurrentPage->GetGPUAddress() + m_Offset;
 
         m_Offset += actualSize;
+        //if (m_Offset >= m_PageSize)
+        //    __debugbreak();
 
         return alloc;
     }
@@ -139,7 +141,7 @@ namespace Roses {
             nullptr,
             IID_PPV_ARGS(&resource)
         ));
-
+        
         resource->SetName(L"LinearAllocator Page");
         return new LinearAllocator::LinearAllocatorPage(resource, defaultState);
     }
@@ -177,7 +179,7 @@ namespace Roses {
 
         DynamicAllocation alloc(*page, sizeInBytes, 0);
         alloc.CpuAddress = page->m_CpuVirtualAddress;
-        alloc.GpuAddress = page->m_GpuVirtualAddress;
+        alloc.GpuAddress = page->GetGPUAddress();
         return alloc;
     }
 

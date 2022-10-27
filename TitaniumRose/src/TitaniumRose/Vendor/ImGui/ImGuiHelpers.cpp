@@ -67,13 +67,13 @@ void ImGui::MaterialControl(Roses::Ref<Roses::HMaterial> material)
         ImGui::Property("Albedo Color", material->Color, ImGui::PropertyFlag::ColorProperty);
     }
     else {
-        float factor = 1.0f / 1024;
+        float factor = 1.0f / 1024.0f;
         auto sizeInBytes = material->AlbedoTexture->GetGPUSizeInBytes();
 
         float sizeInKiB = sizeInBytes * factor;
         float sizeInMiB = sizeInKiB * factor;
 
-        ImGui::Text("Size: %d bytes (%0.2f Mb)", sizeInBytes, sizeInMiB);
+        ImGui::Text("Size: %d bytes (%0.2f MB)", sizeInBytes, sizeInMiB);
     }
 
     // ------ Roughness ------
@@ -89,13 +89,13 @@ void ImGui::MaterialControl(Roses::Ref<Roses::HMaterial> material)
         ImGui::Property("Roughness", material->Roughness, 0.0f, 1.0f, PropertyFlag::None);
     }
     else {
-        float factor = 1.0f / 1024;
+        float factor = 1.0f / 1024.0f;
         auto sizeInBytes = material->RoughnessTexture->GetGPUSizeInBytes();
 
         float sizeInKiB = sizeInBytes * factor;
         float sizeInMiB = sizeInKiB * factor;
 
-        ImGui::Text("Size: %d bytes (%0.2f Mb)", sizeInBytes, sizeInMiB);
+        ImGui::Text("Size: %d bytes (%0.2f MB)", sizeInBytes, sizeInMiB);
     }
 
     // ------ Metallic ------
@@ -111,13 +111,13 @@ void ImGui::MaterialControl(Roses::Ref<Roses::HMaterial> material)
         ImGui::Property("Metallic", material->Metallic, 0.0f, 1.0f, PropertyFlag::None);
     }
     else {
-        float factor = 1.0f / 1024;
+        float factor = 1.0f / 1024.0f;
         auto sizeInBytes = material->MetallicTexture->GetGPUSizeInBytes();
 
         float sizeInKiB = sizeInBytes * factor;
         float sizeInMiB = sizeInKiB * factor;
 
-        ImGui::Text("Size: %d bytes (%0.2f Mb)", sizeInBytes, sizeInMiB);
+        ImGui::Text("Size: %d bytes (%0.2f MB)", sizeInBytes, sizeInMiB);
     }
 
     // ------ Emissive ------
@@ -204,21 +204,21 @@ void ImGui::DecoupledTextureControl(Roses::DecoupledTextureComponent& component)
     ImGui::NextColumn();
     ImGui::Text("Low-res mip: %d", mips.CoarsestMip);
     ImGui::NextColumn();
-    float factor = 1.0f / 1024;
+    float factor = 1.0f / 1024.0f;
     auto sizeInBytes = component.VirtualTexture->GetGPUSizeInBytes();
 
     float sizeInKiB = sizeInBytes * factor;
     float sizeInMiB = sizeInKiB * factor;
 
-    ImGui::Text("Virtual Size: %d bytes (%0.2f Mb)", sizeInBytes, sizeInMiB);
+    ImGui::Text("Virtual Size: %d bytes (%0.2f MB)", sizeInBytes, sizeInMiB);
     ImGui::NextColumn();
     auto tilesUsed = component.VirtualTexture->GetTileUsage();
     // Magic number for D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT
     sizeInBytes = tilesUsed * 65536;
-    sizeInKiB = sizeInBytes * factor;
+    sizeInKiB = static_cast<float>(sizeInBytes) * factor;
     sizeInMiB = sizeInKiB * factor;
 
-    ImGui::Text("Real Size: %d tiles (%0.2f Mb)", tilesUsed, sizeInMiB);
+    ImGui::Text("Real Size: %d tiles (%0.2f MB)", tilesUsed, sizeInMiB);
 
     if (showingTexture)
     {

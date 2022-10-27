@@ -216,6 +216,7 @@ namespace Roses {
 			L"-E", entryPoint,
 			L"-T", profile,
 			L"-Zi",
+			L"-Zss",
 			L"-Fd", pdbName.c_str(),
 			L"-Od"
 		};

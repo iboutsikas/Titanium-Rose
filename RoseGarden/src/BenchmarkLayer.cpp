@@ -66,7 +66,6 @@ BenchmarkLayer::BenchmarkLayer(const std::string& name, CreationOptions options)
     oss << "captures/";
     oss << m_DebugName << '/';
     m_CaptureFolder = oss.str();
-
 }
 
 void BenchmarkLayer::OnAttach()
@@ -84,6 +83,7 @@ void BenchmarkLayer::OnAttach()
     Roses::Application::Get().GetWindow().SetTitle(oss.str().c_str());
 
     Roses::D3D12Renderer::SetDecoupledUpdateRate(m_CreationOptions.UpdateRate);
+
 }
 
 void BenchmarkLayer::OnDetach()
@@ -299,16 +299,19 @@ void BenchmarkLayer::CaptureLastFramebuffer()
 {
     using namespace Roses;
     auto framebuffer = m_LastFrameBuffer;
-    auto readback = m_ReadbackBuffer;
+    auto width = framebuffer->ColorResource->GetWidth();
+    auto height = framebuffer->ColorResource->GetHeight();
+    auto readback = new ReadbackBuffer(width * height * 4 * sizeof(uint16_t));
     auto frameCounter = m_FrameCounter;
-    //std::string captureFolder = m_CaptureFolder;
+    m_CapturedFrames++;
+
+    CommandContext::ReadbackTexture2D(*readback, *framebuffer->ColorResource);
 
     std::shared_future<void> task = std::async(std::launch::async, [framebuffer, readback, this, frameCounter]()
     {
         auto width = framebuffer->ColorResource->GetWidth();
         auto height = framebuffer->ColorResource->GetHeight();
         
-        CommandContext::ReadbackTexture2D(*readback, *framebuffer->ColorResource);
 
         // 3 floats per pixel in hdr format
         float* data = new float[width * height * 3];
@@ -339,8 +342,8 @@ void BenchmarkLayer::CaptureLastFramebuffer()
 
 
         readback->Unmap();
+        readback->Release();
         delete[] data;
-        this->m_CapturedFrames++;
     });
 
     m_CaptureTasks.push_back(std::move(task));

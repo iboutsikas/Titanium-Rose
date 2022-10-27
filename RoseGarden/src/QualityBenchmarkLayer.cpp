@@ -61,7 +61,7 @@ QualityBenchmarkLayer::QualityBenchmarkLayer(CreationOptions& opts)
 
     AppendCapturePath(suffix);
 
-    D3D12Renderer::SetVCsync(false);
+    D3D12Renderer::SetVCsync(true);
 
     RabbitWaypoints[0].Next = &RabbitWaypoints[1];
     RabbitWaypoints[1].Next = &RabbitWaypoints[0];

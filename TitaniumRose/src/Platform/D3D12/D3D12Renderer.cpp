@@ -20,13 +20,17 @@
 
 #include "WinPixEventRuntime/pix3.h"
 
+#include "d3d12.h"
+#if _DEBUG
+#include <dxgidebug.h>
+#endif
 // This is for the DirectX Agility SDK
 extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 4; }
 
 extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12\\"; }
 
 
-#define MAX_RESOURCES       2000
+#define MAX_RESOURCES       3000
 #define MAX_RENDERTARGETS   1500
 
 DECLARE_SHADER(ClearUAV);
@@ -357,9 +361,8 @@ namespace Roses {
 
 	void D3D12Renderer::ShadeDecoupled()
 	{
-		if (s_DecoupledOpaqueObjects.size() == 0)
+		if (s_DecoupledOpaqueObjects.empty())
 			return;
-
 
 		DecoupledRenderer* renderer = dynamic_cast<DecoupledRenderer*>(s_AvailableRenderers[RendererType_TextureSpace]);
 		CreateMissingVirtualTextures();
@@ -437,6 +440,19 @@ namespace Roses {
 		//ImGui::Text("Heap pages: %d", stats.size());
 
 		uint32_t level = 0;
+
+		uint32_t totalTiles = 0;
+		uint32_t usedTiles = 0;
+
+		for (auto& s : stats)
+		{
+		    totalTiles += s.MaxTiles;
+			usedTiles += (s.MaxTiles - s.FreeTiles);
+		}
+
+		const double totalUsedMemory = (static_cast<double>(usedTiles) * D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT) / 1e+6;
+		ImGui::Text("Tiles Used: %d/%d (%.2lf MB)", usedTiles, totalTiles, totalUsedMemory);
+
 
 		if (ImGui::TreeNode(&level, "Heap pages: %d", stats.size()))
 		{
@@ -973,6 +989,14 @@ namespace Roses {
 		{
 			delete r;
 		}
+
+#if 0
+		TComPtr<IDXGIDebug1> dxgiDebug;
+        if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgiDebug))))
+        {
+            dxgiDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_FLAGS(DXGI_DEBUG_RLO_SUMMARY | DXGI_DEBUG_RLO_IGNORE_INTERNAL));
+        }
+#endif
 	}
 
 	void D3D12Renderer::ReclaimDynamicDescriptors()

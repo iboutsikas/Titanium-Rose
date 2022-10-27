@@ -25,9 +25,10 @@ namespace Roses {
 			uint32_t Width;
 			uint32_t Height;
 			std::string Name;
+			bool UseFixedTime;
 		};
 
-		Application(const ApplicationOptions& opts = { 1280, 720, "Hazel Engine" });
+		Application(const ApplicationOptions& opts = { 1280, 720, "Hazel Engine", false });
 		virtual ~Application();
 
 		void Init();
@@ -48,6 +49,11 @@ namespace Roses {
 		void Run();
 		bool OnWindowClose(WindowCloseEvent& e);
 		bool OnWindowResize(WindowResizeEvent& e);
+
+	protected:
+
+		bool m_UseFixedTimestep;
+
 	private:
 		std::unique_ptr<Window> m_Window;
 		ImGuiLayer* m_ImGuiLayer;
@@ -60,6 +66,8 @@ namespace Roses {
 	private:
 		static Application* s_Instance;
 		friend int ::main(int argc, char** argv);
+
+
 	};
 
 	// To be defined in CLIENT

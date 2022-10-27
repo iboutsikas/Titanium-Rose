@@ -20,7 +20,8 @@ namespace Roses {
 
 	Application* Application::s_Instance = nullptr;
 
-	Application::Application(const ApplicationOptions& opts)
+	Application::Application(const ApplicationOptions& opts) :
+		m_UseFixedTimestep(opts.UseFixedTime)
 	{
 		HZ_PROFILE_FUNCTION();
 
@@ -165,8 +166,18 @@ namespace Roses {
 
 			m_Window->OnUpdate();
 
+
 			float time = (float)glfwGetTime();
-			m_TimeStep = /*FixedTime;*/ time - m_LastFrameTime;
+			// This is in seconds
+			float delta = time - m_LastFrameTime;
+			float fps = 1.0f / delta;
+
+			m_TimeStep = m_UseFixedTimestep ? FixedTime : delta;			
+			char title[256];
+			sprintf_s(title, sizeof(title), "Titanium Rose - %0.2f ms (%.2f FPS)", delta * 1000.0f, fps);
+
+			glfwSetWindowTitle((GLFWwindow*)(m_Window->GetNativeWindow()), title);
+
 			m_LastFrameTime = time;
 		}
 	}

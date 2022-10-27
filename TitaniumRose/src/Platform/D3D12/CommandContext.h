@@ -61,11 +61,15 @@ namespace Roses {
         CommandContext(D3D12_COMMAND_LIST_TYPE type);
         CommandContext(const CommandContext& other) = delete;
         CommandContext& operator=(const CommandContext& other) = delete;
+        
         void Reset();
+        void Invalidate();
 
     public:
-        CommandContext() = default;
+        CommandContext();
         ~CommandContext();
+
+        CommandContext& operator=(CommandContext&& other);
 
         uint64_t Flush(bool waitForCompletion = false);
         uint64_t Finish(bool waitForCompletion = false);
@@ -85,11 +89,16 @@ namespace Roses {
         static void InitializeTexture(GpuResource& destination, uint32_t numSubresources, D3D12_SUBRESOURCE_DATA subData[]);
         static void InitializeBuffer(GpuResource& destination, const void* data, size_t sizeInBytes, size_t offset = 0);
         static void ReadbackTexture2D(GpuResource& readbackBuffer, Texture2D& texture);
+        static void ReadbackTexture2D(CommandContext& context, GpuResource& readbackBuffer, Texture2D& texture);
+
+
 
         void CopyBuffer(GpuResource& source, GpuResource& destination);
         void CopyBufferRegion(GpuResource& destination, size_t offset, GpuResource& source, size_t srcOffset, size_t sizeInBytes);
         void CopySubresource(GpuResource& destination, uint32_t destinationIndex, GpuResource& source, uint32_t sourceIndex);
         
+
+
         void WriteBuffer(GpuResource& destination, size_t offset, const void* data, size_t sizeInBytes);
 
         void FlushResourceBarriers();

@@ -60,10 +60,9 @@ namespace Roses {
                 m_CpuVirtualAddress = nullptr;
             }
 
+            inline D3D12_GPU_VIRTUAL_ADDRESS GetGPUAddress() const { return m_GpuVirtualAddress; }
+
             void* m_CpuVirtualAddress;
-            // We need to expose this to the allocator, as the one in GpuResource
-            // is private
-            D3D12_GPU_VIRTUAL_ADDRESS m_GpuVirtualAddress;
         };
 
         class LinearAllocatorPageManager {

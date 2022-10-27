@@ -46,6 +46,9 @@ namespace Roses
 
         size_t offset = GetAvailableDescirptorRange(numDescriptors);
 
+        if (offset == D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN)
+            __debugbreak();
+
         if (offset != D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN)
         {
             allocation.Allocated = true;
@@ -241,6 +244,9 @@ ret:
         {
             m_FreeDescriptors.erase(r);
         }
+
+        if (offset == D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN)
+            __debugbreak();
 
         return offset;
     }

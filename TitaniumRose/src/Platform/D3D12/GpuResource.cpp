@@ -79,6 +79,11 @@ namespace Roses
         m_GpuVirtualAddress = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
     }
 
+    void GpuResource::Release()
+    {
+        D3D12::ThrowIfFailed(m_Resource->Release());
+    }
+
 
     void GpuResource::SetName(std::string name)
     {
